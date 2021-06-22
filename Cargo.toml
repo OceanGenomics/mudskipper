@@ -1,0 +1,13 @@
+[package]
+name = "mudskipper"
+version = "0.1.0"
+authors = ["mohsen"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# noodles = { git = "https://github.com/zaeleus/noodles.git", features = ["bam", "gff"] }
+# rust-htslib = "*"
+bio = "*"

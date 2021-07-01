@@ -1,6 +1,13 @@
+use std::error::Error;
 use bio::io::gff;
+use coitrees::{COITree, IntervalNode, SortedQuerent};
 
-pub fn read(ann_file_adr: String) {
+extern crate fnv;
+use fnv::FnvHashMap;
+
+type GenericError = Box<dyn Error>;
+
+pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, GenericError > {
     let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
     println!("{}", file_type);
@@ -8,12 +15,84 @@ pub fn read(ann_file_adr: String) {
                                  else { if file_type == "gff3" { gff::GffType::GFF3 }
                                         else { gff::GffType::GFF2 } };
 
-    let reader = gff::Reader::from_file(ann_file_adr, ann_type);
+    return Ok(gff::Reader::from_file(ann_file_adr, ann_type).expect("Error reading file."))
+}
+
+pub struct exon_node {
+    // transcript: &str,
+    start: i32,
+    end: i32
+}
+
+impl Copy for exon_node {
+
+}
+
+impl Clone for exon_node {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+pub fn build_tree(ann_file_adr: &String) 
+    -> Result<FnvHashMap<String, COITree<exon_node, u32>>, GenericError> {
+
+    let mut nodes = FnvHashMap::<String, Vec<IntervalNode<exon_node, u32>>>::default();
+
+    let reader = read(ann_file_adr);
     let mut n: i32 = 0;
     for record in reader.expect("Error reading file.").records() {
         let rec = record.ok().expect("Error reading record.");
-        n += 1;
-        print!("\r{} {:?}", n, rec.seqname());
+        if rec.feature_type() == "exon" {
+            n += 1;
+            print!("\r{}\t{:?}", n, rec.feature_type());
+            let seqname = rec.seqname().to_string();
+            let exon_start = *rec.start() as i32;
+            let exon_end = *rec.end() as i32;
+            // let tname = "Test";//*rec.transcript_id();
+            let exon: exon_node = exon_node{start: exon_start, end: exon_end};
+            let node_arr = if let Some(node_arr) = nodes.get_mut(&seqname[..]) {
+                node_arr
+            } else {
+                nodes.entry(seqname).or_insert(Vec::new())
+            };
+            node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
+        }
+        if n > 100 {
+            break;
+        }
     }
     println!("\nn: {}", n);
+    let mut trees = FnvHashMap::<String, COITree<exon_node, u32>>::default();
+    for (seqname, seqname_nodes) in nodes {
+        trees.insert(seqname, COITree::new(seqname_nodes));
+    }
+    return Ok(trees);
+}
+
+pub fn test_tree(ann_file_adr: &String, trees: FnvHashMap::<String, COITree<exon_node, u32>>) {
+    let reader = read(ann_file_adr);
+    let mut n: i32 = 0;
+    for record in reader.expect("Error reading file.").records() {
+        let rec = record.ok().expect("Error reading record.");
+        let seqname = rec.seqname().to_string();
+        if rec.feature_type() == "exon" {
+            n += 1;
+            let exon_start = *rec.start() as i32;
+            let exon_end = *rec.end() as i32;
+            if let Some(seqname_tree) = trees.get(&seqname) {
+                let countcov = seqname_tree.coverage(exon_start, exon_end);
+                let count = countcov.0;
+                let cov = countcov.1;
+                if count == 0 || cov == 0 {
+                    println!("Error happend!")
+                } else {
+                    // println!("{} {}", count, cov);
+                }
+            } 
+        }
+        if n > 100 {
+            break;
+        }
+    }
 }

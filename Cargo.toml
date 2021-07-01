@@ -11,3 +11,8 @@ edition = "2018"
 # noodles = { git = "https://github.com/zaeleus/noodles.git", features = ["bam", "gff"] }
 # rust-htslib = "*"
 bio = "*"
+
+coitrees = "*"
+
+# for coitrees
+fnv = "1.0.3"

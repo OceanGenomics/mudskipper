@@ -1,3 +1,4 @@
+use std::time::Instant;
 use std::error::Error;
 use bio::io::gff;
 use coitrees::{COITree, IntervalNode, SortedQuerent};
@@ -19,18 +20,19 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
 }
 
 pub struct exon_node {
-    // transcript: &str,
+    // transcript: String,
     start: i32,
     end: i32
 }
 
-impl Copy for exon_node {
+/*impl Copy for exon_node {
 
-}
+}*/
 
 impl Clone for exon_node {
     fn clone(&self) -> Self {
-        *self
+        let new_exon: exon_node = exon_node{start: self.start, end: self.end};
+        return new_exon;
     }
 }
 
@@ -38,7 +40,7 @@ pub fn build_tree(ann_file_adr: &String)
     -> Result<FnvHashMap<String, COITree<exon_node, u32>>, GenericError> {
 
     let mut nodes = FnvHashMap::<String, Vec<IntervalNode<exon_node, u32>>>::default();
-
+    let a = Instant::now();
     let reader = read(ann_file_adr);
     let mut n: i32 = 0;
     for record in reader.expect("Error reading file.").records() {
@@ -59,7 +61,7 @@ pub fn build_tree(ann_file_adr: &String)
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
         }
         if n > 100 {
-            break;
+        //    break;
         }
     }
     println!("\nn: {}", n);
@@ -67,12 +69,15 @@ pub fn build_tree(ann_file_adr: &String)
     for (seqname, seqname_nodes) in nodes {
         trees.insert(seqname, COITree::new(seqname_nodes));
     }
+    let b = Instant::now();
+    println!("Time to build: {:?}", b-a);
     return Ok(trees);
 }
 
 pub fn test_tree(ann_file_adr: &String, trees: FnvHashMap::<String, COITree<exon_node, u32>>) {
     let reader = read(ann_file_adr);
     let mut n: i32 = 0;
+    let a = Instant::now();
     for record in reader.expect("Error reading file.").records() {
         let rec = record.ok().expect("Error reading record.");
         let seqname = rec.seqname().to_string();
@@ -92,7 +97,9 @@ pub fn test_tree(ann_file_adr: &String, trees: FnvHashMap::<String, COITree<exon
             } 
         }
         if n > 100 {
-            break;
+        //    break;
         }
     }
+    let b = Instant::now();
+    println!("Time to query: {:?}", b-a);
 }

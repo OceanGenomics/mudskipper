@@ -2,6 +2,9 @@ use std::time::Instant;
 use std::error::Error;
 use bio::io::gff;
 use coitrees::{COITree, IntervalNode, SortedQuerent};
+use std::collections::HashMap;
+use std::collections::LinkedList;
+use std::vec::Vec;
 
 extern crate fnv;
 use fnv::FnvHashMap;
@@ -36,13 +39,17 @@ impl Clone for exon_node {
     }
 }
 
-pub fn build_tree(ann_file_adr: &String) 
+pub fn build_tree(ann_file_adr: &String, 
+                transcripts_map: &mut HashMap<String, i32>,
+                transcripts: &mut LinkedList<String>,
+                txp_lengths: &mut Vec<i32>) 
     -> Result<FnvHashMap<String, COITree<exon_node, u32>>, GenericError> {
-
+    
     let mut nodes = FnvHashMap::<String, Vec<IntervalNode<exon_node, u32>>>::default();
     let a = Instant::now();
     let reader = read(ann_file_adr);
     let mut n: i32 = 0;
+    let mut tid: i32 = 0;
     for record in reader.expect("Error reading file.").records() {
         let rec = record.ok().expect("Error reading record.");
         if rec.feature_type() == "exon" {
@@ -51,7 +58,22 @@ pub fn build_tree(ann_file_adr: &String)
             let seqname = rec.seqname().to_string();
             let exon_start = *rec.start() as i32;
             let exon_end = *rec.end() as i32;
-            // let tname = "Test";//*rec.transcript_id();
+            let exon_len = exon_end-exon_start+1;
+            let features = rec.attributes();
+            let tname_key : String = "transcript_id".to_string();
+            if features.contains_key(&tname_key) {
+                let tname = &features[&tname_key];
+                // println!("{}", tname);
+               if !transcripts_map.contains_key(&tname.to_string()) {
+                    transcripts_map.insert(tname.to_string(), tid);
+                    transcripts.push_back(tname.to_string());                    
+                    txp_lengths.push(exon_len);
+                    tid += 1;
+                } else {
+                    let _tid = transcripts_map[&tname.to_string()] as usize;
+                    txp_lengths[_tid] += exon_len;
+                }
+            }   
             let exon: exon_node = exon_node{start: exon_start, end: exon_end};
             let node_arr = if let Some(node_arr) = nodes.get_mut(&seqname[..]) {
                 node_arr
@@ -60,8 +82,8 @@ pub fn build_tree(ann_file_adr: &String)
             };
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
         }
-        if n > 100 {
-        //    break;
+        if n > 1000 {
+            break;
         }
     }
     println!("\nn: {}", n);

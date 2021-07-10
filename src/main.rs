@@ -8,6 +8,7 @@ extern crate fnv;
 use fnv::FnvHashMap;
 
 mod annotations;
+mod intersection;
 mod bam;
 
 fn main() {
@@ -18,5 +19,5 @@ fn main() {
     let trees = annotations::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut tx_lengths);
     // annotations::test_tree(&ann_file_adr, trees.expect("cannot build the tree!"));
     let bam_file_adr: String = env::args().nth(2).expect("missing src");
-    bam::read_bamfile(&bam_file_adr, &transcripts_map, &transcripts, &tx_lengths);
+    bam::read_bamfile(&bam_file_adr, &transcripts_map, &transcripts, &tx_lengths, &trees.expect("cannot build the tree!"));
 }

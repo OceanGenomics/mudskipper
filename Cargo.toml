@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 
 # noodles = { git = "https://github.com/zaeleus/noodles.git", features = ["bam", "gff"] }
-# rust-htslib = "*"
+rust-htslib = "*"
 bio = "*"
 
 coitrees = "*"

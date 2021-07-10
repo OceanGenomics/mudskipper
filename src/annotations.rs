@@ -4,7 +4,6 @@ use bio::io::gff;
 use coitrees::{COITree, IntervalNode, SortedQuerent};
 use std::collections::HashMap;
 use std::collections::LinkedList;
-use std::vec::Vec;
 
 extern crate fnv;
 use fnv::FnvHashMap;
@@ -25,7 +24,8 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
 pub struct exon_node {
     // transcript: String,
     start: i32,
-    end: i32
+    end: i32,
+    tid: i32
 }
 
 /*impl Copy for exon_node {
@@ -34,7 +34,9 @@ pub struct exon_node {
 
 impl Clone for exon_node {
     fn clone(&self) -> Self {
-        let new_exon: exon_node = exon_node{start: self.start, end: self.end};
+        let new_exon: exon_node = exon_node{start: self.start, 
+                                            end: self.end,
+                                            tid: self.tid};
         return new_exon;
     }
 }
@@ -54,15 +56,15 @@ pub fn build_tree(ann_file_adr: &String,
         let rec = record.ok().expect("Error reading record.");
         if rec.feature_type() == "exon" {
             n += 1;
-            print!("\r{}\t{:?}", n, rec.feature_type());
             let seqname = rec.seqname().to_string();
+            print!("\r{}\t{:?}\t{:?}", n, rec.feature_type(), seqname);
             let exon_start = *rec.start() as i32;
             let exon_end = *rec.end() as i32;
             let exon_len = exon_end-exon_start+1;
             let features = rec.attributes();
             let tname_key : String = "transcript_id".to_string();
-            if features.contains_key(&tname_key) {
-                let tname = &features[&tname_key];
+            let tname = &features[&tname_key];
+            if features.contains_key(&tname_key) {                
                 // println!("{}", tname);
                if !transcripts_map.contains_key(&tname.to_string()) {
                     transcripts_map.insert(tname.to_string(), tid);
@@ -74,7 +76,9 @@ pub fn build_tree(ann_file_adr: &String,
                     txp_lengths[_tid] += exon_len;
                 }
             }   
-            let exon: exon_node = exon_node{start: exon_start, end: exon_end};
+            let exon: exon_node = exon_node{start: exon_start,
+                                            end: exon_end,
+                                            tid: transcripts_map[&tname.to_string()]};
             let node_arr = if let Some(node_arr) = nodes.get_mut(&seqname[..]) {
                 node_arr
             } else {
@@ -82,7 +86,7 @@ pub fn build_tree(ann_file_adr: &String,
             };
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
         }
-        if n > 1000 {
+        if n > 100 {
             break;
         }
     }
@@ -116,7 +120,7 @@ pub fn test_tree(ann_file_adr: &String, trees: FnvHashMap::<String, COITree<exon
                 } else {
                     // println!("{} {}", count, cov);
                 }
-            } 
+            }
         }
         if n > 100 {
         //    break;

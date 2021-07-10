@@ -1,7 +1,6 @@
 use rust_htslib::bam::record;
 use coitrees::{COITree, IntervalNode, SortedQuerent};
 use std::collections::HashMap;
-use std::collections::LinkedList;
 use std::error::Error;
 
 extern crate fnv;
@@ -13,13 +12,18 @@ use annotations::exon_node;
 type GenericError = Box<dyn Error>;
 
 pub fn find_tid(tree: &COITree<exon_node, u32>, ranges: &Vec<(i32, i32)>) -> i32 {
+    let mut tid = -1;
     for range in ranges {
         let res = tree.coverage(range.0, range.1);
         if res.0 != 0 || res.1 != 0 {
+            tree.query(range.0, range.1, |node| {
+               println!("query for {} {}:{}",range.0, range.1, node.metadata);
+               tid = node.metadata.tid;
+            });
             println!("found coverage: {:?}", res)
         }
     }
-    return 0;
+    return tid;
 }
 
 pub fn find_ranges(read_pos: &i32, cigar_len: &i32, cigar: record::CigarStringView) -> Vec<(i32, i32)> {

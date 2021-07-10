@@ -3,7 +3,7 @@ use std::error::Error;
 use bio::io::gff;
 use coitrees::{COITree, IntervalNode, SortedQuerent};
 use std::collections::HashMap;
-use std::collections::LinkedList;
+// use std::collections::LinkedList;
 
 extern crate fnv;
 use fnv::FnvHashMap;
@@ -25,7 +25,13 @@ pub struct exon_node {
     // transcript: String,
     start: i32,
     end: i32,
-    tid: i32
+    pub tid: i32
+}
+
+impl std::fmt::Display for exon_node {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "(start: {}, end : {}, tid : {})", self.start, self.end, self.tid)
+    }
 }
 
 /*impl Copy for exon_node {
@@ -43,7 +49,7 @@ impl Clone for exon_node {
 
 pub fn build_tree(ann_file_adr: &String, 
                 transcripts_map: &mut HashMap<String, i32>,
-                transcripts: &mut LinkedList<String>,
+                transcripts: &mut Vec<String>,
                 txp_lengths: &mut Vec<i32>) 
     -> Result<FnvHashMap<String, COITree<exon_node, u32>>, GenericError> {
     
@@ -68,7 +74,7 @@ pub fn build_tree(ann_file_adr: &String,
                 // println!("{}", tname);
                if !transcripts_map.contains_key(&tname.to_string()) {
                     transcripts_map.insert(tname.to_string(), tid);
-                    transcripts.push_back(tname.to_string());                    
+                    transcripts.push(tname.to_string());                    
                     txp_lengths.push(exon_len);
                     tid += 1;
                 } else {

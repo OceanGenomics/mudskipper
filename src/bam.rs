@@ -48,9 +48,13 @@ pub fn read_bamfile(input_bam_filename: &String,
         let ranges = intersection::find_ranges(&(record.pos() as i32), &(record.cigar_len() as i32), record.cigar());
         let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
         if let Some(tree) = trees.get(&genome_tname) {
-            let tid = intersection::find_tid(&tree, &ranges);
-            if tid != -1 {
-                println!("\n {} {} {} {} {:?}\n", record.pos(), record.cigar(), genome_tname, tid, transcripts[tid as usize]);
+            let tids = intersection::find_tid(&tree, &ranges);
+            if tids.len() > 0 {
+                println!("\n {} {} {:?}\n", record.pos(), record.cigar(), genome_tname);
+                for tid in tids.iter() {
+                    println!("{} {}", tid, transcripts[*tid as usize]);
+                }
+                println!("done!");
             }
             // record.set_tid(tid);
         }
@@ -58,7 +62,7 @@ pub fn read_bamfile(input_bam_filename: &String,
         if counter > 1000 {
             // break;
         }
-        print!("\r{}", counter);
+        // print!("\r{}", counter);
         counter += 1;
     }
 }

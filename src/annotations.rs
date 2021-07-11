@@ -92,7 +92,7 @@ pub fn build_tree(ann_file_adr: &String,
             };
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
         }
-        if n > 100 {
+        if n > 1000 {
             break;
         }
     }

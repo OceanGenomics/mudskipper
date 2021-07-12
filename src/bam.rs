@@ -1,11 +1,11 @@
-use coitrees::{COITree, IntervalNode, SortedQuerent};
+use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
 
-use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, HeaderView};
-use std::collections::HashMap;
+use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header}; //, HeaderView};
+// use std::collections::HashMap;
 // use std::collections::LinkedList;
 
 use crate::annotations;
-use annotations::exon_node;
+use annotations::ExonNode;
 
 use crate::intersection;
 
@@ -15,10 +15,10 @@ use fnv::FnvHashMap;
 
 
 pub fn read_bamfile(input_bam_filename: &String, 
-                    transcripts_map: &HashMap<String, i32>,
+                    // transcripts_map: &HashMap<String, i32>,
                     transcripts: &Vec<String>,
                     txp_lengths: &Vec<i32>,
-                    trees: &FnvHashMap::<String, COITree<exon_node, u32>>) {
+                    trees: &FnvHashMap::<String, COITree<ExonNode, u32>>) {
     let mut input_bam = Reader::from_path(input_bam_filename).unwrap();
     // let header_ = Header::from_template(input_bam.header());
     let input_bam2 = Reader::from_path(input_bam_filename).unwrap();
@@ -42,10 +42,9 @@ pub fn read_bamfile(input_bam_filename: &String,
     // input_bam.set_threads(2).expect("Failed to set number of BAM reading threads to 2.");
     // output_bam.set_threads(5).expect("Failed to set number of BAM writing threads to 4.");
 
-    counter = 0;
     for r in x {
-        let mut record = r.unwrap();
-        let ranges = intersection::find_ranges(&(record.pos() as i32), &(record.cigar_len() as i32), record.cigar());
+        let record = r.unwrap();
+        let ranges = intersection::find_ranges(&(record.pos() as i32), record.cigar());
         let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
         if let Some(tree) = trees.get(&genome_tname) {
             let tids = intersection::find_tid(&tree, &ranges);
@@ -59,10 +58,5 @@ pub fn read_bamfile(input_bam_filename: &String,
             // record.set_tid(tid);
         }
         output_bam.write(&record).unwrap();
-        if counter > 1000 {
-            // break;
-        }
-        // print!("\r{}", counter);
-        counter += 1;
     }
 }

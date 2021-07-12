@@ -1,7 +1,7 @@
 use std::time::Instant;
 use std::error::Error;
 use bio::io::gff;
-use coitrees::{COITree, IntervalNode, SortedQuerent};
+use coitrees::{COITree, IntervalNode}; //, SortedQuerent};
 use std::collections::HashMap;
 // use std::collections::LinkedList;
 
@@ -21,26 +21,26 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
     return Ok(gff::Reader::from_file(ann_file_adr, ann_type).expect("Error reading file."))
 }
 
-pub struct exon_node {
+pub struct ExonNode {
     // transcript: String,
     start: i32,
     end: i32,
     pub tid: i32
 }
 
-impl std::fmt::Display for exon_node {
+impl std::fmt::Display for ExonNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(start: {}, end : {}, tid : {})", self.start, self.end, self.tid)
     }
 }
 
-/*impl Copy for exon_node {
+/*impl Copy for ExonNode {
 
 }*/
 
-impl Clone for exon_node {
+impl Clone for ExonNode {
     fn clone(&self) -> Self {
-        let new_exon: exon_node = exon_node{start: self.start, 
+        let new_exon: ExonNode = ExonNode{start: self.start, 
                                             end: self.end,
                                             tid: self.tid};
         return new_exon;
@@ -51,9 +51,9 @@ pub fn build_tree(ann_file_adr: &String,
                 transcripts_map: &mut HashMap<String, i32>,
                 transcripts: &mut Vec<String>,
                 txp_lengths: &mut Vec<i32>) 
-    -> Result<FnvHashMap<String, COITree<exon_node, u32>>, GenericError> {
+    -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, GenericError> {
     
-    let mut nodes = FnvHashMap::<String, Vec<IntervalNode<exon_node, u32>>>::default();
+    let mut nodes = FnvHashMap::<String, Vec<IntervalNode<ExonNode, u32>>>::default();
     let a = Instant::now();
     let reader = read(ann_file_adr);
     let mut n: i32 = 0;
@@ -82,7 +82,7 @@ pub fn build_tree(ann_file_adr: &String,
                     txp_lengths[_tid] += exon_len;
                 }
             }   
-            let exon: exon_node = exon_node{start: exon_start,
+            let exon: ExonNode = ExonNode{start: exon_start,
                                             end: exon_end,
                                             tid: transcripts_map[&tname.to_string()]};
             let node_arr = if let Some(node_arr) = nodes.get_mut(&seqname[..]) {
@@ -97,7 +97,7 @@ pub fn build_tree(ann_file_adr: &String,
         }
     }
     println!("\nn: {}", n);
-    let mut trees = FnvHashMap::<String, COITree<exon_node, u32>>::default();
+    let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();
     for (seqname, seqname_nodes) in nodes {
         trees.insert(seqname, COITree::new(seqname_nodes));
     }
@@ -106,7 +106,7 @@ pub fn build_tree(ann_file_adr: &String,
     return Ok(trees);
 }
 
-pub fn test_tree(ann_file_adr: &String, trees: FnvHashMap::<String, COITree<exon_node, u32>>) {
+pub fn test_tree(ann_file_adr: &String, trees: &FnvHashMap::<String, COITree<ExonNode, u32>>) {
     let reader = read(ann_file_adr);
     let mut n: i32 = 0;
     let a = Instant::now();

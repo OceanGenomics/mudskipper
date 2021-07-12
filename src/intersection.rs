@@ -1,17 +1,17 @@
 use rust_htslib::bam::record;
-use coitrees::{COITree, IntervalNode, SortedQuerent};
-use std::collections::{HashMap, HashSet};
-use std::error::Error;
+use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
+use std::collections::HashSet;
+// use std::error::Error;
 
-extern crate fnv;
-use fnv::FnvHashMap;
+// extern crate fnv;
+// use fnv::FnvHashMap;
 
 use crate::annotations;
-use annotations::exon_node;
+use annotations::ExonNode;
 
-type GenericError = Box<dyn Error>;
+// type GenericError = Box<dyn Error>;
 
-pub fn find_tid(tree: &COITree<exon_node, u32>, ranges: &Vec<(i32, i32)>) -> Vec<i32> {
+pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Vec<i32> {
     let mut tids: Vec<i32> = Vec::new();
     let mut tids_set: HashSet<i32> = HashSet::new();
     let mut first = true;
@@ -38,7 +38,7 @@ pub fn find_tid(tree: &COITree<exon_node, u32>, ranges: &Vec<(i32, i32)>) -> Vec
     return tids;
 }
 
-pub fn find_ranges(read_pos: &i32, cigar_len: &i32, cigar: record::CigarStringView) -> Vec<(i32, i32)> {
+pub fn find_ranges(read_pos: &i32, cigar: record::CigarStringView) -> Vec<(i32, i32)> {
     let mut ranges = Vec::new();
     let mut curr_range: (i32, i32) = (-1, -1);
     let mut end_range: bool = true;

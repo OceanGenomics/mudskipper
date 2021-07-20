@@ -1,6 +1,6 @@
 use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
 
-use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record}; //, HeaderView};
+use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record, Record}; //, HeaderView};
 // use std::collections::HashMap;
 // use std::collections::LinkedList;
 
@@ -46,9 +46,8 @@ pub fn read_bamfile(input_bam_filename: &String,
     let mut first_in_pair = true;
     let mut first_record : record::Record = record::Record::new();
     let mut new_cigar : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
-    let mut new_cigar1 : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
-    let mut new_cigar2 : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
-    for rec in bam_records {
+    let mut first_new_cigar : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
+        for rec in bam_records {
         n = n + 1;
         let mut record = rec.unwrap();
         if !record.is_paired() {
@@ -63,8 +62,13 @@ pub fn read_bamfile(input_bam_filename: &String,
                         // println!("{} {}", tid, transcripts[*tid as usize]);
                         // println!("{}", tid);
 
-                        record.set_tid(*tid);
-                        output_bam.write(&record).unwrap();
+                        let mut record_ = record.clone(); //Record::new();
+                        record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
+                        record_.set_tid(*tid);
+                        // record_.set_pos();
+                        // record_.set_mpos();
+
+                        output_bam.write(&record_).unwrap();   
                     }
                     // println!("done!");
                 } else {
@@ -82,12 +86,12 @@ pub fn read_bamfile(input_bam_filename: &String,
                 first_record = record;
             } else {
                 first_in_pair = true;
-                let ranges = intersection::find_ranges_paired(&(record.pos() as i32), 
-                                                              &record.cigar(), 
-                                                              &mut new_cigar1,
-                                                              &(first_record.pos() as i32), 
+                let ranges = intersection::find_ranges_paired(&(first_record.pos() as i32), 
                                                               &first_record.cigar(),
-                                                              &mut new_cigar2);
+                                                              &mut first_new_cigar,
+                                                              &(record.pos() as i32), 
+                                                              &record.cigar(), 
+                                                              &mut new_cigar);
                 let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
                 if let Some(tree) = trees.get(&genome_tname) {
                     let tids = intersection::find_tid(&tree, &ranges);
@@ -98,11 +102,21 @@ pub fn read_bamfile(input_bam_filename: &String,
                             // println!("{} {}", tid, transcripts[*tid as usize]);
                             // println!("{}", tid);
 
-                            first_record.set_tid(*tid);
-                            output_bam.write(&first_record).unwrap();
+                            let mut first_record_ = first_record.clone(); //Record::new();
+                            first_record_.set(first_record.qname(), Some(&first_new_cigar), &first_record.seq().as_bytes(), first_record.qual());
+                            first_record_.set_tid(*tid);
+                            // first_record_.set_pos();
+                            // first_record_.set_mpos();
+                            
+                            output_bam.write(&first_record_).unwrap();
 
-                            record.set_tid(*tid);
-                            output_bam.write(&record).unwrap();                            
+                            let mut second_record_ = record.clone(); //Record::new();
+                            second_record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
+                            second_record_.set_tid(*tid);
+                            // second_record_.set_pos();
+                            // second_record_.set_mpos();
+
+                            output_bam.write(&second_record_).unwrap();                            
                         }
                         // println!("done!");
                     } else {

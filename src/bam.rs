@@ -1,6 +1,6 @@
 use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
 
-use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record, Record}; //, HeaderView};
+use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record}; //, HeaderView};
 // use std::collections::HashMap;
 // use std::collections::LinkedList;
 
@@ -49,7 +49,7 @@ pub fn read_bamfile(input_bam_filename: &String,
     let mut first_new_cigar : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
         for rec in bam_records {
         n = n + 1;
-        let mut record = rec.unwrap();
+        let record = rec.unwrap();
         if !record.is_paired() {
             let ranges = intersection::find_ranges_single(&(record.pos() as i32), &record.cigar(), &mut new_cigar);
             let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");

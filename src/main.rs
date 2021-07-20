@@ -1,6 +1,6 @@
 extern crate clap;
 
-use clap::{crate_authors, crate_version, App, AppSettings, Arg, ArgSettings};
+use clap::{crate_authors, crate_version, App, AppSettings, Arg};
 use std::collections::HashMap;
 use std::env;
 
@@ -34,9 +34,6 @@ fn main() {
         let bam_file_in: String = t.value_of_t("bam").unwrap();
         let ann_file_adr: String = t.value_of_t("gtf").unwrap();
         let bam_file_out: String = t.value_of_t("out").unwrap();
-        //libradicl::convert::bam2bam(input_file, rad_file, num_threads, &log)
-
-        //let ann_file_adr: String = env::args().nth(1).expect("missing src");
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
@@ -44,8 +41,6 @@ fn main() {
                                             &mut transcripts_map,
                                             &mut transcripts,
                                             &mut txp_lengths).expect("cannot build the tree!");
-        //let bam_file_in: String = env::args().nth(2).expect("missing src");
-        //let bam_file_out: String = env::args().nth(3).expect("missing src");
         bam::read_bamfile(&bam_file_in, &bam_file_out, &transcripts, &txp_lengths, &trees);
     }
 }

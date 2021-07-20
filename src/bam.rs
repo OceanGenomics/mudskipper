@@ -58,15 +58,14 @@ pub fn read_bamfile(input_bam_filename: &String,
                 // println!("here is reached. {}", tids.len());
                 if tids.len() > 0 {
                     // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
-                    for tid in tids.iter() {
+                    for (tid, pos) in tids.iter() {
                         // println!("{} {}", tid, transcripts[*tid as usize]);
                         // println!("{}", tid);
 
                         let mut record_ = record.clone(); //Record::new();
                         record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
                         record_.set_tid(*tid);
-                        // record_.set_pos();
-                        // record_.set_mpos();
+                        record_.set_pos(record.pos() - (*pos as i64));
 
                         output_bam.write(&record_).unwrap();   
                     }
@@ -98,13 +97,14 @@ pub fn read_bamfile(input_bam_filename: &String,
                     // println!("here is reached. {}", tids.len());
                     if tids.len() > 0 {
                         // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
-                        for tid in tids.iter() {
+                        for (tid, pos) in tids.iter() {
                             // println!("{} {}", tid, transcripts[*tid as usize]);
                             // println!("{}", tid);
 
                             let mut first_record_ = first_record.clone(); //Record::new();
                             first_record_.set(first_record.qname(), Some(&first_new_cigar), &first_record.seq().as_bytes(), first_record.qual());
                             first_record_.set_tid(*tid);
+                            first_record_.set_pos(first_record.pos() - (*pos as i64));
                             // first_record_.set_pos();
                             // first_record_.set_mpos();
                             

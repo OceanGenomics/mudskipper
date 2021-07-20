@@ -23,14 +23,15 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
 
 pub struct ExonNode {
     // transcript: String,
-    start: i32,
+    pub start: i32,
     end: i32,
-    pub tid: i32
+    pub tid: i32,
+    pub tpos_start: i32
 }
 
 impl std::fmt::Display for ExonNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(start: {}, end : {}, tid : {})", self.start, self.end, self.tid)
+        write!(f, "(start: {}, end : {}, tid : {}, tpos: {})", self.start, self.end, self.tid, self.tpos_start)
     }
 }
 
@@ -38,7 +39,8 @@ impl Clone for ExonNode {
     fn clone(&self) -> Self {
         let new_exon: ExonNode = ExonNode{start: self.start, 
                                             end: self.end,
-                                            tid: self.tid};
+                                            tid: self.tid,
+                                            tpos_start: self.tpos_start};
         return new_exon;
     }
 }
@@ -53,11 +55,15 @@ pub fn build_tree(ann_file_adr: &String,
     let a = Instant::now();
     let reader = read(ann_file_adr);
     let mut tid: i32 = 0;
+    let mut tpos: i32 = 0;
     for record in reader.expect("Error reading file.").records() {
         let rec = record.ok().expect("Error reading record.");
         let features = rec.attributes();
         let tname_key : String = "transcript_id".to_string();
         if rec.feature_type() == "exon" && features.contains_key(&tname_key) {
+            if features["exon_number"] == "1" {
+                tpos = 0;
+            }
             let seqname = rec.seqname().to_string();
             print!("\r{:?}\t{:?}", rec.feature_type(), seqname);
             let exon_start = *rec.start() as i32;
@@ -80,13 +86,17 @@ pub fn build_tree(ann_file_adr: &String,
             }
             let exon: ExonNode = ExonNode{start: exon_start,
                                             end: exon_end,
-                                            tid: transcripts_map[&tname.to_string()]};
+                                            tid: transcripts_map[&tname.to_string()],
+                                            tpos_start: tpos};
             let node_arr = if let Some(node_arr) = nodes.get_mut(&seqname[..]) {
                 node_arr
             } else {
                 nodes.entry(seqname).or_insert(Vec::new())
             };
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
+
+            // Update the tpos for the next exon
+            tpos += exon_len;           
         }
     }
 

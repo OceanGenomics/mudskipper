@@ -1,6 +1,6 @@
 use rust_htslib::bam::record;
 use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 // use std::error::Error;
 
 // extern crate fnv;
@@ -11,9 +11,10 @@ use annotations::ExonNode;
 
 // type GenericError = Box<dyn Error>;
 
-pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Vec<i32> {
-    let mut tids: Vec<i32> = Vec::new();
+pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashMap<i32, i32> {
+    let mut tids: HashMap<i32, i32> = HashMap::new();
     let mut tids_set: HashSet<i32> = HashSet::new();
+    let mut tid_pos: HashMap<i32, i32> = HashMap::new();
     let mut first = true;
     for range in ranges {
         let res = tree.coverage(range.0, range.1);
@@ -21,8 +22,11 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Vec<
         // println!("{} {}", res.0, res.1);
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
-               // println!("query for {} {}:{}",range.0, range.1, node.metadata);
-               curr_tids.insert(node.metadata.tid);
+                // println!("query for {} {}:{}",range.0, range.1, node.metadata);
+                curr_tids.insert(node.metadata.tid);
+                if first {
+                    tid_pos.insert(node.metadata.tid, node.metadata.start - node.metadata.tpos_start);
+                }
             });
             if first {
                 tids_set = curr_tids;
@@ -34,7 +38,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Vec<
         }
     }
     for tid in tids_set {
-        tids.push(tid);
+        tids.insert(tid, tid_pos[&tid]);
     }
     return tids;
 }

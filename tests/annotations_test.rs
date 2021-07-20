@@ -1,16 +1,10 @@
 // #![deny(warnings)]
 // #[macro_use]
+
 extern crate mudskipper;
 use mudskipper::annotations;
 
-//use std::time::Instant;
-// use std::error::Error;
-// use bio::io::gff;
-// [pWQuse coitrees::{COITree, IntervalNode, SortedQuerent};
 use std::collections::HashMap;
-
-// extern crate fnv;
-// use fnv::FnvHashMap;
 
 #[test]
 fn test_gtf_read() {
@@ -38,7 +32,7 @@ pub fn test_tree() {
                                         &mut transcripts,
                                         &mut tx_lengths).expect("cannot build the tree!");
 
-    let query_file_adr = "tests/NC_007112.7.gff".to_string();
+    let query_file_adr = "tests/NC_0071 12.7.gff".to_string();
     let reader = annotations::read(&query_file_adr);
     assert!(reader.is_ok());
     let mut failed_count = 0;
@@ -53,8 +47,7 @@ pub fn test_tree() {
                 let count = countcov.0;
                 let cov = countcov.1;
                 if count == 0 || cov == 0 {
-                    failed_count = failed_count + 1;
-                    // assert!(false, "Exon not found in the tree! {} {}", exon_start, exon_end);
+                    failed_count = failed_count + 1;                   
                 }
             }
         }

@@ -15,7 +15,7 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
     println!("{}", file_type);
     let ann_type: gff::GffType = if file_type == "gtf" { gff::GffType::GTF2 } 
-                                 else { if file_type == "gff3" { gff::GffType::GFF3 }
+                                 else { if file_type == "gff3" || file_type == "gff" { gff::GffType::GFF3 }
                                         else { gff::GffType::GFF2 } };
 
     return Ok(gff::Reader::from_file(ann_file_adr, ann_type).expect("Error in reading annotation file."));
@@ -33,10 +33,6 @@ impl std::fmt::Display for ExonNode {
         write!(f, "(start: {}, end : {}, tid : {})", self.start, self.end, self.tid)
     }
 }
-
-/*impl Copy for ExonNode {
-
-}*/
 
 impl Clone for ExonNode {
     fn clone(&self) -> Self {
@@ -68,10 +64,8 @@ pub fn build_tree(ann_file_adr: &String,
             let exon_end = *rec.end() as i32;
             let exon_len = exon_end-exon_start+1;
             let features = rec.attributes();
-            //println!("wow: {}", features.iter().next().unwrap().0);//.len());
             let tname = &features[&tname_key];
             if features.contains_key(&tname_key) {                
-                // println!("{}", tname);
                if !transcripts_map.contains_key(&tname.to_string()) {
                     transcripts_map.insert(tname.to_string(), tid);
                     transcripts.push(tname.to_string());                    
@@ -95,8 +89,11 @@ pub fn build_tree(ann_file_adr: &String,
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
         }
     }
-    let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();
+
+    println!("building the tree");
+    let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();    
     for (seqname, seqname_nodes) in nodes {
+        print!("\r{:?}", seqname);
         trees.insert(seqname, COITree::new(seqname_nodes));
     }
     let b = Instant::now();

@@ -7,12 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
 # noodles = { git = "https://github.com/zaeleus/noodles.git", features = ["bam", "gff"] }
 rust-htslib = "*"
 bio = "*"
-
 coitrees = "*"
-
 # for coitrees
 fnv = "1.0.3"
+
+[dependencies.clap]
+version = "3.0.0-beta.2"
+features = ["wrap_help"]

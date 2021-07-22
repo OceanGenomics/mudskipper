@@ -1,0 +1,102 @@
+##sequence-region NC_002333.2 1 16596
+NC_002333.2	RefSeq	region	1	16596	.	+	.	ID=NC_002333.2:1..16596;Dbxref=taxon:7955;Is_circular=true;Name=MT;gbkey=Src;genome=mitochondrion;mol_type=genomic DNA
+NC_002333.2	RefSeq	D_loop	1	950	.	+	.	ID=id-NC_002333.2:1..950;Dbxref=ZFIN:ZDB-GENE-011205-1;gbkey=D-loop
+NC_002333.2	RefSeq	gene	951	1019	.	+	.	ID=gene-trnF;Dbxref=GeneID:140525,ZFIN:ZDB-GENE-011205-2;Name=trnF;Note=tRNAphe;gbkey=Gene;gene=trnF;gene_biotype=tRNA;gene_synonym=mttf
+NC_002333.2	RefSeq	tRNA	951	1019	.	+	.	ID=rna-trnF;Parent=gene-trnF;Dbxref=GeneID:140525,ZFIN:ZDB-GENE-011205-2;gbkey=tRNA;gene=trnF;product=tRNA-Phe
+NC_002333.2	RefSeq	exon	951	1019	.	+	.	ID=exon-trnF-1;Parent=rna-trnF;Dbxref=GeneID:140525,ZFIN:ZDB-GENE-011205-2;gbkey=tRNA;gene=trnF;product=tRNA-Phe
+NC_002333.2	RefSeq	gene	1020	1971	.	+	.	ID=gene-mt-rnr1;Dbxref=GeneID:140505,ZFIN:ZDB-GENE-011205-3;Name=mt-rnr1;gbkey=Gene;gene=mt-rnr1;gene_biotype=rRNA;gene_synonym=mtrnr1
+NC_002333.2	RefSeq	rRNA	1020	1971	.	+	.	ID=rna-mt-rnr1;Parent=gene-mt-rnr1;Dbxref=GeneID:140505,ZFIN:ZDB-GENE-011205-3;Note=12S rRNA;gbkey=rRNA;gene=mt-rnr1;product=s-rRNA
+NC_002333.2	RefSeq	exon	1020	1971	.	+	.	ID=exon-mt-rnr1-1;Parent=rna-mt-rnr1;Dbxref=GeneID:140505,ZFIN:ZDB-GENE-011205-3;Note=12S rRNA;gbkey=rRNA;gene=mt-rnr1;product=s-rRNA
+NC_002333.2	RefSeq	gene	1972	2042	.	+	.	ID=gene-trnV;Dbxref=GeneID:140507,ZFIN:ZDB-GENE-011205-5;Name=trnV;Note=tRNAval;gbkey=Gene;gene=trnV;gene_biotype=tRNA;gene_synonym=mttv
+NC_002333.2	RefSeq	tRNA	1972	2042	.	+	.	ID=rna-trnV;Parent=gene-trnV;Dbxref=GeneID:140507,ZFIN:ZDB-GENE-011205-5;gbkey=tRNA;gene=trnV;product=tRNA-Val
+NC_002333.2	RefSeq	exon	1972	2042	.	+	.	ID=exon-trnV-1;Parent=rna-trnV;Dbxref=GeneID:140507,ZFIN:ZDB-GENE-011205-5;gbkey=tRNA;gene=trnV;product=tRNA-Val
+NC_002333.2	RefSeq	gene	2043	3725	.	+	.	ID=gene-mt-rnr2;Dbxref=GeneID:140506,ZFIN:ZDB-GENE-011205-4;Name=mt-rnr2;gbkey=Gene;gene=mt-rnr2;gene_biotype=rRNA;gene_synonym=mtrnr2
+NC_002333.2	RefSeq	rRNA	2043	3725	.	+	.	ID=rna-mt-rnr2;Parent=gene-mt-rnr2;Dbxref=GeneID:140506,ZFIN:ZDB-GENE-011205-4;Note=16S rRNA;gbkey=rRNA;gene=mt-rnr2;product=l-rRNA
+NC_002333.2	RefSeq	exon	2043	3725	.	+	.	ID=exon-mt-rnr2-1;Parent=rna-mt-rnr2;Dbxref=GeneID:140506,ZFIN:ZDB-GENE-011205-4;Note=16S rRNA;gbkey=rRNA;gene=mt-rnr2;product=l-rRNA
+NC_002333.2	RefSeq	gene	3726	3802	.	+	.	ID=gene-trnL1;Dbxref=GeneID:140530,ZFIN:ZDB-GENE-011205-6;Name=trnL1;Note=tRNAleu (TAA);gbkey=Gene;gene=trnL1;gene_biotype=tRNA;gene_synonym=mttl1
+NC_002333.2	RefSeq	tRNA	3726	3802	.	+	.	ID=rna-trnL1;Parent=gene-trnL1;Dbxref=GeneID:140530,ZFIN:ZDB-GENE-011205-6;codons=2%2C3;gbkey=tRNA;gene=trnL1;product=tRNA-Leu
+NC_002333.2	RefSeq	exon	3726	3802	.	+	.	ID=exon-trnL1-1;Parent=rna-trnL1;Dbxref=GeneID:140530,ZFIN:ZDB-GENE-011205-6;codons=2%2C3;gbkey=tRNA;gene=trnL1;product=tRNA-Leu
+NC_002333.2	RefSeq	gene	3803	4777	.	+	.	ID=gene-ND1;Dbxref=GeneID:140531,ZFIN:ZDB-GENE-011205-7;Name=ND1;gbkey=Gene;gene=ND1;gene_biotype=protein_coding;gene_synonym=mtnd1
+NC_002333.2	RefSeq	CDS	3803	4777	.	+	0	ID=cds-NP_059331.1;Parent=gene-ND1;Dbxref=Genbank:NP_059331.1,GeneID:140531,ZFIN:ZDB-GENE-011205-7;Name=NP_059331.1;gbkey=CDS;gene=ND1;product=NADH dehydrogenase subunit 1;protein_id=NP_059331.1;transl_table=2
+NC_002333.2	RefSeq	gene	4781	4854	.	+	.	ID=gene-trnI;Dbxref=GeneID:140521,ZFIN:ZDB-GENE-011205-21;Name=trnI;Note=tRNAile;gbkey=Gene;gene=trnI;gene_biotype=tRNA;gene_synonym=mtti
+NC_002333.2	RefSeq	tRNA	4781	4854	.	+	.	ID=rna-trnI;Parent=gene-trnI;Dbxref=GeneID:140521,ZFIN:ZDB-GENE-011205-21;gbkey=tRNA;gene=trnI;product=tRNA-Ile
+NC_002333.2	RefSeq	exon	4781	4854	.	+	.	ID=exon-trnI-1;Parent=rna-trnI;Dbxref=GeneID:140521,ZFIN:ZDB-GENE-011205-21;gbkey=tRNA;gene=trnI;product=tRNA-Ile
+NC_002333.2	RefSeq	gene	4852	4922	.	-	.	ID=gene-trnQ;Dbxref=GeneID:140516,ZFIN:ZDB-GENE-011205-22;Name=trnQ;Note=tRNAgln;gbkey=Gene;gene=trnQ;gene_biotype=tRNA;gene_synonym=mttq
+NC_002333.2	RefSeq	tRNA	4852	4922	.	-	.	ID=rna-trnQ;Parent=gene-trnQ;Dbxref=GeneID:140516,ZFIN:ZDB-GENE-011205-22;gbkey=tRNA;gene=trnQ;product=tRNA-Gln
+NC_002333.2	RefSeq	exon	4852	4922	.	-	.	ID=exon-trnQ-1;Parent=rna-trnQ;Dbxref=GeneID:140516,ZFIN:ZDB-GENE-011205-22;gbkey=tRNA;gene=trnQ;product=tRNA-Gln
+NC_002333.2	RefSeq	gene	4924	4992	.	+	.	ID=gene-trnM;Dbxref=GeneID:140522,ZFIN:ZDB-GENE-011205-23;Name=trnM;Note=tRNAmet;gbkey=Gene;gene=trnM;gene_biotype=tRNA;gene_synonym=mttm
+NC_002333.2	RefSeq	tRNA	4924	4992	.	+	.	ID=rna-trnM;Parent=gene-trnM;Dbxref=GeneID:140522,ZFIN:ZDB-GENE-011205-23;gbkey=tRNA;gene=trnM;product=tRNA-Met
+NC_002333.2	RefSeq	exon	4924	4992	.	+	.	ID=exon-trnM-1;Parent=rna-trnM;Dbxref=GeneID:140522,ZFIN:ZDB-GENE-011205-23;gbkey=tRNA;gene=trnM;product=tRNA-Met
+NC_002333.2	RefSeq	gene	4993	6039	.	+	.	ID=gene-ND2;Dbxref=GeneID:140532,ZFIN:ZDB-GENE-011205-8;Name=ND2;Note=cb950%3B mtnd2;gbkey=Gene;gene=ND2;gene_biotype=protein_coding;gene_synonym=mtnd2
+NC_002333.2	RefSeq	CDS	4993	6039	.	+	0	ID=cds-NP_059332.1;Parent=gene-ND2;Dbxref=Genbank:NP_059332.1,GeneID:140532,ZFIN:ZDB-GENE-011205-8;Name=NP_059332.1;gbkey=CDS;gene=ND2;product=NADH dehydrogenase subunit 2;protein_id=NP_059332.1;transl_table=2
+NC_002333.2	RefSeq	gene	6038	6107	.	+	.	ID=gene-trnW;Dbxref=GeneID:140523,ZFIN:ZDB-GENE-011205-24;Name=trnW;Note=tRNAtrp;gbkey=Gene;gene=trnW;gene_biotype=tRNA;gene_synonym=mttw
+NC_002333.2	RefSeq	tRNA	6038	6107	.	+	.	ID=rna-trnW;Parent=gene-trnW;Dbxref=GeneID:140523,ZFIN:ZDB-GENE-011205-24;gbkey=tRNA;gene=trnW;product=tRNA-Trp
+NC_002333.2	RefSeq	exon	6038	6107	.	+	.	ID=exon-trnW-1;Parent=rna-trnW;Dbxref=GeneID:140523,ZFIN:ZDB-GENE-011205-24;gbkey=tRNA;gene=trnW;product=tRNA-Trp
+NC_002333.2	RefSeq	gene	6109	6176	.	-	.	ID=gene-trnA;Dbxref=GeneID:140509,ZFIN:ZDB-GENE-011205-25;Name=trnA;Note=tRNAala;gbkey=Gene;gene=trnA;gene_biotype=tRNA;gene_synonym=mtta
+NC_002333.2	RefSeq	tRNA	6109	6176	.	-	.	ID=rna-trnA;Parent=gene-trnA;Dbxref=GeneID:140509,ZFIN:ZDB-GENE-011205-25;gbkey=tRNA;gene=trnA;product=tRNA-Ala
+NC_002333.2	RefSeq	exon	6109	6176	.	-	.	ID=exon-trnA-1;Parent=rna-trnA;Dbxref=GeneID:140509,ZFIN:ZDB-GENE-011205-25;gbkey=tRNA;gene=trnA;product=tRNA-Ala
+NC_002333.2	RefSeq	gene	6178	6250	.	-	.	ID=gene-trnN;Dbxref=GeneID:140524,ZFIN:ZDB-GENE-011205-26;Name=trnN;Note=tRNAasn;gbkey=Gene;gene=trnN;gene_biotype=tRNA;gene_synonym=mttn
+NC_002333.2	RefSeq	tRNA	6178	6250	.	-	.	ID=rna-trnN;Parent=gene-trnN;Dbxref=GeneID:140524,ZFIN:ZDB-GENE-011205-26;gbkey=tRNA;gene=trnN;product=tRNA-Asn
+NC_002333.2	RefSeq	exon	6178	6250	.	-	.	ID=exon-trnN-1;Parent=rna-trnN;Dbxref=GeneID:140524,ZFIN:ZDB-GENE-011205-26;gbkey=tRNA;gene=trnN;product=tRNA-Asn
+NC_002333.2	RefSeq	origin_of_replication	6251	6282	.	-	.	ID=id-GeneID:140543;Dbxref=GeneID:140543,ZFIN:ZDB-GENE-011205-20;Note=putative light strand origin of replication%3B mtolr;gbkey=rep_origin
+NC_002333.2	RefSeq	gene	6283	6354	.	-	.	ID=gene-ZDB-GENE-011205-27;Dbxref=GeneID:140513,ZFIN:ZDB-GENE-011205-27;Name=trnC;Note=tRNAcys;gbkey=Gene;gene=trnC;gene_biotype=tRNA;gene_synonym=mttc;locus_tag=ZDB-GENE-011205-27
+NC_002333.2	RefSeq	tRNA	6283	6354	.	-	.	ID=rna-ZDB-GENE-011205-27;Parent=gene-ZDB-GENE-011205-27;Dbxref=GeneID:140513,ZFIN:ZDB-GENE-011205-27;gbkey=tRNA;gene=trnC;locus_tag=ZDB-GENE-011205-27;product=tRNA-Cys
+NC_002333.2	RefSeq	exon	6283	6354	.	-	.	ID=exon-ZDB-GENE-011205-27-1;Parent=rna-ZDB-GENE-011205-27;Dbxref=GeneID:140513,ZFIN:ZDB-GENE-011205-27;gbkey=tRNA;gene=trnC;locus_tag=ZDB-GENE-011205-27;product=tRNA-Cys
+NC_002333.2	RefSeq	gene	6353	6423	.	-	.	ID=gene-trnY;Dbxref=GeneID:140514,ZFIN:ZDB-GENE-011205-28;Name=trnY;Note=tRNAtyr;gbkey=Gene;gene=trnY;gene_biotype=tRNA;gene_synonym=mtty
+NC_002333.2	RefSeq	tRNA	6353	6423	.	-	.	ID=rna-trnY;Parent=gene-trnY;Dbxref=GeneID:140514,ZFIN:ZDB-GENE-011205-28;gbkey=tRNA;gene=trnY;product=tRNA-Tyr
+NC_002333.2	RefSeq	exon	6353	6423	.	-	.	ID=exon-trnY-1;Parent=rna-trnY;Dbxref=GeneID:140514,ZFIN:ZDB-GENE-011205-28;gbkey=tRNA;gene=trnY;product=tRNA-Tyr
+NC_002333.2	RefSeq	gene	6425	7975	.	+	.	ID=gene-COX1;Dbxref=GeneID:140539,ZFIN:ZDB-GENE-011205-14;Name=COX1;Note=COI%3B mtco1;gbkey=Gene;gene=COX1;gene_biotype=protein_coding;gene_synonym=mtco1
+NC_002333.2	RefSeq	CDS	6425	7975	.	+	0	ID=cds-NP_059333.1;Parent=gene-COX1;Dbxref=Genbank:NP_059333.1,GeneID:140539,ZFIN:ZDB-GENE-011205-14;Name=NP_059333.1;gbkey=CDS;gene=COX1;product=cytochrome c oxidase subunit I;protein_id=NP_059333.1;transl_table=2
+NC_002333.2	RefSeq	gene	7976	8046	.	-	.	ID=gene-trnS1;Dbxref=GeneID:140528,ZFIN:ZDB-GENE-011205-29;Name=trnS1;Note=tRNAser (TGA);gbkey=Gene;gene=trnS1;gene_biotype=tRNA;gene_synonym=mtts1
+NC_002333.2	RefSeq	tRNA	7976	8046	.	-	.	ID=rna-trnS1;Parent=gene-trnS1;Dbxref=GeneID:140528,ZFIN:ZDB-GENE-011205-29;codons=4%2C5%2C6%2C7;gbkey=tRNA;gene=trnS1;product=tRNA-Ser
+NC_002333.2	RefSeq	exon	7976	8046	.	-	.	ID=exon-trnS1-1;Parent=rna-trnS1;Dbxref=GeneID:140528,ZFIN:ZDB-GENE-011205-29;codons=4%2C5%2C6%2C7;gbkey=tRNA;gene=trnS1;product=tRNA-Ser
+NC_002333.2	RefSeq	gene	8049	8117	.	+	.	ID=gene-trnD;Dbxref=GeneID:140526,ZFIN:ZDB-GENE-011205-30;Name=trnD;Note=tRNAasp;gbkey=Gene;gene=trnD;gene_biotype=tRNA;gene_synonym=mttd
+NC_002333.2	RefSeq	tRNA	8049	8117	.	+	.	ID=rna-trnD;Parent=gene-trnD;Dbxref=GeneID:140526,ZFIN:ZDB-GENE-011205-30;gbkey=tRNA;gene=trnD;product=tRNA-Asp
+NC_002333.2	RefSeq	exon	8049	8117	.	+	.	ID=exon-trnD-1;Parent=rna-trnD;Dbxref=GeneID:140526,ZFIN:ZDB-GENE-011205-30;gbkey=tRNA;gene=trnD;product=tRNA-Asp
+NC_002333.2	RefSeq	gene	8130	8820	.	+	.	ID=gene-COX2;Dbxref=GeneID:140540,ZFIN:ZDB-GENE-011205-15;Name=COX2;Note=COII;gbkey=Gene;gene=COX2;gene_biotype=protein_coding;gene_synonym=mtco2
+NC_002333.2	RefSeq	CDS	8130	8820	.	+	0	ID=cds-NP_059334.1;Parent=gene-COX2;Dbxref=Genbank:NP_059334.1,GeneID:140540,ZFIN:ZDB-GENE-011205-15;Name=NP_059334.1;Note=TAA stop codon is completed by the addition of 3' A residues to the mRNA;gbkey=CDS;gene=COX2;product=cytochrome c oxidase subunit II;protein_id=NP_059334.1;transl_except=(pos:8820..8820%2Caa:TERM);transl_table=2
+NC_002333.2	RefSeq	gene	8821	8893	.	+	.	ID=gene-trnK;Dbxref=GeneID:140508,ZFIN:ZDB-GENE-011205-31;Name=trnK;Note=tRNAlys;gbkey=Gene;gene=trnK;gene_biotype=tRNA;gene_synonym=mttk
+NC_002333.2	RefSeq	tRNA	8821	8893	.	+	.	ID=rna-trnK;Parent=gene-trnK;Dbxref=GeneID:140508,ZFIN:ZDB-GENE-011205-31;gbkey=tRNA;gene=trnK;product=tRNA-Lys
+NC_002333.2	RefSeq	exon	8821	8893	.	+	.	ID=exon-trnK-1;Parent=rna-trnK;Dbxref=GeneID:140508,ZFIN:ZDB-GENE-011205-31;gbkey=tRNA;gene=trnK;product=tRNA-Lys
+NC_002333.2	RefSeq	gene	8894	9058	.	+	.	ID=gene-ATP8;Dbxref=GeneID:140520,ZFIN:ZDB-GENE-011205-19;Name=ATP8;Note=cb795%3B mtatp8;gbkey=Gene;gene=ATP8;gene_biotype=protein_coding;gene_synonym=mtatp8
+NC_002333.2	RefSeq	CDS	8894	9058	.	+	0	ID=cds-NP_059335.1;Parent=gene-ATP8;Dbxref=Genbank:NP_059335.1,GeneID:140520,ZFIN:ZDB-GENE-011205-19;Name=NP_059335.1;gbkey=CDS;gene=ATP8;product=ATP synthase F0 subunit 8;protein_id=NP_059335.1;transl_table=2
+NC_002333.2	RefSeq	gene	9052	9735	.	+	.	ID=gene-ATP6;Dbxref=GeneID:140519,ZFIN:ZDB-GENE-011205-18;Name=ATP6;Note=zgc:85637;gbkey=Gene;gene=ATP6;gene_biotype=protein_coding;gene_synonym=mtatp6
+NC_002333.2	RefSeq	CDS	9052	9735	.	+	0	ID=cds-NP_059336.1;Parent=gene-ATP6;Dbxref=Genbank:NP_059336.1,GeneID:140519,ZFIN:ZDB-GENE-011205-18;Name=NP_059336.1;gbkey=CDS;gene=ATP6;product=ATP synthase F0 subunit 6;protein_id=NP_059336.1;transl_table=2
+NC_002333.2	RefSeq	gene	9735	10520	.	+	.	ID=gene-COX3;Dbxref=GeneID:140541,ZFIN:ZDB-GENE-011205-16;Name=COX3;Note=COIII;gbkey=Gene;gene=COX3;gene_biotype=protein_coding;gene_synonym=mtco3
+NC_002333.2	RefSeq	CDS	9735	10520	.	+	0	ID=cds-NP_059337.1;Parent=gene-COX3;Dbxref=Genbank:NP_059337.1,GeneID:140541,ZFIN:ZDB-GENE-011205-16;Name=NP_059337.1;gbkey=CDS;gene=COX3;product=cytochrome c oxidase subunit III;protein_id=NP_059337.1;transl_table=2
+NC_002333.2	RefSeq	gene	10520	10589	.	+	.	ID=gene-trnG;Dbxref=GeneID:140510,ZFIN:ZDB-GENE-011205-32;Name=trnG;Note=tRNAgly;gbkey=Gene;gene=trnG;gene_biotype=tRNA;gene_synonym=mttg
+NC_002333.2	RefSeq	tRNA	10520	10589	.	+	.	ID=rna-trnG;Parent=gene-trnG;Dbxref=GeneID:140510,ZFIN:ZDB-GENE-011205-32;gbkey=tRNA;gene=trnG;product=tRNA-Gly
+NC_002333.2	RefSeq	exon	10520	10589	.	+	.	ID=exon-trnG-1;Parent=rna-trnG;Dbxref=GeneID:140510,ZFIN:ZDB-GENE-011205-32;gbkey=tRNA;gene=trnG;product=tRNA-Gly
+NC_002333.2	RefSeq	gene	10590	10940	.	+	.	ID=gene-ND3;Dbxref=GeneID:140533,ZFIN:ZDB-GENE-011205-9;Name=ND3;gbkey=Gene;gene=ND3;gene_biotype=protein_coding;gene_synonym=mtnd3
+NC_002333.2	RefSeq	CDS	10590	10940	.	+	0	ID=cds-NP_059338.1;Parent=gene-ND3;Dbxref=Genbank:NP_059338.1,GeneID:140533,ZFIN:ZDB-GENE-011205-9;Name=NP_059338.1;gbkey=CDS;gene=ND3;product=NADH dehydrogenase subunit 3;protein_id=NP_059338.1;transl_table=2
+NC_002333.2	RefSeq	gene	10939	11008	.	+	.	ID=gene-trnR;Dbxref=GeneID:140515,ZFIN:ZDB-GENE-011205-33;Name=trnR;Note=tRNAarg;gbkey=Gene;gene=trnR;gene_biotype=tRNA;gene_synonym=mttr
+NC_002333.2	RefSeq	tRNA	10939	11008	.	+	.	ID=rna-trnR;Parent=gene-trnR;Dbxref=GeneID:140515,ZFIN:ZDB-GENE-011205-33;gbkey=tRNA;gene=trnR;product=tRNA-Arg
+NC_002333.2	RefSeq	exon	10939	11008	.	+	.	ID=exon-trnR-1;Parent=rna-trnR;Dbxref=GeneID:140515,ZFIN:ZDB-GENE-011205-33;gbkey=tRNA;gene=trnR;product=tRNA-Arg
+NC_002333.2	RefSeq	gene	11009	11305	.	+	.	ID=gene-ND4L;Dbxref=GeneID:140538,ZFIN:ZDB-GENE-011205-11;Name=ND4L;gbkey=Gene;gene=ND4L;gene_biotype=protein_coding;gene_synonym=mtnd4l
+NC_002333.2	RefSeq	CDS	11009	11305	.	+	0	ID=cds-NP_059339.1;Parent=gene-ND4L;Dbxref=Genbank:NP_059339.1,GeneID:140538,ZFIN:ZDB-GENE-011205-11;Name=NP_059339.1;gbkey=CDS;gene=ND4L;product=NADH dehydrogenase subunit 4L;protein_id=NP_059339.1;transl_table=2
+NC_002333.2	RefSeq	gene	11299	12679	.	+	.	ID=gene-ND4;Dbxref=GeneID:140534,ZFIN:ZDB-GENE-011205-10;Name=ND4;gbkey=Gene;gene=ND4;gene_biotype=protein_coding;gene_synonym=mtnd4
+NC_002333.2	RefSeq	CDS	11299	12679	.	+	0	ID=cds-NP_059340.1;Parent=gene-ND4;Dbxref=Genbank:NP_059340.1,GeneID:140534,ZFIN:ZDB-GENE-011205-10;Name=NP_059340.1;Note=TAA stop codon is completed by the addition of 3' A residues to the mRNA;gbkey=CDS;gene=ND4;product=NADH dehydrogenase subunit 4;protein_id=NP_059340.1;transl_except=(pos:12679..12679%2Caa:TERM);transl_table=2
+NC_002333.2	RefSeq	gene	12681	12750	.	+	.	ID=gene-trnH;Dbxref=GeneID:140517,ZFIN:ZDB-GENE-011205-34;Name=trnH;Note=tRNAhis;gbkey=Gene;gene=trnH;gene_biotype=tRNA;gene_synonym=mtth
+NC_002333.2	RefSeq	tRNA	12681	12750	.	+	.	ID=rna-trnH;Parent=gene-trnH;Dbxref=GeneID:140517,ZFIN:ZDB-GENE-011205-34;gbkey=tRNA;gene=trnH;product=tRNA-His
+NC_002333.2	RefSeq	exon	12681	12750	.	+	.	ID=exon-trnH-1;Parent=rna-trnH;Dbxref=GeneID:140517,ZFIN:ZDB-GENE-011205-34;gbkey=tRNA;gene=trnH;product=tRNA-His
+NC_002333.2	RefSeq	gene	12750	12819	.	+	.	ID=gene-trnS2;Dbxref=GeneID:140529,ZFIN:ZDB-GENE-011205-35;Name=trnS2;Note=tRNAser (GCT);gbkey=Gene;gene=trnS2;gene_biotype=tRNA;gene_synonym=mtts2
+NC_002333.2	RefSeq	tRNA	12750	12819	.	+	.	ID=rna-trnS2;Parent=gene-trnS2;Dbxref=GeneID:140529,ZFIN:ZDB-GENE-011205-35;codons=44%2C45;gbkey=tRNA;gene=trnS2;product=tRNA-Ser
+NC_002333.2	RefSeq	exon	12750	12819	.	+	.	ID=exon-trnS2-1;Parent=rna-trnS2;Dbxref=GeneID:140529,ZFIN:ZDB-GENE-011205-35;codons=44%2C45;gbkey=tRNA;gene=trnS2;product=tRNA-Ser
+NC_002333.2	RefSeq	gene	12823	12895	.	+	.	ID=gene-trnL2;Dbxref=GeneID:140537,ZFIN:ZDB-GENE-011205-36;Name=trnL2;Note=tRNAleu (TAG);gbkey=Gene;gene=trnL2;gene_biotype=tRNA;gene_synonym=mttl2
+NC_002333.2	RefSeq	tRNA	12823	12895	.	+	.	ID=rna-trnL2;Parent=gene-trnL2;Dbxref=GeneID:140537,ZFIN:ZDB-GENE-011205-36;codons=16%2C17%2C18%2C19;gbkey=tRNA;gene=trnL2;product=tRNA-Leu
+NC_002333.2	RefSeq	exon	12823	12895	.	+	.	ID=exon-trnL2-1;Parent=rna-trnL2;Dbxref=GeneID:140537,ZFIN:ZDB-GENE-011205-36;codons=16%2C17%2C18%2C19;gbkey=tRNA;gene=trnL2;product=tRNA-Leu
+NC_002333.2	RefSeq	gene	12897	14717	.	+	.	ID=gene-ND5;Dbxref=GeneID:140535,ZFIN:ZDB-GENE-011205-12;Name=ND5;gbkey=Gene;gene=ND5;gene_biotype=protein_coding;gene_synonym=mtnd5
+NC_002333.2	RefSeq	CDS	12897	14717	.	+	0	ID=cds-NP_059341.1;Parent=gene-ND5;Dbxref=Genbank:NP_059341.1,GeneID:140535,ZFIN:ZDB-GENE-011205-12;Name=NP_059341.1;gbkey=CDS;gene=ND5;product=NADH dehydrogenase subunit 5;protein_id=NP_059341.1;transl_table=2
+NC_002333.2	RefSeq	gene	14714	15232	.	-	.	ID=gene-ND6;Dbxref=GeneID:140536,ZFIN:ZDB-GENE-011205-13;Name=ND6;gbkey=Gene;gene=ND6;gene_biotype=protein_coding;gene_synonym=mtnd6
+NC_002333.2	RefSeq	CDS	14714	15232	.	-	0	ID=cds-NP_059342.1;Parent=gene-ND6;Dbxref=Genbank:NP_059342.1,GeneID:140536,ZFIN:ZDB-GENE-011205-13;Name=NP_059342.1;gbkey=CDS;gene=ND6;product=NADH dehydrogenase subunit 6;protein_id=NP_059342.1;transl_table=2
+NC_002333.2	RefSeq	gene	15233	15301	.	-	.	ID=gene-trnE;Dbxref=GeneID:140527,ZFIN:ZDB-GENE-011205-37;Name=trnE;gbkey=Gene;gene=trnE;gene_biotype=tRNA;gene_synonym=mtte
+NC_002333.2	RefSeq	tRNA	15233	15301	.	-	.	ID=rna-trnE;Parent=gene-trnE;Dbxref=GeneID:140527,ZFIN:ZDB-GENE-011205-37;gbkey=tRNA;gene=trnE;product=tRNA-Glu
+NC_002333.2	RefSeq	exon	15233	15301	.	-	.	ID=exon-trnE-1;Parent=rna-trnE;Dbxref=GeneID:140527,ZFIN:ZDB-GENE-011205-37;gbkey=tRNA;gene=trnE;product=tRNA-Glu
+NC_002333.2	RefSeq	gene	15308	16448	.	+	.	ID=gene-CYTB;Dbxref=GeneID:140512,ZFIN:ZDB-GENE-011205-17;Name=CYTB;Note=COB%3B Cytb;gbkey=Gene;gene=CYTB;gene_biotype=protein_coding;gene_synonym=mtcyb
+NC_002333.2	RefSeq	CDS	15308	16448	.	+	0	ID=cds-NP_059343.1;Parent=gene-CYTB;Dbxref=Genbank:NP_059343.1,GeneID:140512,ZFIN:ZDB-GENE-011205-17;Name=NP_059343.1;Note=TAA stop codon is completed by the addition of 3' A residues to the mRNA;gbkey=CDS;gene=CYTB;product=cytochrome b;protein_id=NP_059343.1;transl_except=(pos:16448..16448%2Caa:TERM);transl_table=2
+NC_002333.2	RefSeq	gene	16449	16520	.	+	.	ID=gene-trnT;Dbxref=GeneID:140518,ZFIN:ZDB-GENE-011205-39;Name=trnT;Note=tRNAthr;gbkey=Gene;gene=trnT;gene_biotype=tRNA;gene_synonym=mttt
+NC_002333.2	RefSeq	tRNA	16449	16520	.	+	.	ID=rna-trnT;Parent=gene-trnT;Dbxref=GeneID:140518,ZFIN:ZDB-GENE-011205-39;gbkey=tRNA;gene=trnT;product=tRNA-Thr
+NC_002333.2	RefSeq	exon	16449	16520	.	+	.	ID=exon-trnT-1;Parent=rna-trnT;Dbxref=GeneID:140518,ZFIN:ZDB-GENE-011205-39;gbkey=tRNA;gene=trnT;product=tRNA-Thr
+NC_002333.2	RefSeq	gene	16527	16596	.	-	.	ID=gene-trnP;Dbxref=GeneID:140511,ZFIN:ZDB-GENE-011205-38;Name=trnP;Note=tRNApro;gbkey=Gene;gene=trnP;gene_biotype=tRNA;gene_synonym=mttp
+NC_002333.2	RefSeq	tRNA	16527	16596	.	-	.	ID=rna-trnP;Parent=gene-trnP;Dbxref=GeneID:140511,ZFIN:ZDB-GENE-011205-38;gbkey=tRNA;gene=trnP;product=tRNA-Pro
+NC_002333.2	RefSeq	exon	16527	16596	.	-	.	ID=exon-trnP-1;Parent=rna-trnP;Dbxref=GeneID:140511,ZFIN:ZDB-GENE-011205-38;gbkey=tRNA;gene=trnP;product=tRNA-Pro

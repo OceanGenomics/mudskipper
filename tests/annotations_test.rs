@@ -8,21 +8,21 @@ use std::collections::HashMap;
 
 #[test]
 fn test_gtf_read() {
-    let ann_file_adr = "tests/NC_007112.7.gtf".to_string();
+    let ann_file_adr = "tests/NC_002333.2.gtf".to_string();
     let reader = annotations::read(&ann_file_adr);
     assert!(reader.is_ok());
 }
 
 #[test]
 fn test_gff_read() {
-    let ann_file_adr = "tests/NC_007112.7.gff".to_string();
+    let ann_file_adr = "tests/NC_002333.2.gff".to_string();
     let reader = annotations::read(&ann_file_adr);
     assert!(reader.is_ok());
 }
 
 #[test]
 pub fn test_tree() {
-    let ann_file_adr = "tests/NC_007112.7.gff".to_string();
+    let ann_file_adr = "tests/NC_002333.2.gff".to_string();
     let mut transcripts_map: HashMap<String, i32> = HashMap::new();
     let mut transcripts: Vec<String> = Vec::new();
     let mut tx_lengths: Vec<i32> = Vec::new();
@@ -32,7 +32,7 @@ pub fn test_tree() {
                                         &mut transcripts,
                                         &mut tx_lengths).expect("cannot build the tree!");
 
-    let query_file_adr = "tests/NC_0071 12.7.gff".to_string();
+    let query_file_adr = "tests/NC_002333.2.gff".to_string();
     let reader = annotations::read(&query_file_adr);
     assert!(reader.is_ok());
     let mut failed_count = 0;

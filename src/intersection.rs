@@ -3,8 +3,8 @@ use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
 use std::collections::{HashSet, HashMap};
 // use std::error::Error;
 
-// extern crate fnv;
-// use fnv::FnvHashMap;
+extern crate bio_types;
+use bio_types::strand::Strand;
 
 use crate::annotations;
 use annotations::ExonNode;
@@ -22,10 +22,23 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
         // println!("{} {}", res.0, res.1);
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
-                // println!("query for {} {}:{}",range.0, range.1, node.metadata);
+                println!("query for {} {}:{}",range.0, range.1, node.metadata);
+                println!("start - tpos_start: {} - {} = {}",
+                        node.metadata.end, node.metadata.tpos_start, 
+                        node.metadata.end - node.metadata.tpos_start);
+                if curr_tids.contains(&node.metadata.tid){
+                    println!("------ node.metadata.tid po - {} {}", node.metadata.tid, tid_pos[&node.metadata.tid]);
+                }
+
                 curr_tids.insert(node.metadata.tid);
                 if first {
-                    tid_pos.insert(node.metadata.tid, node.metadata.start - node.metadata.tpos_start);
+                    //if node.metadata.strand == Strand::Forward {
+                        tid_pos.insert(node.metadata.tid, node.metadata.start - node.metadata.tpos_start);
+                        first = false;
+                    //} else {
+                    //    tid_pos.insert(node.metadata.tid, node.metadata.end - node.metadata.tpos_start);
+                    //}
+
                 }
             });
             if first {
@@ -43,16 +56,26 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
     return tids;
 }
 
-pub fn find_ranges_paired(read_pos1: &i32,
-                   cigar1: &record::CigarStringView, 
-                   new_cigar1: &mut record::CigarString, 
-                   read_pos2: &i32, 
-                   cigar2: &record::CigarStringView,
-                   new_cigar2: &mut record::CigarString) -> Vec<(i32, i32)> {
-    let mut ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1);
-    let mut ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2);
-    ranges1.append(&mut ranges2);
-    return ranges1;
+pub fn find_tids_paired(tree: &COITree<ExonNode, u32>,
+                        read_pos1: &i32,
+                        cigar1: &record::CigarStringView, 
+                        new_cigar1: &mut record::CigarString, 
+                        read_pos2: &i32, 
+                        cigar2: &record::CigarStringView,
+                        new_cigar2: &mut record::CigarString) -> HashMap<i32, (i32, i32)> {
+    let mut tid_pos: HashMap<i32, (i32, i32)> = HashMap::new();
+    println!("read1: {} {}", read_pos1, cigar1);
+    let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1);    
+    let tids1 = find_tid(&tree, &ranges1);
+    println!("read2: {} {}", read_pos2, cigar2);
+    let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2);
+    let tids2 = find_tid(&tree, &ranges2);
+    for (tid, pos1) in tids1.iter() {
+        if tids2.contains_key(tid) {
+            tid_pos.insert(*tid, (*pos1, tids2[tid]));
+        }
+    }
+    return tid_pos;
 }
 
 pub fn find_ranges_single(read_pos: &i32, 
@@ -67,10 +90,10 @@ pub fn find_ranges_single(read_pos: &i32,
 
     // Set the current position to the base right before the beginning of the alignment
     // after discarding the softclipped bases
-    let mut curr_pos = *read_pos - 1 + cigar.leading_softclips() as i32;
+    let mut curr_pos = *read_pos - 1 + (cigar.leading_softclips() as i32);
     let mut new_cigar : Vec::<record::Cigar> = Vec::<record::Cigar>::new();
     for cigar_item in cigar.iter() {
-        // println!("{} {}", cigar_item.char(), cigar_item.len());
+        println!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
         let cigar_char = cigar_item.char();
         let cigar_len = cigar_item.len();
         match cigar_char {
@@ -94,7 +117,7 @@ pub fn find_ranges_single(read_pos: &i32,
             // taken care of before beginning the loop
             // and the ending softclipped bases should
             // be ignored.
-            'S' => { 
+            'S' => {
                 new_cigar.push(*cigar_item);
             }
             _ => println!("Unexpected cigar char! {}", cigar_char)

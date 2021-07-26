@@ -85,15 +85,23 @@ pub fn read_bamfile(input_bam_filename: &String,
                 first_record = record;
             } else {
                 first_in_pair = true;
-                let ranges = intersection::find_ranges_paired(&(first_record.pos() as i32), 
+                /* let ranges = intersection::find_tids_paired(&(first_record.pos() as i32), 
                                                               &first_record.cigar(),
                                                               &mut first_new_cigar,
                                                               &(record.pos() as i32), 
                                                               &record.cigar(), 
-                                                              &mut new_cigar);
-                let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
+                                                              &mut new_cigar); */
+                let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32)
+                                                                .to_vec()).expect("cannot find the tname!");
                 if let Some(tree) = trees.get(&genome_tname) {
-                    let tids = intersection::find_tid(&tree, &ranges);
+                    let tids = intersection::find_tids_paired(&tree,
+                                                                &(first_record.pos() as i32), 
+                                                                &first_record.cigar(),
+                                                                &mut first_new_cigar,
+                                                                &(record.pos() as i32), 
+                                                                &record.cigar(), 
+                                                                &mut new_cigar);
+                    // let tids = intersection::find_tid(&tree, &ranges);
                     // println!("here is reached. {}", tids.len());
                     if tids.len() > 0 {
                         // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
@@ -101,22 +109,30 @@ pub fn read_bamfile(input_bam_filename: &String,
                             // println!("{} {}", tid, transcripts[*tid as usize]);
                             // println!("{}", tid);
 
-                            let mut first_record_ = first_record.clone(); //Record::new();
-                            first_record_.set(first_record.qname(), Some(&first_new_cigar), &first_record.seq().as_bytes(), first_record.qual());
+                            let mut first_record_ = first_record.clone();
+                            first_record_.set(first_record.qname(), 
+                                              Some(&first_new_cigar), 
+                                              &first_record.seq().as_bytes(), 
+                                              first_record.qual());
                             first_record_.set_tid(*tid);
-                            first_record_.set_pos(first_record.pos() - (*pos as i64));
-                            // first_record_.set_pos();
-                            // first_record_.set_mpos();
+                            let first_pos = first_record.pos() - (pos.0 as i64);
+                            let second_pos = record.pos() - (pos.1 as i64);
+                            println!("first_record.pos():{} - pos0:{} = {}", first_record.pos(), pos.0, first_pos);
+                            println!("record.pos():{} - pos1:{} = {}", record.pos(), pos.1, second_pos);
+                            first_record_.set_pos(first_pos);
+                            first_record_.set_mpos(second_pos);
                             
                             output_bam.write(&first_record_).unwrap();
 
-                            let mut second_record_ = record.clone(); //Record::new();
-                            second_record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
+                            let mut second_record_ = record.clone();
+                            second_record_.set(record.qname(), Some(&new_cigar), 
+                                               &record.seq().as_bytes(), 
+                                               record.qual());
                             second_record_.set_tid(*tid);
-                            // second_record_.set_pos();
-                            // second_record_.set_mpos();
+                            second_record_.set_pos(second_pos);
+                            second_record_.set_mpos(first_pos);
 
-                            output_bam.write(&second_record_).unwrap();                            
+                            output_bam.write(&second_record_).unwrap();
                         }
                         // println!("done!");
                     } else {

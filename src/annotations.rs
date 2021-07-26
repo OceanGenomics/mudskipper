@@ -5,6 +5,9 @@ use coitrees::{COITree, IntervalNode}; //, SortedQuerent};
 use std::collections::HashMap;
 // use std::collections::LinkedList;
 
+extern crate bio_types;
+use bio_types::strand::Strand;
+
 extern crate fnv;
 use fnv::FnvHashMap;
 
@@ -24,23 +27,26 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
 pub struct ExonNode {
     // transcript: String,
     pub start: i32,
-    end: i32,
+    pub end: i32,
     pub tid: i32,
-    pub tpos_start: i32
+    pub tpos_start: i32,
+    pub strand: Strand
 }
 
 impl std::fmt::Display for ExonNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(start: {}, end : {}, tid : {}, tpos: {})", self.start, self.end, self.tid, self.tpos_start)
+        write!(f, "(start: {}, end : {}, tid : {}, tpos: {}, strand: {})", self.start, self.end, self.tid, self.tpos_start, self.strand)
     }
 }
 
 impl Clone for ExonNode {
     fn clone(&self) -> Self {
         let new_exon: ExonNode = ExonNode{start: self.start, 
-                                            end: self.end,
-                                            tid: self.tid,
-                                            tpos_start: self.tpos_start};
+                                          end: self.end,
+                                          tid: self.tid,
+                                          tpos_start: self.tpos_start,
+                                          strand: self.strand 
+        };
         return new_exon;
     }
 }
@@ -69,6 +75,7 @@ pub fn build_tree(ann_file_adr: &String,
             let exon_start = *rec.start() as i32;
             let exon_end = *rec.end() as i32;
             let exon_len = exon_end-exon_start+1;
+            let exon_strand = rec.strand().unwrap();
             let features = rec.attributes();
             let tname = &features[&tname_key];
             if features.contains_key(&tname_key) {                
@@ -87,7 +94,8 @@ pub fn build_tree(ann_file_adr: &String,
             let exon: ExonNode = ExonNode{start: exon_start,
                                             end: exon_end,
                                             tid: transcripts_map[&tname.to_string()],
-                                            tpos_start: tpos};
+                                            tpos_start: tpos,
+                                            strand: exon_strand};
             let node_arr = if let Some(node_arr) = nodes.get_mut(&seqname[..]) {
                 node_arr
             } else {
@@ -96,7 +104,8 @@ pub fn build_tree(ann_file_adr: &String,
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
 
             // Update the tpos for the next exon
-            tpos += exon_len;           
+            println!("start:{} end:{} exon_number:{}  tpos:{}", exon_start, exon_end, features["exon_number"], tpos); 
+            tpos += exon_len;
         }
     }
 

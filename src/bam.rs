@@ -1,8 +1,6 @@
-use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
+use coitrees::{COITree};
 
-use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record}; //, HeaderView};
-// use std::collections::HashMap;
-// use std::collections::LinkedList;
+use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record};
 
 use crate::annotations;
 use annotations::ExonNode;

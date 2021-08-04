@@ -1,9 +1,8 @@
 use std::time::Instant;
 use std::error::Error;
 use bio::io::gff;
-use coitrees::{COITree, IntervalNode}; //, SortedQuerent};
+use coitrees::{COITree, IntervalNode};
 use std::collections::HashMap;
-// use std::collections::LinkedList;
 
 extern crate bio_types;
 use bio_types::strand::Strand;
@@ -11,14 +10,16 @@ use bio_types::strand::Strand;
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log::{debug, info};
+use log::{info};
+use indicatif::ProgressBar;
+use linecount::count_lines;
 
 type GenericError = Box<dyn Error>;
 
 pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, GenericError> {
     let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
-    info!("reading the {} file.", file_type);
+    info!("reading the {} file and building the tree.", file_type);
     let ann_type: gff::GffType = if file_type == "gtf" { gff::GffType::GTF2 } 
                                  else { if file_type == "gff3" || file_type == "gff" { gff::GffType::GFF3 }
                                         else { gff::GffType::GFF2 } };
@@ -27,7 +28,6 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, Generic
 }
 
 pub struct ExonNode {
-    // transcript: String,
     pub start: i32,
     pub end: i32,
     pub tid: i32,
@@ -37,7 +37,8 @@ pub struct ExonNode {
 
 impl std::fmt::Display for ExonNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(start: {}, end : {}, tid : {}, tpos: {}, strand: {})", self.start, self.end, self.tid, self.tpos_start, self.strand)
+        write!(f, "(start: {}, end : {}, tid : {}, tpos: {}, strand: {})", 
+                    self.start, self.end, self.tid, self.tpos_start, self.strand)
     }
 }
 
@@ -64,7 +65,13 @@ pub fn build_tree(ann_file_adr: &String,
     let reader = read(ann_file_adr);
     let mut tid: i32 = 0;
     let mut tpos: i32 = 0;
+
+    // let gtf_records_count = read(ann_file_adr).expect("Error reading file.")
+    //                                          .records().count();
+    let gtf_records_count = count_lines(std::fs::File::open(ann_file_adr).unwrap()).unwrap();
+    let pb = ProgressBar::new(gtf_records_count as u64);
     for record in reader.expect("Error reading file.").records() {
+        pb.inc(1);
         let rec = record.ok().expect("Error reading record.");
         let features = rec.attributes();
         let tname_key : String = "transcript_id".to_string();
@@ -111,11 +118,11 @@ pub fn build_tree(ann_file_adr: &String,
             tpos += exon_len;
         }
     }
+    pb.finish_with_message("finish reading the file");
 
     info!("building the tree");
     let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();    
     for (seqname, seqname_nodes) in nodes {
-        debug!("\r{:?}", seqname);
         trees.insert(seqname, COITree::new(seqname_nodes));
     }
     let b = Instant::now();

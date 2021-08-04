@@ -59,8 +59,12 @@ pub fn read_bamfile(input_bam_filename: &String,
         let record = rec.unwrap();
         debug!("qname: {}", String::from_utf8(record.qname().to_vec()).unwrap());
         if !record.is_paired() {
-            let ranges = intersection::find_ranges_single(&(record.pos() as i32), &record.cigar(), &mut new_cigar, &mut len1);
-            let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
+            let ranges = intersection::find_ranges_single(&(record.pos() as i32),
+                                                          &record.cigar(),
+                                                          &mut new_cigar,
+                                                          &mut len1);
+            let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec())
+                                                .expect("cannot find the tname!");
             if let Some(tree) = trees.get(&genome_tname) {
                 let tids = intersection::find_tid(&tree, &ranges);
                 if tids.len() > 0 {
@@ -68,7 +72,7 @@ pub fn read_bamfile(input_bam_filename: &String,
                         debug!("{} {}", tid, transcripts[*tid as usize]);
                         debug!("{}", tid);
 
-                        let mut record_ = record.clone(); //Record::new();
+                        let mut record_ = record.clone();
                         let mut pos = 0;
                         if pos_strand.1 == Strand::Forward {
                             pos = record.pos() - (pos_strand.0 as i64);
@@ -81,7 +85,10 @@ pub fn read_bamfile(input_bam_filename: &String,
                             }
                         }
 
-                        record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
+                        record_.set(record.qname(),
+                                    Some(&new_cigar),
+                                    &record.seq().as_bytes(),
+                                    record.qual());
                         record_.set_tid(*tid);
                         record_.set_pos(pos);
 

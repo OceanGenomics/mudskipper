@@ -16,6 +16,8 @@ coitrees = "*"
 fnv = "1.0.3"
 log = "*"
 env_logger = "*"
+indicatif = "*"
+linecount = "*"
 
 [dependencies.clap]
 version = "3.0.0-beta.2"

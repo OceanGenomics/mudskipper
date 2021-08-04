@@ -1,0 +1,6 @@
+@HD	VN:1.4
+@SQ	SN:NC_007112.7	LN:59578282
+@PG	ID:STAR	PN:STAR	VN:2.7.9a	CL:STAR-2.7.9a/bin/Linux_x86_64/STAR   --runThreadN 24   --genomeDir d_rerio/NC_007112.7_star_index/   --readFilesIn SRR14551647/top_10K.fastq      --outFileNamePrefix d_rerio/star_NC_007112.7_quant/   --quantMode TranscriptomeSAM   
+@PG	ID:samtools	PN:samtools	PP:STAR	VN:1.10	CL:samtools view -H /home/mohsen/d_rerio/star_NC_007112.7_quant/Aligned.out.sam
+@CO	user command line: STAR-2.7.9a/bin/Linux_x86_64/STAR --genomeDir d_rerio/NC_007112.7_star_index/ --runThreadN 24 --readFilesIn SRR14551647/top_10K.fastq --outFileNamePrefix d_rerio/star_NC_007112.7_quant/ --quantMode TranscriptomeSAM
+J00153:160:HMTNMBBXX:6:1101:24068:1525	16	NC_007112.7	35902144	255	149M	*	0	0	GCGGATGGTGCACATCTTGGTGAGTTCCTAGACAGCTTCAAAAACGTAATTGACTGACTGTGCCCAGAGCTCTGCGTACTCCTGGTTGTTGAAGATCTTGAGGCTGCAGCGACTGGGGCTCTTGTATACGGTGGTGGGGTGAAAACCAT	F7FF<JA7----<-7-A-<AF7-<AA--F<-77--7A7----7--F<-7JF<-AJA-7-FA7A--77-FF<FAF<--AJA-JA<AFJJJFA-AAFJ<JJF7AA-JA7-A77-7JJJF<<AAJJFF-J-AFJJJJJF7FFJF-FJFFA<A	NH:i:1	HI:i:1	AS:i:129	nM:i:9

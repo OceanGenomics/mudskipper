@@ -137,10 +137,18 @@ pub fn read_bamfile(input_bam_filename: &String,
                             let mut second_pos = 0;
                             if pos_strand.0.1 == Strand::Forward {
                                 first_pos = first_record.pos() - (pos_strand.0.0 as i64);
+                                debug!("first_pos:{} - pos:{} = {}",
+                                        first_record.pos(), pos_strand.0.0, first_pos);
                                 second_pos = record.pos() - (pos_strand.1.0 as i64);    
+                                debug!("second_pos:{} - pos:{} = {}",
+                                    record.pos(), pos_strand.1.0, second_pos);
                             } else if pos_strand.0.1 == Strand::Reverse{ 
                                 first_pos = (pos_strand.0.0 as i64) - first_record.pos() - len1 as i64;
+                                debug!("pos:{} - first_pos:{} - len1:{} = {}",
+                                        pos_strand.0.0, first_record.pos(), len1, first_pos);
                                 second_pos = (pos_strand.1.0 as i64) - record.pos() - len2 as i64;
+                                debug!("pos:{} - second_pos:{} - len2:{} = {}",
+                                        pos_strand.1.0, record.pos(), len2, second_pos);
                                 if first_record.is_reverse() {
                                     first_record_.unset_reverse();
                                 } else {

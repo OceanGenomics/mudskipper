@@ -29,17 +29,20 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
                 debug!("query for {} {}:{}",range.0, range.1, node.metadata);
-                debug!("start: {} - tpos_start: {} = {}",
-                        node.metadata.end, node.metadata.tpos_start, 
-                        node.metadata.end - node.metadata.tpos_start);
 
                 curr_tids.insert(node.metadata.tid);
                 if first && node.metadata.strand == Strand::Forward {
-                    debug!("inserting: {}", node.metadata.tid);
+                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                    debug!("start:{} - tpos_start:{} = {}",
+                            node.metadata.start, node.metadata.tpos_start, 
+                            node.metadata.start - node.metadata.tpos_start);
                     tid_pos.insert(node.metadata.tid, 
                         (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
                 } else if last && node.metadata.strand == Strand::Reverse {
-                    debug!("inserting: {}", node.metadata.tid);
+                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                    debug!("end:{} + tpos_start:{} = {}",
+                            node.metadata.end, node.metadata.tpos_start, 
+                            node.metadata.end + node.metadata.tpos_start);
                     tid_pos.insert(node.metadata.tid, 
                         (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
                 }
@@ -103,22 +106,23 @@ pub fn find_ranges_single(read_pos: &i32,
     for cigar_item in cigar.iter() {
         debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
         let cigar_char = cigar_item.char();
-        let mut cigar_len = cigar_item.len();
+        let cigar_len = cigar_item.len();
         match cigar_char {
             'M' | 'I' | 'D' => {
                 if new_cigar.len() == 0 || new_cigar.last().unwrap().char() != cigar_char {
                     new_cigar.push(*cigar_item);
                 } else {
-                    cigar_len = cigar_len + new_cigar.last().unwrap().len();
+                    let new_cigar_len = cigar_len + new_cigar.last().unwrap().len();
                     new_cigar.pop();
                     match cigar_char {
-                        'M' => new_cigar.push(record::Cigar::Match(cigar_len)),
-                        'I' => new_cigar.push(record::Cigar::Ins(cigar_len)),
-                        'D' => new_cigar.push(record::Cigar::Del(cigar_len)),
-                        _ => warn!("Unexpected cigar item: {}", cigar_char)
+                        'M' => new_cigar.push(record::Cigar::Match(new_cigar_len)),
+                        'I' => new_cigar.push(record::Cigar::Ins(new_cigar_len)),
+                        'D' => new_cigar.push(record::Cigar::Del(new_cigar_len)),
+                        _ => warn!("Unexpected cigar item: {}", new_cigar_len)
                     }
                 }
                 if cigar_char != 'I' {
+                    debug!("len:{} + cigar_len:{} = {}", *len, cigar_len, *len + cigar_len as i32);
                     *len = *len + cigar_len as i32; 
                 }
 
@@ -137,6 +141,7 @@ pub fn find_ranges_single(read_pos: &i32,
                 debug!("pushing {} {}", curr_range.0, curr_range.1);
                 curr_pos = curr_pos + cigar_len as i32;
                 *len = *len + cigar_len as i32;
+                debug!("len:{} + cigar_len:{} = {}", *len, cigar_len, *len + cigar_len as i32);
             }
             // Soft clipped bases at the beginning are
             // taken care of before beginning the loop

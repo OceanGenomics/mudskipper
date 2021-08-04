@@ -15,6 +15,8 @@ use crate::intersection;
 extern crate fnv;
 use fnv::FnvHashMap;
 
+use log::{debug};
+
 pub fn read_bamfile(input_bam_filename: &String, 
                     output_bam_filename: &String,
                     transcripts: &Vec<String>,
@@ -55,18 +57,16 @@ pub fn read_bamfile(input_bam_filename: &String,
     for rec in bam_records {
         n = n + 1;
         let record = rec.unwrap();
-        println!("qname: {}", String::from_utf8(record.qname().to_vec()).unwrap());
+        debug!("qname: {}", String::from_utf8(record.qname().to_vec()).unwrap());
         if !record.is_paired() {
             let ranges = intersection::find_ranges_single(&(record.pos() as i32), &record.cigar(), &mut new_cigar, &mut len1);
             let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
             if let Some(tree) = trees.get(&genome_tname) {
                 let tids = intersection::find_tid(&tree, &ranges);
-                // println!("here is reached. {}", tids.len());
                 if tids.len() > 0 {
-                    // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
                     for (tid, pos_strand) in tids.iter() {
-                        println!("{} {}", tid, transcripts[*tid as usize]);
-                        println!("{}", tid);
+                        debug!("{} {}", tid, transcripts[*tid as usize]);
+                        debug!("{}", tid);
 
                         let mut record_ = record.clone(); //Record::new();
                         let mut pos = 0;
@@ -84,20 +84,16 @@ pub fn read_bamfile(input_bam_filename: &String,
                         record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
                         record_.set_tid(*tid);
                         record_.set_pos(pos);
-                        
-                        // record_.set_pos(record.pos() - (pos_strand.0 as i64));
 
                         output_bam.write(&record_).unwrap();   
                     }
-                    // println!("done!");
                 } else {
-                    // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
                     missed_read = missed_read + 1;
                 }
             } else {
                 // log for unannotated splicing junction
             }
-            // println!("{} {}", ranges[0].0, ranges[0].1);
+            debug!("{} {}", ranges[0].0, ranges[0].1);
             
         } else {
             if first_in_pair {
@@ -123,14 +119,10 @@ pub fn read_bamfile(input_bam_filename: &String,
                                                                 &record.cigar(), 
                                                                 &mut new_cigar,
                                                                 &mut len2);
-                    println!("{}: {}", first_record.cigar(), first_record.cigar().len());
-                    println!("{}: {}", record.cigar(), record.cigar().len());
-                    // let tids = intersection::find_tid(&tree, &ranges);
-                    // println!("here is reached. {}", tids.len());
+                    debug!("{}: {}", first_record.cigar(), first_record.cigar().len());
+                    debug!("{}: {}", record.cigar(), record.cigar().len());
                     if tids.len() > 0 {
-                        // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
                         for (tid, pos_strand) in tids.iter() {
-                            println!("there we go: {}", pos_strand.0.0);
                             let mut first_record_ = first_record.clone();
                             let mut second_record_ = record.clone();
 
@@ -154,8 +146,8 @@ pub fn read_bamfile(input_bam_filename: &String,
                                 }
 
                             }
-                            // println!("{} {}", tid, transcripts[*tid as usize]);
-                            // println!("{}", tid);
+                            debug!("{} {}", tid, transcripts[*tid as usize]);
+                            debug!("{}", tid);
 
                             first_record_.set(first_record.qname(), 
                                               Some(&first_new_cigar), 
@@ -163,8 +155,6 @@ pub fn read_bamfile(input_bam_filename: &String,
                                               first_record.qual());
                             first_record_.set_tid(*tid);
 
-                            // println!("first_record.pos():{} - pos0:{} = {}", first_record.pos(), pos.0, first_pos);
-                            // println!("record.pos():{} - pos1:{} = {}", record.pos(), pos.1, second_pos);
                             first_record_.set_pos(first_pos);
                             first_record_.set_mpos(second_pos);
 
@@ -179,9 +169,7 @@ pub fn read_bamfile(input_bam_filename: &String,
 
                             output_bam.write(&second_record_).unwrap();
                         }
-                        // println!("done!");
                     } else {
-                        // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
                         missed_read = missed_read + 1;
                     }
                 } else {

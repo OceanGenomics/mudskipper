@@ -8,7 +8,12 @@ mod annotations;
 mod intersection;
 mod bam;
 
+use env_logger;
+use log::{info};
+
 fn main() {
+    env_logger::init();
+    info!("Mudskipper starts...");
     let crate_authors = crate_authors!("\n");
     let version = crate_version!();
 

@@ -1,7 +1,6 @@
 use rust_htslib::bam::record;
-use coitrees::{COITree}; //, IntervalNode, SortedQuerent};
+use coitrees::{COITree};
 use std::collections::{HashSet, HashMap};
-// use std::error::Error;
 
 extern crate bio_types;
 use bio_types::strand::Strand;
@@ -9,7 +8,7 @@ use bio_types::strand::Strand;
 use crate::annotations;
 use annotations::ExonNode;
 
-// type GenericError = Box<dyn Error>;
+use log::{debug, warn};
 
 pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashMap<i32, (i32, Strand)> {
     let mut tids: HashMap<i32, (i32, Strand)> = HashMap::new();
@@ -25,27 +24,27 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
         counter = counter + 1;
         let res = tree.coverage(range.0, range.1);
         let mut curr_tids: HashSet<i32> = HashSet::new();
-        println!("range: {} {}", res.0, res.1);
-        println!("first: {}, last: {}", first, last);
+        debug!("range: {} {}", res.0, res.1);
+        debug!("first: {}, last: {}", first, last);
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
-                println!("query for {} {}:{}",range.0, range.1, node.metadata);
-                /* println!("start: {} - tpos_start: {} = {}",
+                debug!("query for {} {}:{}",range.0, range.1, node.metadata);
+                debug!("start: {} - tpos_start: {} = {}",
                         node.metadata.end, node.metadata.tpos_start, 
-                        node.metadata.end - node.metadata.tpos_start); */
+                        node.metadata.end - node.metadata.tpos_start);
 
                 curr_tids.insert(node.metadata.tid);
                 if first && node.metadata.strand == Strand::Forward {
-                    println!("inserting: {}", node.metadata.tid);
+                    debug!("inserting: {}", node.metadata.tid);
                     tid_pos.insert(node.metadata.tid, 
                         (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
                 } else if last && node.metadata.strand == Strand::Reverse {
-                    println!("inserting: {}", node.metadata.tid);
+                    debug!("inserting: {}", node.metadata.tid);
                     tid_pos.insert(node.metadata.tid, 
                         (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
                 }
             });
-            // println!("found coverage: {:?}", res)
+            debug!("found coverage: {:?}", res)
         }
         if first {
             tids_set = curr_tids;
@@ -55,7 +54,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
         }
     }
     for tid in tids_set {
-        println!("querying: {}", tid);
+        debug!("querying: {}", tid);
         tids.insert(tid, tid_pos[&tid]);
     }
     return tids;
@@ -71,10 +70,10 @@ pub fn find_tids_paired(tree: &COITree<ExonNode, u32>,
                         new_cigar2: &mut record::CigarString,
                         len2: &mut i32) -> HashMap<i32, ((i32, Strand), (i32, Strand))> {
     let mut tid_pos: HashMap<i32, ((i32, Strand), (i32, Strand))> = HashMap::new();
-    println!("read1: {} {}", read_pos1, cigar1);
+    debug!("read1: {} {}", read_pos1, cigar1);
     let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1);   
     let tids1 = find_tid(&tree, &ranges1);
-    println!("read2: {} {}", read_pos2, cigar2);
+    debug!("read2: {} {}", read_pos2, cigar2);
     let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2);
     let tids2 = find_tid(&tree, &ranges2);
     for (tid, pos1) in tids1.iter() {
@@ -102,7 +101,7 @@ pub fn find_ranges_single(read_pos: &i32,
     let mut new_cigar : Vec::<record::Cigar> = Vec::<record::Cigar>::new();
     *len = 0;
     for cigar_item in cigar.iter() {
-        println!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
+        debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
         let cigar_char = cigar_item.char();
         let mut cigar_len = cigar_item.len();
         match cigar_char {
@@ -116,9 +115,9 @@ pub fn find_ranges_single(read_pos: &i32,
                         'M' => new_cigar.push(record::Cigar::Match(cigar_len)),
                         'I' => new_cigar.push(record::Cigar::Ins(cigar_len)),
                         'D' => new_cigar.push(record::Cigar::Del(cigar_len)),
-                        _ => println!("Warning! unexpected cigar item: {}", cigar_char)
+                        _ => warn!("Unexpected cigar item: {}", cigar_char)
                     }
-                }                
+                }
                 if cigar_char != 'I' {
                     *len = *len + cigar_len as i32; 
                 }
@@ -135,7 +134,7 @@ pub fn find_ranges_single(read_pos: &i32,
             'N' => {
                 end_range = true;
                 ranges.push(curr_range);
-                println!("pushing {} {}", curr_range.0, curr_range.1);
+                debug!("pushing {} {}", curr_range.0, curr_range.1);
                 curr_pos = curr_pos + cigar_len as i32;
                 *len = *len + cigar_len as i32;
             }
@@ -146,12 +145,12 @@ pub fn find_ranges_single(read_pos: &i32,
             'S' => {
                 new_cigar.push(*cigar_item);
             }
-            _ => println!("Unexpected cigar char! {}", cigar_char)
+            _ => warn!("Unexpected cigar char! {}", cigar_char)
         }
-        // println!("{} {}", curr_range.0, curr_range.1);
+        debug!("{} {}", curr_range.0, curr_range.1);
     }
     ranges.push(curr_range);
-    println!("pushing {} {}", curr_range.0, curr_range.1);
+    debug!("pushing {} {}", curr_range.0, curr_range.1);
     *new_cigar_view = record::CigarString(new_cigar);
     return ranges;
 }

@@ -11,12 +11,14 @@ use bio_types::strand::Strand;
 extern crate fnv;
 use fnv::FnvHashMap;
 
+use log::{debug, info};
+
 type GenericError = Box<dyn Error>;
 
 pub fn read(ann_file_adr: &String) -> Result<gff::Reader<std::fs::File>, GenericError> {
     let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
-    println!("{}", file_type);
+    info!("reading the {} file.", file_type);
     let ann_type: gff::GffType = if file_type == "gtf" { gff::GffType::GTF2 } 
                                  else { if file_type == "gff3" || file_type == "gff" { gff::GffType::GFF3 }
                                         else { gff::GffType::GFF2 } };
@@ -71,7 +73,7 @@ pub fn build_tree(ann_file_adr: &String,
                 tpos = 0;
             }
             let seqname = rec.seqname().to_string();
-            print!("\r{:?}\t{:?}", rec.feature_type(), seqname);
+            // info!("\r{:?}\t{:?}", rec.feature_type(), seqname);
             let exon_start = *rec.start() as i32;
             let exon_end = *rec.end() as i32;
             let exon_len = exon_end-exon_start+1;
@@ -110,13 +112,13 @@ pub fn build_tree(ann_file_adr: &String,
         }
     }
 
-    println!("building the tree");
+    info!("building the tree");
     let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();    
     for (seqname, seqname_nodes) in nodes {
-        print!("\r{:?}", seqname);
+        debug!("\r{:?}", seqname);
         trees.insert(seqname, COITree::new(seqname_nodes));
     }
     let b = Instant::now();
-    println!("Time to build: {:?}", b-a);
+    info!("Time to build the tree: {:?}", b-a);
     return Ok(trees);
 }

@@ -7,6 +7,9 @@ use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record}; //
 use crate::annotations;
 use annotations::ExonNode;
 
+extern crate bio_types;
+use bio_types::strand::Strand;
+
 use crate::intersection;
 
 extern crate fnv;
@@ -47,25 +50,42 @@ pub fn read_bamfile(input_bam_filename: &String,
     let mut first_record : record::Record = record::Record::new();
     let mut new_cigar : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut first_new_cigar : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
-        for rec in bam_records {
+    let mut len1 = 0;
+    let mut len2 = 0;
+    for rec in bam_records {
         n = n + 1;
         let record = rec.unwrap();
+        println!("qname: {}", String::from_utf8(record.qname().to_vec()).unwrap());
         if !record.is_paired() {
-            let ranges = intersection::find_ranges_single(&(record.pos() as i32), &record.cigar(), &mut new_cigar);
+            let ranges = intersection::find_ranges_single(&(record.pos() as i32), &record.cigar(), &mut new_cigar, &mut len1);
             let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec()).expect("cannot find the tname!");
             if let Some(tree) = trees.get(&genome_tname) {
                 let tids = intersection::find_tid(&tree, &ranges);
                 // println!("here is reached. {}", tids.len());
                 if tids.len() > 0 {
                     // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
-                    for (tid, pos) in tids.iter() {
-                        // println!("{} {}", tid, transcripts[*tid as usize]);
-                        // println!("{}", tid);
+                    for (tid, pos_strand) in tids.iter() {
+                        println!("{} {}", tid, transcripts[*tid as usize]);
+                        println!("{}", tid);
 
                         let mut record_ = record.clone(); //Record::new();
+                        let mut pos = 0;
+                        if pos_strand.1 == Strand::Forward {
+                            pos = record.pos() - (pos_strand.0 as i64);
+                        } else if pos_strand.1 == Strand::Reverse { 
+                            pos = (pos_strand.0 as i64) - record.pos() - len1 as i64;
+                            if record.is_reverse() {
+                                record_.unset_reverse();
+                            } else {
+                                record_.set_reverse();
+                            }
+                        }
+
                         record_.set(record.qname(), Some(&new_cigar), &record.seq().as_bytes(), record.qual());
                         record_.set_tid(*tid);
-                        record_.set_pos(record.pos() - (*pos as i64));
+                        record_.set_pos(pos);
+                        
+                        // record_.set_pos(record.pos() - (pos_strand.0 as i64));
 
                         output_bam.write(&record_).unwrap();   
                     }
@@ -98,33 +118,58 @@ pub fn read_bamfile(input_bam_filename: &String,
                                                                 &(first_record.pos() as i32), 
                                                                 &first_record.cigar(),
                                                                 &mut first_new_cigar,
+                                                                &mut len1,
                                                                 &(record.pos() as i32), 
                                                                 &record.cigar(), 
-                                                                &mut new_cigar);
+                                                                &mut new_cigar,
+                                                                &mut len2);
+                    println!("{}: {}", first_record.cigar(), first_record.cigar().len());
+                    println!("{}: {}", record.cigar(), record.cigar().len());
                     // let tids = intersection::find_tid(&tree, &ranges);
                     // println!("here is reached. {}", tids.len());
                     if tids.len() > 0 {
                         // println!("\n {} {} {:?}\n", record.pos(), record.cigar());
-                        for (tid, pos) in tids.iter() {
+                        for (tid, pos_strand) in tids.iter() {
+                            println!("there we go: {}", pos_strand.0.0);
+                            let mut first_record_ = first_record.clone();
+                            let mut second_record_ = record.clone();
+
+                            let mut first_pos = 0;
+                            let mut second_pos = 0;
+                            if pos_strand.0.1 == Strand::Forward {
+                                first_pos = first_record.pos() - (pos_strand.0.0 as i64);
+                                second_pos = record.pos() - (pos_strand.1.0 as i64);    
+                            } else if pos_strand.0.1 == Strand::Reverse{ 
+                                first_pos = (pos_strand.0.0 as i64) - first_record.pos() - len1 as i64;
+                                second_pos = (pos_strand.1.0 as i64) - record.pos() - len2 as i64;
+                                if first_record.is_reverse() {
+                                    first_record_.unset_reverse();
+                                } else {
+                                    first_record_.set_reverse();
+                                }
+                                if record.is_reverse() {
+                                    second_record_.unset_reverse();
+                                } else {
+                                    second_record_.set_reverse();
+                                }
+
+                            }
                             // println!("{} {}", tid, transcripts[*tid as usize]);
                             // println!("{}", tid);
 
-                            let mut first_record_ = first_record.clone();
                             first_record_.set(first_record.qname(), 
                                               Some(&first_new_cigar), 
                                               &first_record.seq().as_bytes(), 
                                               first_record.qual());
                             first_record_.set_tid(*tid);
-                            let first_pos = first_record.pos() - (pos.0 as i64);
-                            let second_pos = record.pos() - (pos.1 as i64);
-                            println!("first_record.pos():{} - pos0:{} = {}", first_record.pos(), pos.0, first_pos);
-                            println!("record.pos():{} - pos1:{} = {}", record.pos(), pos.1, second_pos);
+
+                            // println!("first_record.pos():{} - pos0:{} = {}", first_record.pos(), pos.0, first_pos);
+                            // println!("record.pos():{} - pos1:{} = {}", record.pos(), pos.1, second_pos);
                             first_record_.set_pos(first_pos);
                             first_record_.set_mpos(second_pos);
-                            
+
                             output_bam.write(&first_record_).unwrap();
 
-                            let mut second_record_ = record.clone();
                             second_record_.set(record.qname(), Some(&new_cigar), 
                                                &record.seq().as_bytes(), 
                                                record.qual());

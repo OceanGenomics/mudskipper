@@ -104,7 +104,8 @@ pub fn build_tree(ann_file_adr: &String,
             node_arr.push(IntervalNode::new(exon_start, exon_end, exon));
 
             // Update the tpos for the next exon
-            println!("start:{} end:{} exon_number:{}  tpos:{}", exon_start, exon_end, features["exon_number"], tpos); 
+            // println!("start:{} end:{} exon_number:{}  tpos:{}", 
+            // exon_start, exon_end, features["exon_number"], tpos); 
             tpos += exon_len;
         }
     }

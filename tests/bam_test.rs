@@ -105,3 +105,61 @@ pub fn test_reverse_coordinates_single() {
         }
     }
 }
+
+#[test]
+pub fn test_insert_size1() {
+    let ann_file_adr = "tests/NC_007120.7_12427.gtf".to_string();
+    let bam_file_in = "tests/NC_007120.7_12427.sam".to_string();
+    let bam_file_out = "tests/NC_007120.7_12427_toTranscriptome.bam".to_string();
+
+    let missed_count = read_and_process(&ann_file_adr, &bam_file_in, &bam_file_out);
+    assert_eq!(missed_count, 0, "no transcripts found!");
+
+    let mut output_bam = Reader::from_path(&bam_file_out).unwrap();
+    let bam_records = output_bam.records();
+
+    let insert_size = 389;
+
+    let mut first = true;
+    for rec in bam_records {
+        let record = rec.unwrap();
+        if first {
+            assert_eq!(record.is_paired(), true,  "The alignment record should have been paired!");
+            assert_eq!(record.insert_size(), insert_size, 
+                        "Insert size is wrong! {} {}", record.insert_size(), insert_size);
+            first = false;
+        } else {
+            assert_eq!(record.insert_size(), -insert_size, 
+                        "Insert size is wrong! {} {}", record.insert_size(), -insert_size);
+        }
+    }
+}
+
+#[test]
+pub fn test_insert_size2() {
+    let ann_file_adr = "tests/NC_007114.7_12427.gtf".to_string();
+    let bam_file_in = "tests/NC_007114.7_12427.sam".to_string();
+    let bam_file_out = "tests/NC_007114.7_12427_toTranscriptome.bam".to_string();
+
+    let missed_count = read_and_process(&ann_file_adr, &bam_file_in, &bam_file_out);
+    assert_eq!(missed_count, 0, "no transcripts found!");
+
+    let mut output_bam = Reader::from_path(&bam_file_out).unwrap();
+    let bam_records = output_bam.records();
+
+    let insert_size = 264;
+
+    let mut first = true;
+    for rec in bam_records {
+        let record = rec.unwrap();
+        if first {
+            assert_eq!(record.is_paired(), true,  "The alignment record should have been paired!");
+            assert_eq!(record.insert_size(), insert_size, 
+                        "Insert size is wrong! {} {}", record.insert_size(), insert_size);
+            first = false;
+        } else {
+            assert_eq!(record.insert_size(), -insert_size, 
+                        "Insert size is wrong! {} {}", record.insert_size(), -insert_size);
+        }
+    }
+}

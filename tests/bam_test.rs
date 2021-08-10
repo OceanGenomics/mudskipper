@@ -22,11 +22,12 @@ pub fn read_and_process(ann_file_adr: &String,
                                         &mut transcripts_map,
                                         &mut transcripts,
                                         &mut txp_lengths).expect("cannot build the tree!");
-    return bam::read_bamfile(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees);
+    let threads = 0;
+    return bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads);
 }
 
 #[test]
-pub fn test_read_bamfile() {
+pub fn test_bam2bam() {
     let ann_file_adr = "tests/NC_002333.2.gtf".to_string();
     // let bam_file_in = "tests/NC_007112.7.sam".to_string();
     // let bam_file_out = "tests/NC_007112.7.converted.sam".to_string();

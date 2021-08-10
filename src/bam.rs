@@ -15,13 +15,14 @@ use fnv::FnvHashMap;
 
 use log::{debug};
 
-pub fn read_bamfile(input_bam_filename: &String, 
-                    output_bam_filename: &String,
-                    transcripts: &Vec<String>,
-                    txp_lengths: &Vec<i32>,
-                    trees: &FnvHashMap::<String, COITree<ExonNode, u32>>) -> i32 {
+pub fn bam2bam(input_bam_filename: &String, 
+                output_bam_filename: &String,
+                transcripts: &Vec<String>,
+                txp_lengths: &Vec<i32>,
+                trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
+                threads_count: &usize) -> i32 {
     let mut input_bam = Reader::from_path(input_bam_filename).unwrap();
-    let bam_records = input_bam.records();
+    // let bam_records = input_bam.records();
 
     // let header_ = Header::from_template(input_bam.header());
     // let header_text = String::from_utf8(header_.to_bytes().to_owned()).unwrap().;
@@ -41,8 +42,12 @@ pub fn read_bamfile(input_bam_filename: &String,
 
     let mut output_bam = Writer::from_path(output_bam_filename, &new_header, Format::Bam).unwrap();
 
-    // input_bam.set_threads(2).expect("Failed to set number of BAM reading threads to 2.");
-    // output_bam.set_threads(5).expect("Failed to set number of BAM writing threads to 4.");
+    if *threads_count >= 2 {
+        let threads_count_half = threads_count / 2;
+        println!("thread count: {}", threads_count_half);
+        input_bam.set_threads(threads_count_half).expect("Failed to set number of BAM reading threads.");
+        output_bam.set_threads(threads_count_half).expect("Failed to set number of BAM writing threads.");
+    }
 
     let mut n = 0;
     let mut missed_read = 0;
@@ -52,7 +57,7 @@ pub fn read_bamfile(input_bam_filename: &String,
     let mut first_new_cigar : record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut len1 = 0;
     let mut len2 = 0;
-    for rec in bam_records {
+    for rec in input_bam.records() {
         n = n + 1;
         let record = rec.unwrap();
         debug!("qname: {}", String::from_utf8(record.qname().to_vec()).unwrap());

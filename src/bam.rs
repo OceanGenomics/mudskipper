@@ -142,7 +142,7 @@ pub fn bam2bam(input_bam_filename: &String,
                                 first_pos = first_record.pos() - (pos_strand.0.0 as i64);
                                 debug!("first_pos:{} - pos:{} = {}",
                                         first_record.pos(), pos_strand.0.0, first_pos);
-                                second_pos = record.pos() - (pos_strand.1.0 as i64);    
+                                second_pos = record.pos() - (pos_strand.1.0 as i64); 
                                 debug!("second_pos:{} - pos:{} = {}",
                                     record.pos(), pos_strand.1.0, second_pos);
                             } else if pos_strand.0.1 == Strand::Reverse{ 
@@ -164,17 +164,31 @@ pub fn bam2bam(input_bam_filename: &String,
                                 }
 
                             }
+                            let first_read_len: i64 = first_record.seq().len() as i64;
+                            let second_read_len: i64 = record.seq().len() as i64;
+
+                            let first_length: i64 = if !first_record.is_reverse() {
+                                                second_pos - first_pos + second_read_len } else {
+                                                second_pos - first_pos + first_read_len };
+                            let second_length: i64 = if !record.is_reverse() {
+                                                first_pos - second_pos - first_read_len } else {
+                                                first_pos - second_pos - second_read_len };
                             debug!("{} {}", tid, transcripts[*tid as usize]);
-                            debug!("{}", tid);
+                            debug!("first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
+                                    first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
+                            debug!("first_record.is_reverse():{}", first_record.is_reverse());
+                            debug!("record.is_reverse():{}", record.is_reverse());
 
                             first_record_.set(first_record.qname(), 
                                               Some(&first_new_cigar), 
                                               &first_record.seq().as_bytes(), 
                                               first_record.qual());
                             first_record_.set_tid(*tid);
+                            first_record_.set_mtid(*tid);
 
                             first_record_.set_pos(first_pos);
                             first_record_.set_mpos(second_pos);
+                            first_record_.set_insert_size(first_length);
 
                             output_bam.write(&first_record_).unwrap();
 
@@ -182,8 +196,11 @@ pub fn bam2bam(input_bam_filename: &String,
                                                &record.seq().as_bytes(), 
                                                record.qual());
                             second_record_.set_tid(*tid);
+                            second_record_.set_mtid(*tid);
+
                             second_record_.set_pos(second_pos);
                             second_record_.set_mpos(first_pos);
+                            second_record_.set_insert_size(second_length);
 
                             output_bam.write(&second_record_).unwrap();
                         }

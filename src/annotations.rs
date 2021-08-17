@@ -10,7 +10,7 @@ use bio_types::strand::Strand;
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log::{info};
+use log::{info, debug};
 use indicatif::ProgressBar;
 use linecount::count_lines;
 
@@ -76,15 +76,23 @@ pub fn build_tree(ann_file_adr: &String,
         let features = rec.attributes();
         let tname_key : String = "transcript_id".to_string();
         if rec.feature_type() == "exon" && features.contains_key(&tname_key) {
-            if features["exon_number"] == "1" {
+            if (features.contains_key("exon_number") && features["exon_number"] == "1") ||
+                (features.contains_key("exon") && features["exon"] == "1") {
                 tpos = 0;
             }
             let seqname = rec.seqname().to_string();
-            // info!("\r{:?}\t{:?}", rec.feature_type(), seqname);
+            debug!("\r{:?}\t{:?}", rec.feature_type(), seqname);
             let exon_start = *rec.start() as i32;
             let exon_end = *rec.end() as i32;
             let exon_len = exon_end-exon_start+1;
-            let exon_strand = rec.strand().unwrap();
+            let exon_strand = rec.strand();//.unwrap();
+            let exon_strand = match exon_strand {
+                Some(strand) => strand,
+                None => {
+                    debug!("The gtf/gff record doesn't specify the strand, will be ignored.");
+                    continue;
+                },
+            };
             let features = rec.attributes();
             let tname = &features[&tname_key];
             if features.contains_key(&tname_key) {                

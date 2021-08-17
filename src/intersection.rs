@@ -29,23 +29,26 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
                 debug!("query for {} {}:{}",range.0, range.1, node.metadata);
-
-                curr_tids.insert(node.metadata.tid);
-                if first && node.metadata.strand == Strand::Forward {
-                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                    debug!("start:{} - tpos_start:{} = {}",
-                            node.metadata.start, node.metadata.tpos_start, 
-                            node.metadata.start - node.metadata.tpos_start);
-                    tid_pos.insert(node.metadata.tid, 
-                        (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
-                } else if last && node.metadata.strand == Strand::Reverse {
-                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                    debug!("end:{} + tpos_start:{} = {}",
-                            node.metadata.end, node.metadata.tpos_start, 
-                            node.metadata.end + node.metadata.tpos_start);
-                    tid_pos.insert(node.metadata.tid, 
-                        (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
-                }
+                //if (node.metadata.start-10 <= range.0 && node.metadata.end+10 >= range.1) ||
+                //    (node.metadata.end-10 <= range.0 && node.metadata.start+10 >= range.1) {
+                    
+                    curr_tids.insert(node.metadata.tid);
+                    if first && node.metadata.strand == Strand::Forward {
+                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                        debug!("start:{} - tpos_start:{} = {}",
+                                node.metadata.start, node.metadata.tpos_start, 
+                                node.metadata.start - node.metadata.tpos_start);
+                        tid_pos.insert(node.metadata.tid, 
+                            (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
+                    } else if last && node.metadata.strand == Strand::Reverse {
+                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                        debug!("end:{} + tpos_start:{} = {}",
+                                node.metadata.end, node.metadata.tpos_start, 
+                                node.metadata.end + node.metadata.tpos_start);
+                        tid_pos.insert(node.metadata.tid, 
+                            (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
+                    }
+                //}
             });
             debug!("found coverage: {:?}", res)
         }
@@ -71,13 +74,15 @@ pub fn find_tids_paired(tree: &COITree<ExonNode, u32>,
                         read_pos2: &i32, 
                         cigar2: &record::CigarStringView,
                         new_cigar2: &mut record::CigarString,
-                        len2: &mut i32) -> HashMap<i32, ((i32, Strand), (i32, Strand))> {
+                        len2: &mut i32,
+                        long_softclip: &mut bool,
+                        max_softlen: &usize) -> HashMap<i32, ((i32, Strand), (i32, Strand))> {
     let mut tid_pos: HashMap<i32, ((i32, Strand), (i32, Strand))> = HashMap::new();
     debug!("read1: {} {}", read_pos1, cigar1);
-    let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1);   
+    let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1, long_softclip, max_softlen);   
     let tids1 = find_tid(&tree, &ranges1);
     debug!("read2: {} {}", read_pos2, cigar2);
-    let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2);
+    let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2, long_softclip, max_softlen);
     let tids2 = find_tid(&tree, &ranges2);
     for (tid, pos1) in tids1.iter() {
         if tids2.contains_key(tid) {
@@ -90,7 +95,9 @@ pub fn find_tids_paired(tree: &COITree<ExonNode, u32>,
 pub fn find_ranges_single(read_pos: &i32, 
                           cigar: &record::CigarStringView,
                           new_cigar_view: &mut record::CigarString,
-                          len: &mut i32) -> Vec<(i32, i32)> {
+                          len: &mut i32,
+                          long_softclip: &mut bool,
+                          max_softlen: &usize) -> Vec<(i32, i32)> {
     let mut ranges = Vec::new();
     let mut curr_range: (i32, i32) = (-1, -1);
 
@@ -149,6 +156,9 @@ pub fn find_ranges_single(read_pos: &i32,
             // be ignored.
             'S' => {
                 new_cigar.push(*cigar_item);
+                if cigar_len > *max_softlen as u32 {
+                    *long_softclip = true;
+                }
             }
             _ => warn!("Unexpected cigar char! {}", cigar_char)
         }

@@ -20,7 +20,8 @@ pub fn bam2bam(input_bam_filename: &String,
                 transcripts: &Vec<String>,
                 txp_lengths: &Vec<i32>,
                 trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                threads_count: &usize) -> i32 {
+                threads_count: &usize,
+                max_softlen: &usize) -> i32 {
     let mut input_bam = Reader::from_path(input_bam_filename).unwrap();
     // let bam_records = input_bam.records();
 
@@ -60,16 +61,28 @@ pub fn bam2bam(input_bam_filename: &String,
     for rec in input_bam.records() {
         n = n + 1;
         let record = rec.unwrap();
-        debug!("qname: {}", String::from_utf8(record.qname().to_vec()).unwrap());
-        if !record.is_paired() {
+        let qname = String::from_utf8(record.qname().to_vec()).unwrap();
+        let mut check = false;
+        if qname == "J00153:160:HMTNMBBXX:6:1101:14905:6185" {
+            check  = true;
+        }
+        debug!("qname: {}", qname);
+        let mut long_softclip = false;
+        if !record.is_paired() || record.is_mate_unmapped() {
             let ranges = intersection::find_ranges_single(&(record.pos() as i32),
                                                           &record.cigar(),
                                                           &mut new_cigar,
-                                                          &mut len1);
+                                                          &mut len1,
+                                                          &mut long_softclip,
+                                                          &max_softlen);
             let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec())
                                                 .expect("cannot find the tname!");
             if let Some(tree) = trees.get(&genome_tname) {
                 let tids = intersection::find_tid(&tree, &ranges);
+                if long_softclip {
+                    debug!("The softclip length is too long!");
+                    continue;
+                }
                 if tids.len() > 0 {
                     for (tid, pos_strand) in tids.iter() {
                         debug!("{} {}", tid, transcripts[*tid as usize]);
@@ -104,12 +117,15 @@ pub fn bam2bam(input_bam_filename: &String,
                 // log for unannotated splicing junction
             }
             debug!("{} {}", ranges[0].0, ranges[0].1);
-            
+            first_in_pair = true;            
         } else {
             if first_in_pair {
                 first_in_pair = false;
                 first_record = record;
             } else {
+                if check {
+                    println!("Here is reached!");
+                }
                 first_in_pair = true;
                 /* let ranges = intersection::find_tids_paired(&(first_record.pos() as i32), 
                                                               &first_record.cigar(),
@@ -128,9 +144,19 @@ pub fn bam2bam(input_bam_filename: &String,
                                                                 &(record.pos() as i32), 
                                                                 &record.cigar(), 
                                                                 &mut new_cigar,
-                                                                &mut len2);
+                                                                &mut len2,
+                                                                &mut long_softclip,
+                                                                &max_softlen);
+                    if long_softclip {
+                        debug!("The softclip length is too long!");
+                        continue;
+                    }
                     debug!("{}: {}", first_record.cigar(), first_record.cigar().len());
                     debug!("{}: {}", record.cigar(), record.cigar().len());
+                    if check {
+                        println!("{}: {}", first_record.cigar(), first_record.cigar().len());
+                        println!("{}: {}", record.cigar(), record.cigar().len());
+                    }
                     if tids.len() > 0 {
                         for (tid, pos_strand) in tids.iter() {
                             let mut first_record_ = first_record.clone();
@@ -197,7 +223,13 @@ pub fn bam2bam(input_bam_filename: &String,
                                     first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
                             debug!("first_record.is_reverse():{}", first_record.is_reverse());
                             debug!("record.is_reverse():{}", record.is_reverse());
-
+                            if check {
+                                println!("{} {}", tid, transcripts[*tid as usize]);
+                                println!("first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
+                                        first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
+                                        println!("first_record.is_reverse():{}", first_record.is_reverse());
+                                println!("record.is_reverse():{}", record.is_reverse());    
+                            }
                             first_record_.set(first_record.qname(), 
                                               Some(&first_new_cigar), 
                                               &first_record.seq().as_bytes(), 
@@ -208,6 +240,7 @@ pub fn bam2bam(input_bam_filename: &String,
                             first_record_.set_pos(first_pos);
                             first_record_.set_mpos(second_pos);
                             first_record_.set_insert_size(first_length);
+                            // first_record_.remove_aux("AS".as_bytes());
 
                             second_record_.set(record.qname(), Some(&new_cigar), 
                                                &record.seq().as_bytes(), 
@@ -218,11 +251,18 @@ pub fn bam2bam(input_bam_filename: &String,
                             second_record_.set_pos(second_pos);
                             second_record_.set_mpos(first_pos);
                             second_record_.set_insert_size(second_length);
+                            // second_record_.remove_aux("AS".as_bytes());
 
                             if first_pos > second_pos {
+                                if first_pos + first_read_len > txp_lengths[*tid as usize].into() || second_pos < 0 {
+                                    continue;
+                                }
                                 output_bam.write(&second_record_).unwrap();
                                 output_bam.write(&first_record_).unwrap();    
                             } else {
+                                if second_pos + second_read_len > txp_lengths[*tid as usize].into() || first_pos < 0 {
+                                    continue;
+                                }
                                 output_bam.write(&first_record_).unwrap();
                                 output_bam.write(&second_record_).unwrap();
                             }

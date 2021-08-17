@@ -18,7 +18,7 @@ fn main() {
     let crate_authors = crate_authors!("\n");
     let version = crate_version!();
     let max_num_threads: String = (num_cpus::get() as u32).to_string();
-
+    let max_soft: String = "200".to_string();
     let bam2bam_app = App::new("bam2bam")
         .version(version)
         .author(crate_authors)
@@ -26,7 +26,8 @@ fn main() {
         .arg(Arg::from("-b, --bam=<bam-file> 'input SAM/BAM file'"))
         .arg(Arg::from("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
         .arg(Arg::from("-o, --out=<output-file> 'output BAM file'"))
-        .arg(Arg::from("-t, --threads 'Number of threads for the processing bam files.'").default_value(&max_num_threads));
+        .arg(Arg::from("-t, --threads 'Number of threads for the processing bam files.'").default_value(&max_num_threads))
+        .arg(Arg::from("-s, --max_softlen 'Max allowed sofclip length allowed.'").default_value(&max_soft));
 
     let opts = App::new("mudskipper")
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -43,6 +44,7 @@ fn main() {
         let ann_file_adr: String = t.value_of_t("gtf").unwrap();
         let bam_file_out: String = t.value_of_t("out").unwrap();
         let threads_count: usize = t.value_of_t("threads").unwrap();
+        let max_softlen: usize = t.value_of_t("max_softlen").unwrap();
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
@@ -50,6 +52,6 @@ fn main() {
                                             &mut transcripts_map,
                                             &mut transcripts,
                                             &mut txp_lengths).expect("cannot build the tree!");
-        bam::bam2bam(&bam_file_in, &bam_file_out, &transcripts, &txp_lengths, &trees, &threads_count);
+        bam::bam2bam(&bam_file_in, &bam_file_out, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
     }
 }

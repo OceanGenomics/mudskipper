@@ -16,12 +16,12 @@ use fnv::FnvHashMap;
 use log::{debug};
 
 pub fn bam2bam(input_bam_filename: &String, 
-                output_bam_filename: &String,
-                transcripts: &Vec<String>,
-                txp_lengths: &Vec<i32>,
-                trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                threads_count: &usize,
-                max_softlen: &usize) -> i32 {
+               output_bam_filename: &String,
+               transcripts: &Vec<String>,
+               txp_lengths: &Vec<i32>,
+               trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
+               threads_count: &usize,
+               max_softlen: &usize) -> i32 {
     let mut input_bam = Reader::from_path(input_bam_filename).unwrap();
     // let bam_records = input_bam.records();
 

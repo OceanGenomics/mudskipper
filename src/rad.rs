@@ -4,7 +4,7 @@ use crate::annotation;
 
 extern crate fnv;
 
-use std::fs;
+// use std::fs;
 use std::fs::File;
 // use std::path::Path;
 use log::{info, error};
@@ -12,7 +12,7 @@ use log::{info, error};
 use annotation::ExonNode;
 
 use std::io::{BufWriter, Cursor, Write, Seek, SeekFrom};
-use rust_htslib::{bam, bam::record::Aux, bam::Read};
+use rust_htslib::{bam, bam::Read};
 use fnv::FnvHashMap;
 use coitrees::{COITree};
 
@@ -147,12 +147,12 @@ pub fn bam2rad(input_bam_filename: &String,
     //     std::process::exit(1);
     // }
 
-    let mut num_output_chunks = 0u64;
-    let mut local_nrec = 0u32;
+    // let mut num_output_chunks = 0u64;
+    // let mut local_nrec = 0u32;
 
     // allocate data
-    let buf_limit = 10000u32;
-    data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 24) as usize));
+    // let buf_limit = 10000u32;
+    // data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 24) as usize));
     // TODO: should chunk bytes account for the bytes for the header?
     // data.write_all(&local_nrec.to_le_bytes()).unwrap();
     // data.write_all(&local_nrec.to_le_bytes()).unwrap();

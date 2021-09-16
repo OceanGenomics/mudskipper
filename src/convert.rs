@@ -2,6 +2,10 @@ use rust_htslib::bam::record;
 use coitrees::{COITree};
 use std::collections::{HashSet, HashMap};
 
+use rust_htslib::bam::HeaderView;
+// use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header};
+use fnv::FnvHashMap;
+
 extern crate bio_types;
 use bio_types::strand::Strand;
 
@@ -108,7 +112,7 @@ pub fn find_ranges_single(read_pos: &i32,
     // Set the current position to the base right before the beginning of the alignment
     // after discarding the softclipped bases
     let mut curr_pos = *read_pos - 1 + (cigar.leading_softclips() as i32);
-    let mut new_cigar : Vec::<record::Cigar> = Vec::<record::Cigar>::new();
+    let mut new_cigar: Vec::<record::Cigar> = Vec::<record::Cigar>::new();
     *len = 0;
     for cigar_item in cigar.iter() {
         debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
@@ -168,4 +172,220 @@ pub fn find_ranges_single(read_pos: &i32,
     debug!("pushing {} {}", curr_range.0, curr_range.1);
     *new_cigar_view = record::CigarString(new_cigar);
     return ranges;
+}
+
+pub fn convert_paired_end(bam_record1: &record::Record,
+                          bam_record2: &record::Record,
+                          header_view: &HeaderView,
+                          transcripts: &Vec<String>,
+                          txp_lengths: &Vec<i32>,
+                          trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
+                          max_softlen: &usize)
+    -> Vec<record::Record> {
+    let mut converted_records: Vec<record::Record> = Vec::new();
+    let mut cigar1_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
+    let mut cigar2_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
+    let mut len1 = 0;
+    let mut len2 = 0;
+    let mut long_softclip = false;
+
+    let genome_tname = String::from_utf8(header_view.tid2name(bam_record2.tid() as u32).to_vec())
+        .expect("cannot find the tname!");
+    if let Some(tree) = trees.get(&genome_tname) {
+        let tids = find_tids_paired(&tree,
+                                                    &(bam_record1.pos() as i32),
+                                                    &bam_record1.cigar(),
+                                                    &mut cigar1_new,
+                                                    &mut len1,
+                                                    &(bam_record2.pos() as i32),
+                                                    &bam_record2.cigar(),
+                                                    &mut cigar2_new,
+                                                    &mut len2,
+                                                    &mut long_softclip,
+                                                    &max_softlen);
+        if long_softclip {
+            debug!("The softclip length is too long!");
+            return converted_records;
+        }
+        debug!("{}: {}", bam_record1.cigar(), bam_record1.cigar().len());
+        debug!("{}: {}", bam_record2.cigar(), bam_record2.cigar().len());
+        if tids.len() > 0 {
+            for (tid, pos_strand) in tids.iter() {
+                let mut first_record_ = bam_record1.clone();
+                let mut second_record_ = bam_record2.clone();
+
+                let mut first_pos = 0;
+                let mut second_pos = 0;
+                if pos_strand.0.1 == Strand::Forward {
+                    first_pos = bam_record1.pos() - (pos_strand.0.0 as i64);
+                    debug!("first_pos:{} - pos:{} = {}",
+                            bam_record1.pos(), pos_strand.0.0, first_pos);
+                    second_pos = bam_record2.pos() - (pos_strand.1.0 as i64); 
+                    debug!("second_pos:{} - pos:{} = {}",
+                        bam_record2.pos(), pos_strand.1.0, second_pos);
+                } else if pos_strand.0.1 == Strand::Reverse{ 
+                    first_pos = (pos_strand.0.0 as i64) - bam_record1.pos() - len1 as i64;
+                    debug!("pos:{} - first_pos:{} - len1:{} = {}",
+                            pos_strand.0.0, bam_record1.pos(), len1, first_pos);
+                    second_pos = (pos_strand.1.0 as i64) - bam_record2.pos() - len2 as i64;
+                    debug!("pos:{} - second_pos:{} - len2:{} = {}",
+                            pos_strand.1.0, bam_record2.pos(), len2, second_pos);
+                    if bam_record1.is_reverse() {
+                        debug!("bam_record1 is reversed");
+                        first_record_.unset_reverse();
+                        first_record_.set_mate_reverse();
+                    } else {
+                        debug!("bam_record1 is not reversed");
+                        first_record_.set_reverse();
+                        first_record_.unset_mate_reverse();
+                    }
+                    if bam_record2.is_reverse() {
+                        debug!("second_record is reversed");
+                        second_record_.unset_reverse();
+                        second_record_.set_mate_reverse();
+                    } else {
+                        debug!("second_record is not reversed");
+                        second_record_.set_reverse();
+                        second_record_.unset_mate_reverse();
+                    }
+
+                }
+                let first_read_len: i64 = bam_record1.seq().len() as i64;
+                let second_read_len: i64 = bam_record2.seq().len() as i64;
+                let first_length: i64;
+                let second_length: i64;
+                if pos_strand.0.1 == Strand::Forward {
+                    first_length = if !bam_record1.is_reverse() {
+                                        second_pos - first_pos + second_read_len } else {
+                                        second_pos - first_pos + first_read_len };
+                    second_length = if !bam_record2.is_reverse() {
+                                        first_pos - second_pos - first_read_len } else {
+                                        first_pos - second_pos - second_read_len };
+                }
+                else {
+                    first_length = if !bam_record1.is_reverse() {
+                        second_pos - first_pos - first_read_len } else {
+                        second_pos - first_pos - second_read_len };
+                    second_length = if !bam_record2.is_reverse() {
+                        first_pos - second_pos + second_read_len } else {
+                        first_pos - second_pos + first_read_len };
+                }
+                debug!("tid:{} {}", tid, transcripts[*tid as usize]);
+                debug!("first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
+                        first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
+                debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
+                debug!("record.is_reverse():{}", bam_record2.is_reverse());
+                first_record_.set(bam_record1.qname(), 
+                                Some(&cigar1_new), 
+                                &bam_record1.seq().as_bytes(), 
+                                bam_record1.qual());
+                first_record_.set_tid(*tid);
+                first_record_.set_mtid(*tid);
+
+                first_record_.set_pos(first_pos);
+                first_record_.set_mpos(second_pos);
+                first_record_.set_insert_size(first_length);
+                // first_record_.remove_aux("AS".as_bytes());
+
+                second_record_.set(bam_record2.qname(), Some(&cigar2_new), 
+                                    &bam_record2.seq().as_bytes(), 
+                                    bam_record2.qual());
+                second_record_.set_tid(*tid);
+                second_record_.set_mtid(*tid);
+
+                second_record_.set_pos(second_pos);
+                second_record_.set_mpos(first_pos);
+                second_record_.set_insert_size(second_length);
+                // second_record_.remove_aux("AS".as_bytes());
+
+                if first_pos > second_pos {
+                    if first_pos + first_read_len > txp_lengths[*tid as usize].into() || second_pos < 0 {
+                        continue;
+                    }
+                    // output_bam.write(&second_record_).unwrap();
+                    // output_bam.write(&first_record_).unwrap();
+                    converted_records.push(second_record_);
+                    converted_records.push(first_record_);
+                } else {
+                    if second_pos + second_read_len > txp_lengths[*tid as usize].into() || first_pos < 0 {
+                        continue;
+                    }
+                    // output_bam.write(&first_record_).unwrap();
+                    // output_bam.write(&second_record_).unwrap();
+                    converted_records.push(first_record_);
+                    converted_records.push(second_record_);
+                }
+            }
+        } else {
+            // missed_read = missed_read + 1;
+            debug!("missed read!")
+        }
+    } else {
+        // log for unannotated splicing junction
+        debug!("unannotated splicing junction observed!")
+    }
+    return converted_records;
+}
+
+pub fn convert_single_end(bam_record: &record::Record,
+                          header_view: &HeaderView,
+                          transcripts: &Vec<String>,
+                          trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
+                          max_softlen: &usize)
+    -> Vec<record::Record> {
+    let mut converted_records: Vec<record::Record> = Vec::new();
+    let mut cigar_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
+    let mut len1 = 0;
+    let mut long_softclip = false;
+
+    let ranges = find_ranges_single(&(bam_record.pos() as i32),
+                                                    &bam_record.cigar(),
+                                                    &mut cigar_new,
+                                                    &mut len1,
+                                                    &mut long_softclip,
+                                                    &max_softlen);
+    let genome_tname = String::from_utf8(header_view.tid2name(bam_record.tid() as u32).to_vec())
+                                        .expect("cannot find the tname!");
+    if let Some(tree) = trees.get(&genome_tname) {
+        let tids = find_tid(&tree, &ranges);
+        if long_softclip {
+            debug!("The softclip length is too long!");
+            return converted_records;
+        }
+        if tids.len() > 0 {
+            for (tid, pos_strand) in tids.iter() {
+                debug!("tid:{} {}", tid, transcripts[*tid as usize]);
+
+                let mut record_ = bam_record.clone();
+                let mut pos = 0;
+                if pos_strand.1 == Strand::Forward {
+                    pos = bam_record.pos() - (pos_strand.0 as i64);
+                } else if pos_strand.1 == Strand::Reverse { 
+                    pos = (pos_strand.0 as i64) - bam_record.pos() - len1 as i64;
+                    if bam_record.is_reverse() {
+                        record_.unset_reverse();
+                    } else {
+                        record_.set_reverse();
+                    }
+                }
+
+                record_.set(bam_record.qname(),
+                            Some(&cigar_new),
+                            &bam_record.seq().as_bytes(),
+                            bam_record.qual());
+                record_.set_tid(*tid);
+                record_.set_pos(pos);
+
+                // output_bam.write(&record_).unwrap();
+                converted_records.push(record_);
+            }
+        } else {
+            // missed_read = missed_read + 1;
+            debug!("missed read!")
+        }
+    } else {
+        // log for unannotated splicing junction
+        debug!("unannotated splicing junction observed!")
+    }
+    return converted_records;
 }

@@ -143,7 +143,7 @@ pub fn build_tree(ann_file_adr: &String,
         pb.inc(1);
         let rec = record.ok().expect("Error reading record.");
         let features = rec.attributes();
-        let tname_key : String = "transcript_id".to_string();
+        let tname_key: String = "transcript_id".to_string();
         if rec.feature_type() == "exon" && features.contains_key(&tname_key) {
             if (features.contains_key("exon_number") && features["exon_number"] == "1") ||
                 (features.contains_key("exon") && features["exon"] == "1") {

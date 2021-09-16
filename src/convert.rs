@@ -5,8 +5,8 @@ use std::collections::{HashSet, HashMap};
 extern crate bio_types;
 use bio_types::strand::Strand;
 
-use crate::annotations;
-use annotations::ExonNode;
+use crate::annotation;
+use annotation::ExonNode;
 
 use log::{debug, warn};
 

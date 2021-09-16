@@ -9,8 +9,8 @@ use std::env;
 // use coitrees::{COITree, IntervalNode};
 // use bio_types::strand::Strand;
 
-mod annotations;
-mod intersection;
+mod annotation;
+mod convert;
 mod bam;
 mod rad;
 
@@ -66,11 +66,11 @@ fn main() {
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
         let trees = if std::fs::metadata("parsed_gtf.exon").is_ok() {
-            annotations::load_tree(&mut transcripts_map,
+            annotation::load_tree(&mut transcripts_map,
                                    &mut transcripts,
                                    &mut &mut txp_lengths).expect("cannot load the tree!")
         } else {
-            annotations::build_tree(&ann_file_adr, 
+            annotation::build_tree(&ann_file_adr, 
                 &mut transcripts_map,
                 &mut transcripts,
                 &mut txp_lengths).expect("cannot build the tree!")

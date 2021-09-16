@@ -2,13 +2,13 @@ use coitrees::{COITree};
 
 use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record};
 
-use crate::annotations;
-use annotations::ExonNode;
+use crate::annotation;
+use annotation::ExonNode;
 
 extern crate bio_types;
 use bio_types::strand::Strand;
 
-use crate::intersection;
+use crate::convert;
 
 extern crate fnv;
 use fnv::FnvHashMap;
@@ -69,7 +69,7 @@ pub fn bam2bam(input_bam_filename: &String,
         debug!("qname: {}", qname);
         let mut long_softclip = false;
         if !record.is_paired() || record.is_mate_unmapped() {
-            let ranges = intersection::find_ranges_single(&(record.pos() as i32),
+            let ranges = convert::find_ranges_single(&(record.pos() as i32),
                                                           &record.cigar(),
                                                           &mut new_cigar,
                                                           &mut len1,
@@ -78,7 +78,7 @@ pub fn bam2bam(input_bam_filename: &String,
             let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32).to_vec())
                                                 .expect("cannot find the tname!");
             if let Some(tree) = trees.get(&genome_tname) {
-                let tids = intersection::find_tid(&tree, &ranges);
+                let tids = convert::find_tid(&tree, &ranges);
                 if long_softclip {
                     debug!("The softclip length is too long!");
                     continue;
@@ -127,7 +127,7 @@ pub fn bam2bam(input_bam_filename: &String,
                 //     println!("Here is reached!");
                 // }
                 first_in_pair = true;
-                /* let ranges = intersection::find_tids_paired(&(first_record.pos() as i32), 
+                /* let ranges = convert::find_tids_paired(&(first_record.pos() as i32), 
                                                               &first_record.cigar(),
                                                               &mut first_new_cigar,
                                                               &(record.pos() as i32), 
@@ -136,7 +136,7 @@ pub fn bam2bam(input_bam_filename: &String,
                 let genome_tname = String::from_utf8(header_view.tid2name(record.tid() as u32)
                                                                 .to_vec()).expect("cannot find the tname!");
                 if let Some(tree) = trees.get(&genome_tname) {
-                    let tids = intersection::find_tids_paired(&tree,
+                    let tids = convert::find_tids_paired(&tree,
                                                                 &(first_record.pos() as i32), 
                                                                 &first_record.cigar(),
                                                                 &mut first_new_cigar,

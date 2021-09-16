@@ -1,6 +1,6 @@
 // use std::io::{stdout, BufReader, BufWriter, Cursor, Seek, SeekFrom, Write};
 
-use crate::annotations;
+use crate::annotation;
 
 extern crate fnv;
 
@@ -9,7 +9,7 @@ use std::fs::File;
 // use std::path::Path;
 use log::{info, error};
 
-use annotations::ExonNode;
+use annotation::ExonNode;
 
 use std::io::{BufWriter, Cursor, Write, Seek, SeekFrom};
 use rust_htslib::{bam, bam::record::Aux, bam::Read};
@@ -86,9 +86,9 @@ pub fn bam2rad(input_bam_filename: &String,
             .expect("coudn't write to output file");
     }
 
+    // TODO: shouldn't this be set before writing initial_num_chunks???
     // keep a pointer to header pos
-    let end_header_pos =
-    data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
+    let end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
     // check header position
     info!("end header pos: {:?}", end_header_pos);
 
@@ -132,7 +132,32 @@ pub fn bam2rad(input_bam_filename: &String,
     owriter.write_all(data.get_ref()).unwrap();
 
 
+    // let mut bam = bam::Reader::from_path(&input_bam_filename).unwrap();
+    // if *threads_count > 1 {
+    //     bam.set_threads(threads_count - 1).unwrap();
+    // } else {
+    //     bam.set_threads(1).unwrap();
+    // }
 
+    // // get the first record for creating flags
+    // let mut rec = bam::Record::new();
+    // let first_record_exists = bam.read(&mut rec).is_some();
+    // if !first_record_exists {
+    //     error!("bam file had no records!");
+    //     std::process::exit(1);
+    // }
+
+    let mut num_output_chunks = 0u64;
+    let mut local_nrec = 0u32;
+
+    // allocate data
+    let buf_limit = 10000u32;
+    data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 24) as usize));
+    // TODO: should chunk bytes account for the bytes for the header?
+    // data.write_all(&local_nrec.to_le_bytes()).unwrap();
+    // data.write_all(&local_nrec.to_le_bytes()).unwrap();
+    
+    // owriter.write_all(data.get_ref()).unwrap();
 }
 
 // A number of lines in this function is borrowed from bam2rad funciton at

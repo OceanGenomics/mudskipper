@@ -62,10 +62,10 @@ pub fn bam2bam(input_bam_filename: &String,
         n = n + 1;
         let record = rec.unwrap();
         let qname = String::from_utf8(record.qname().to_vec()).unwrap();
-        let mut check = false;
-        if qname == "J00153:160:HMTNMBBXX:6:1101:14905:6185" {
-            check  = true;
-        }
+        // let mut check = false;
+        // if qname == "J00153:160:HMTNMBBXX:6:1101:14905:6185" {
+        //     check  = true;
+        // }
         debug!("qname: {}", qname);
         let mut long_softclip = false;
         if !record.is_paired() || record.is_mate_unmapped() {
@@ -108,7 +108,7 @@ pub fn bam2bam(input_bam_filename: &String,
                         record_.set_tid(*tid);
                         record_.set_pos(pos);
 
-                        output_bam.write(&record_).unwrap();   
+                        output_bam.write(&record_).unwrap();
                     }
                 } else {
                     missed_read = missed_read + 1;
@@ -123,9 +123,9 @@ pub fn bam2bam(input_bam_filename: &String,
                 first_in_pair = false;
                 first_record = record;
             } else {
-                if check {
-                    println!("Here is reached!");
-                }
+                // if check {
+                //     println!("Here is reached!");
+                // }
                 first_in_pair = true;
                 /* let ranges = intersection::find_tids_paired(&(first_record.pos() as i32), 
                                                               &first_record.cigar(),
@@ -153,10 +153,10 @@ pub fn bam2bam(input_bam_filename: &String,
                     }
                     debug!("{}: {}", first_record.cigar(), first_record.cigar().len());
                     debug!("{}: {}", record.cigar(), record.cigar().len());
-                    if check {
-                        println!("{}: {}", first_record.cigar(), first_record.cigar().len());
-                        println!("{}: {}", record.cigar(), record.cigar().len());
-                    }
+                    // if check {
+                    //     println!("{}: {}", first_record.cigar(), first_record.cigar().len());
+                    //     println!("{}: {}", record.cigar(), record.cigar().len());
+                    // }
                     if tids.len() > 0 {
                         for (tid, pos_strand) in tids.iter() {
                             let mut first_record_ = first_record.clone();
@@ -223,13 +223,13 @@ pub fn bam2bam(input_bam_filename: &String,
                                     first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
                             debug!("first_record.is_reverse():{}", first_record.is_reverse());
                             debug!("record.is_reverse():{}", record.is_reverse());
-                            if check {
-                                println!("{} {}", tid, transcripts[*tid as usize]);
-                                println!("first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
-                                        first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
-                                        println!("first_record.is_reverse():{}", first_record.is_reverse());
-                                println!("record.is_reverse():{}", record.is_reverse());    
-                            }
+                            // if check {
+                            //     println!("{} {}", tid, transcripts[*tid as usize]);
+                            //     println!("first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
+                            //             first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
+                            //     println!("first_record.is_reverse():{}", first_record.is_reverse());
+                            //     println!("record.is_reverse():{}", record.is_reverse());    
+                            // }
                             first_record_.set(first_record.qname(), 
                                               Some(&first_new_cigar), 
                                               &first_record.seq().as_bytes(), 

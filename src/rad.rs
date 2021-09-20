@@ -1,20 +1,22 @@
 // use std::io::{stdout, BufReader, BufWriter, Cursor, Seek, SeekFrom, Write};
 
 use crate::annotation;
+use crate::convert;
 
 extern crate fnv;
 
 // use std::fs;
 use std::fs::File;
 // use std::path::Path;
-use log::{info, error};
+use log::{info, error, debug};
 
 use annotation::ExonNode;
 
 use std::io::{BufWriter, Cursor, Write, Seek, SeekFrom};
-use rust_htslib::{bam, bam::Read};
+use rust_htslib::{bam, bam::Read, bam::record};
 use fnv::FnvHashMap;
 use coitrees::{COITree};
+use std::str;
 
 // struct RadRecord {
 //     pub fw: bool,
@@ -22,12 +24,12 @@ use coitrees::{COITree};
 //     pub tid_list: Vec<i32>
 // }
 
-fn bam_peek(bam_path: &String) -> bam::Record {
-    let mut bam = bam::Reader::from_path(&bam_path).unwrap();
-    bam.set_threads(1).unwrap();
+fn bam_peek(bam_path: &String) -> record::Record {
+    let mut bam_reader = bam::Reader::from_path(&bam_path).unwrap();
+    bam_reader.set_threads(1).unwrap();
     // 
-    let mut rec = bam::Record::new();
-    let first_record_exists = bam.read(&mut rec).is_some();
+    let mut rec = record::Record::new();
+    let first_record_exists = bam_reader.read(&mut rec).is_some();
     if !first_record_exists {
         error!("bam file had no records!");
         std::process::exit(1);
@@ -42,29 +44,29 @@ pub fn bam2rad(input_bam_filename: &String,
                  trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
                  threads_count: &usize,
                  max_softlen: &usize) {
-
+    
     let ofile = File::create(&output_rad_filename).unwrap();
-
     // {
     //     let bam_bytes = fs::metadata(&input_bam_filename).unwrap().len();
     //     info!("Bam file size in bytes {:?}", bam_bytes);
     // }
-
-    // file writer
+    // file writer and intermediate buffer
     let mut owriter = BufWriter::with_capacity(1048576, ofile);
-    // intermediate buffer
     let mut data = Cursor::new(vec![]);
-    let first_rec = bam_peek(input_bam_filename);
+    // 
+    let is_paired: u8;
+    let end_header_pos: u64;
 
-    ///////////////////////////////////////// header section
     {
+        let first_rec = bam_peek(input_bam_filename);
+        ////////////////////////////////////////////////// header section
         // is paired-end
-        let is_paired: u8;
         if first_rec.is_paired() {
             is_paired = 1;
         } else {
             is_paired = 0;
         }
+
         data.write_all(&is_paired.to_le_bytes())
             .expect("couldn't write to output file");
         // number of references
@@ -80,20 +82,17 @@ pub fn bam2rad(input_bam_filename: &String,
             data.write_all(tname.as_bytes())
                 .expect("coudn't write to output file");
         }
+        // TODO: shouldn't this be set before writing initial_num_chunks???
+        // keep a pointer to header pos
+        // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
+        end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
+        info!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes())
             .expect("coudn't write to output file");
-    }
 
-    // TODO: shouldn't this be set before writing initial_num_chunks???
-    // keep a pointer to header pos
-    let end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
-    // check header position
-    info!("end header pos: {:?}", end_header_pos);
-
-    ///////////////////////////////////////// tag definition section
-    {
+        ///////////////////////////////////////// tag definition section
         // FILE-LEVEL tags
         // TODO: assumes bulk sample only for now
         let mut num_tags = 0u16; // no file-level tags for bulk
@@ -111,34 +110,27 @@ pub fn bam2rad(input_bam_filename: &String,
         num_tags = 0u16;
         data.write_all(&num_tags.to_le_bytes())
             .expect("couldn't write to output file");
-    }
 
-    ///////////////////////////////////////// file-level tag values
-    {
+        ///////////////////////////////////////// file-level tag values
         // nothing for bulk!
     }
 
-    let alaki = 255u8;
-    data.write_all(&alaki.to_le_bytes())
-    .expect("coudn't write to output file");
-    data.write_all(&alaki.to_le_bytes())
-    .expect("coudn't write to output file");
-    data.write_all(&alaki.to_le_bytes())
-    .expect("coudn't write to output file");
-    data.write_all(&alaki.to_le_bytes())
-    .expect("coudn't write to output file");
+    // TODO: dummy
+    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
 
     // dump current buffer content
     owriter.write_all(data.get_ref()).unwrap();
 
+    let mut bam_reader = bam::Reader::from_path(&input_bam_filename).unwrap();
+    let header_view = bam_reader.header().to_owned();
 
-    // let mut bam = bam::Reader::from_path(&input_bam_filename).unwrap();
-    // if *threads_count > 1 {
-    //     bam.set_threads(threads_count - 1).unwrap();
-    // } else {
-    //     bam.set_threads(1).unwrap();
-    // }
+    if *threads_count > 1 {
+        bam_reader.set_threads(threads_count - 1).unwrap();
+    } else {
+        bam_reader.set_threads(1).unwrap();
+    }
 
+    // NOT NEEDED ANYMORE
     // // get the first record for creating flags
     // let mut rec = bam::Record::new();
     // let first_record_exists = bam.read(&mut rec).is_some();
@@ -147,15 +139,289 @@ pub fn bam2rad(input_bam_filename: &String,
     //     std::process::exit(1);
     // }
 
-    // let mut num_output_chunks = 0u64;
-    // let mut local_nrec = 0u32;
+    let mut total_num_chunks = 0u64;
+    let mut chunk_reads = 0u32;
 
-    // allocate data
-    // let buf_limit = 10000u32;
-    // data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 24) as usize));
-    // TODO: should chunk bytes account for the bytes for the header?
-    // data.write_all(&local_nrec.to_le_bytes()).unwrap();
-    // data.write_all(&local_nrec.to_le_bytes()).unwrap();
+    // allocate buffer
+    let buf_limit = 1000u32; // TODO: change to 10000u32;
+    data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 100) as usize));
+    // placeholder for number of bytes and number of records
+    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+    
+    // TODO: dummy
+    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
+
+    if is_paired == 0 {
+        println!("debug 1: single-end");
+        let mut last_qname = String::from("");
+        let mut all_read_records: Vec<record::Record> = Vec::new();
+        let mut n = 0;
+        for rec in bam_reader.records() {
+            n = n + 1;
+            let record = rec.unwrap();
+            let qname = String::from_utf8(record.qname().to_vec()).unwrap();
+            debug!("qname: {}", qname);
+            println!("qname: {}", qname);
+            if record.is_unmapped() {
+                continue;
+            }
+            // 
+            let mut txp_records = convert::convert_single_end(&record, 
+                                                                     &header_view,
+                                                                     transcripts,
+                                                                     trees,
+                                                                     max_softlen);
+            if qname == last_qname {
+                all_read_records.append(&mut txp_records);
+            } else {
+                if all_read_records.len() > 0 {
+                    println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+                    // TODO: dummy
+                    data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
+                    // add stored data to the current chunk
+                    // number of alignments
+                    data.write_all(&(all_read_records.len() as u32).to_le_bytes()).unwrap();
+                    // read length
+                    data.write_all(&(record.seq_len() as u16).to_le_bytes()).unwrap();
+                    // No read-level tags for bulk
+
+                    for txp_rec in all_read_records.iter() {
+                        // alignment reference ID
+                        data.write_all(&(txp_rec.tid() as u32).to_le_bytes()).unwrap();
+                        // alignment orientation
+                        data.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
+                        // alignment position
+                        data.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
+                        // array of alignment-specific tags
+                    }
+                    
+                    chunk_reads += 1;
+                }
+
+                // prepare for the new read
+                last_qname = qname;
+                all_read_records.clear();
+                all_read_records.append(&mut txp_records);
+
+                if chunk_reads >= buf_limit {
+                    // dump current chunk and start a new one
+                    data.set_position(0);
+                    // number of bytes
+                    data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
+                    // number reads
+                    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                    
+                    owriter.write_all(data.get_ref()).unwrap();
+                    total_num_chunks += 1;
+                    chunk_reads = 0;
+                    data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 100) as usize));
+                    // placeholder for number of bytes and number of records
+                    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                    
+                    // TODO: dummy
+                    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
+                }
+            }
+            // if n == 4 {
+            //     break;
+            // }
+        }
+        // add stored data to the last chunk
+        if all_read_records.len() > 0 {
+            println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+            // TODO: dummy
+            data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
+            // add stored data to the current chunk
+            // number of alignments
+            data.write_all(&(all_read_records.len() as u32).to_le_bytes()).unwrap();
+            // read length
+            data.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap();
+            // No read-level tags for bulk
+
+            for txp_rec in all_read_records.iter() {
+                // alignment reference ID
+                data.write_all(&(txp_rec.tid() as u32).to_le_bytes()).unwrap();
+                // alignment orientation
+                data.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
+                // alignment position
+                data.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
+                // array of alignment-specific tags
+            }
+            
+            chunk_reads += 1;
+        }
+        // dump the last chunk
+        if chunk_reads > 0 {
+            data.set_position(0);
+            // number of bytes
+            data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
+            // number reads
+            data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+            
+            owriter.write_all(data.get_ref()).unwrap();
+            total_num_chunks += 1;
+        }
+        // update the number of chunks in the header
+        owriter.flush().expect("File buffer could not be flushed");
+        owriter.seek(SeekFrom::Start(end_header_pos))
+            .expect("couldn't seek in output file");
+        owriter.write_all(&total_num_chunks.to_le_bytes())
+            .expect("couldn't write to output file.");
+
+    } else {
+        println!("debug 1: single-end");
+        // let mut mate_needed = false;
+        let mut last_qname = String::from("");
+        let mut all_read_records: Vec<record::Record> = Vec::new();
+        let mut num_align: u32 = 0;
+        let mut first_record: record::Record = record::Record::new();
+        let mut n = 0;
+        for rec in bam_reader.records() {
+            n = n + 1;
+            let record = rec.unwrap();
+            let qname = String::from_utf8(record.qname().to_vec()).unwrap();
+            debug!("qname: {}", qname);
+            if record.is_unmapped() {
+                continue;
+            }
+
+            let mut txp_records: Vec<record::Record> = Vec::new();
+
+            // one mate is unmapped
+            if record.is_mate_unmapped() {
+                txp_records = convert::convert_single_end(&record, 
+                                                          &header_view,
+                                                          transcripts,
+                                                          trees,
+                                                          max_softlen);
+                num_align += 1;
+            }
+
+            // both ends are mapped
+            if n % 2 == 1 {
+                // this is the first read in pair... save and wait for the second read in the pair
+                first_record = record.clone();
+            } else {
+                // this is the second read in pair... PROCESS!
+                assert_eq!(first_record.qname(), record.qname());
+                txp_records = convert::convert_paired_end(&first_record,
+                                                                     &record,
+                                                                     &header_view,
+                                                                     transcripts,
+                                                                     txp_lengths,
+                                                                     trees,
+                                                                     max_softlen);
+                num_align += 1;
+            }
+
+            if qname == last_qname {
+                all_read_records.append(&mut txp_records);
+            } else {
+                // add stored data to the current chunk
+                // number of alignments
+                data.write_all(&num_align.to_le_bytes()).unwrap();
+                // first mate length
+                data.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
+                // second mate length
+                data.write_all(&(record.seq_len() as u16).to_le_bytes()).unwrap();
+                // No read-level tags for bulk
+                
+                // let mut rec_iter = all_read_records.iter();
+                // while let Some(rec1) = rec_iter.next() {
+                //     if !rec1.is_mate_unmapped() { // there should be another mate
+                //         if let Some(rec2) = rec_iter.next() {
+                //             // alignment reference ID
+                //             data.write_all(&(txp_rec.tid() as u32).to_le_bytes()).unwrap();
+                //             // alignment orientation
+                //             data.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
+                //             // alignment position
+                //             data.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
+                //             // array of alignment-specific tags
+                //         } else {
+                //             error!("couldn't find respective mate!");
+                //         }
+                //     } else {
+
+                //     }
+                // }
+
+                // prepare for the new read
+                last_qname = qname;
+                all_read_records.clear();
+                all_read_records.append(&mut txp_records);
+                chunk_reads += 1;
+
+                if chunk_reads >= buf_limit {
+                    // dump current chunk and start a new one
+                    data.set_position(0);
+                    // number of bytes
+                    data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
+                    // number reads
+                    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                    
+                    owriter.write_all(data.get_ref()).unwrap();
+                    total_num_chunks += 1;
+                    chunk_reads = 0;
+                    data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 100) as usize));
+                    // placeholder for number of bytes and number of records
+                    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                }
+            }
+
+            if n == 4 {
+                break;
+            }
+        }
+    }
+
+    // for rec in bam_reader.records() {
+    //     n = n + 1;
+    //     let record = rec.unwrap();
+    //     let qname = str::from_utf8(record.qname()).unwrap();
+    //     debug!("qname: {}", qname);
+
+    //     if !record.is_paired() || record.is_mate_unmapped() {
+    //         let txp_records = convert::convert_single_end(&record, 
+    //                                        &header_view,
+    //                                        transcripts,
+    //                                        trees,
+    //                                        max_softlen);
+    //         for txp_rec in txp_records.iter() {
+    //             // output_bam.write(txp_rec).unwrap();
+    //         }
+    //         mate_wanted = false;
+    //     } else if !record.is_unmapped() {
+    //         if mate_wanted {
+    //             // this is the second read in pair... PROCESS!
+    //             // println!("processing2");
+    //             assert_eq!(first_record.qname(), record.qname());
+    //             let txp_records = convert::convert_paired_end(&first_record,
+    //                                                                     &record,
+    //                                                                     &header_view,
+    //                                                                     transcripts,
+    //                                                                     txp_lengths,
+    //                                                                     trees,
+    //                                                                     max_softlen);
+    //             // println!("vector length: {}", txp_records.len());
+    //             for txp_rec in txp_records.iter() {
+    //                 // output_bam.write(txp_rec).unwrap();
+    //                 // println!("converted {}", String::from_utf8(txp_rec.qname().to_vec()).unwrap());
+    //             }
+    //             mate_wanted = false;
+    //         } else {
+    //             // println!("processing1");
+    //             // this is the first read in pair... save and wait for the second read in the pair
+    //             mate_wanted = true;
+    //             first_record = record;
+    //         }
+    //     }
+    //     if n == 4 {
+    //         break;
+    //     }
+    // }
     
     // owriter.write_all(data.get_ref()).unwrap();
 }

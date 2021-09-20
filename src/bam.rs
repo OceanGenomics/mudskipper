@@ -6,7 +6,6 @@ use crate::annotation;
 use annotation::ExonNode;
 
 extern crate bio_types;
-use bio_types::strand::Strand;
 
 use crate::convert;
 

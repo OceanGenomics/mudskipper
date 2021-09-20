@@ -82,7 +82,6 @@ pub fn bam2rad(input_bam_filename: &String,
             data.write_all(tname.as_bytes())
                 .expect("coudn't write to output file");
         }
-        // TODO: shouldn't this be set before writing initial_num_chunks???
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
@@ -115,7 +114,7 @@ pub fn bam2rad(input_bam_filename: &String,
         // nothing for bulk!
     }
 
-    // TODO: dummy
+    // TODO: remove dummy bytes
     data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
 
     // dump current buffer content
@@ -143,13 +142,13 @@ pub fn bam2rad(input_bam_filename: &String,
     let mut chunk_reads = 0u32;
 
     // allocate buffer
-    let buf_limit = 1000u32; // TODO: change to 10000u32;
+    let buf_limit = 10000u32;
     data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 100) as usize));
     // placeholder for number of bytes and number of records
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
     
-    // TODO: dummy
+    // TODO: remove dummy bytes
     data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
 
     if is_paired == 0 {
@@ -177,13 +176,13 @@ pub fn bam2rad(input_bam_filename: &String,
             } else {
                 if all_read_records.len() > 0 {
                     println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
-                    // TODO: dummy
+                    // TODO: remove dummy bytes
                     data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
                     // add stored data to the current chunk
                     // number of alignments
                     data.write_all(&(all_read_records.len() as u32).to_le_bytes()).unwrap();
                     // read length
-                    data.write_all(&(record.seq_len() as u16).to_le_bytes()).unwrap();
+                    data.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap();
                     // No read-level tags for bulk
 
                     for txp_rec in all_read_records.iter() {
@@ -220,7 +219,7 @@ pub fn bam2rad(input_bam_filename: &String,
                     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
                     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
                     
-                    // TODO: dummy
+                    // TODO: remove dummy bytes
                     data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
                 }
             }
@@ -231,7 +230,7 @@ pub fn bam2rad(input_bam_filename: &String,
         // add stored data to the last chunk
         if all_read_records.len() > 0 {
             println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
-            // TODO: dummy
+            // TODO: remove dummy bytes
             data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
             // add stored data to the current chunk
             // number of alignments
@@ -271,87 +270,140 @@ pub fn bam2rad(input_bam_filename: &String,
             .expect("couldn't write to output file.");
 
     } else {
-        println!("debug 1: single-end");
-        // let mut mate_needed = false;
+        println!("debug 1: paired-end");
         let mut last_qname = String::from("");
         let mut all_read_records: Vec<record::Record> = Vec::new();
         let mut num_align: u32 = 0;
         let mut first_record: record::Record = record::Record::new();
+        let mut second_record: record::Record = record::Record::new();
         let mut n = 0;
         for rec in bam_reader.records() {
             n = n + 1;
             let record = rec.unwrap();
             let qname = String::from_utf8(record.qname().to_vec()).unwrap();
             debug!("qname: {}", qname);
-            if record.is_unmapped() {
-                continue;
-            }
+            println!("qname: {}", qname);
 
-            let mut txp_records: Vec<record::Record> = Vec::new();
-
-            // one mate is unmapped
-            if record.is_mate_unmapped() {
-                txp_records = convert::convert_single_end(&record, 
-                                                          &header_view,
-                                                          transcripts,
-                                                          trees,
-                                                          max_softlen);
-                num_align += 1;
-            }
-
-            // both ends are mapped
             if n % 2 == 1 {
                 // this is the first read in pair... save and wait for the second read in the pair
                 first_record = record.clone();
-            } else {
-                // this is the second read in pair... PROCESS!
-                assert_eq!(first_record.qname(), record.qname());
-                txp_records = convert::convert_paired_end(&first_record,
-                                                                     &record,
-                                                                     &header_view,
-                                                                     transcripts,
-                                                                     txp_lengths,
-                                                                     trees,
-                                                                     max_softlen);
-                num_align += 1;
+                continue;
             }
+
+            // this is the second read in pair... 
+            second_record = record.clone();
+            assert_eq!(first_record.qname(), second_record.qname());
+
+            let mut txp_records: Vec<record::Record> = 
+                if first_record.is_unmapped() {
+                    convert::convert_single_end(&second_record,
+                                                            &header_view,
+                                                            transcripts,
+                                                            trees,
+                                                            max_softlen)
+                } else if second_record.is_unmapped() {
+                    convert::convert_single_end(&first_record,
+                                                            &header_view,
+                                                            transcripts,
+                                                            trees,
+                                                            max_softlen)
+                } else { // both mates in pair are mapped
+                    convert::convert_paired_end(&first_record,
+                                                                        &second_record,
+                                                                        &header_view,
+                                                                        transcripts,
+                                                                        txp_lengths,
+                                                                        trees,
+                                                                        max_softlen)
+                };
+            num_align += 1;
 
             if qname == last_qname {
                 all_read_records.append(&mut txp_records);
             } else {
-                // add stored data to the current chunk
-                // number of alignments
-                data.write_all(&num_align.to_le_bytes()).unwrap();
-                // first mate length
-                data.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
-                // second mate length
-                data.write_all(&(record.seq_len() as u16).to_le_bytes()).unwrap();
-                // No read-level tags for bulk
-                
-                // let mut rec_iter = all_read_records.iter();
-                // while let Some(rec1) = rec_iter.next() {
-                //     if !rec1.is_mate_unmapped() { // there should be another mate
-                //         if let Some(rec2) = rec_iter.next() {
-                //             // alignment reference ID
-                //             data.write_all(&(txp_rec.tid() as u32).to_le_bytes()).unwrap();
-                //             // alignment orientation
-                //             data.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
-                //             // alignment position
-                //             data.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
-                //             // array of alignment-specific tags
-                //         } else {
-                //             error!("couldn't find respective mate!");
-                //         }
-                //     } else {
-
-                //     }
-                // }
+                if all_read_records.len() > 0 {
+                    println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+                    // TODO: remove dummy bytes
+                    data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
+                    // add stored data to the current chunk
+                    // number of alignments
+                    data.write_all(&num_align.to_le_bytes()).unwrap();
+                    // first mate length
+                    data.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
+                    // second mate length
+                    data.write_all(&(second_record.seq_len() as u16).to_le_bytes()).unwrap();
+                    // No read-level tags for bulk
+                    
+                    let mut rec_iter = all_read_records.iter();
+                    while let Some(rec1) = rec_iter.next() {
+                        if !rec1.is_mate_unmapped() { // there should be another mate
+                            if let Some(rec2) = rec_iter.next() {
+                                // alignment reference ID
+                                assert_eq!(rec1.tid(), rec2.tid());
+                                data.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
+                                let mut aln_type: u8 = 0;
+                                let pos_left: u32;
+                                let pos_right: u32;
+                                if rec1.is_first_in_template() == true { // rec1 is left
+                                    if rec1.is_reverse() {
+                                        aln_type = aln_type | (2 as u8);
+                                    }
+                                    if rec2.is_reverse() {
+                                        aln_type = aln_type | (1 as u8);
+                                    }
+                                    pos_left = rec1.pos() as u32;
+                                    pos_right = rec2.pos() as u32;
+                                } else { // rec2 is left
+                                    if rec1.is_reverse() {
+                                        aln_type = aln_type | (1 as u8);
+                                    }
+                                    if rec2.is_reverse() {
+                                        aln_type = aln_type | (2 as u8);
+                                    }
+                                    pos_right = rec1.pos() as u32;
+                                    pos_left = rec2.pos() as u32;
+                                }
+                                // alignment type (0..7)
+                                data.write_all(&aln_type.to_le_bytes()).unwrap();
+                                // alignment position left mate
+                                data.write_all(&pos_left.to_le_bytes()).unwrap();
+                                // alignment position right mate
+                                data.write_all(&pos_right.to_le_bytes()).unwrap();
+                                // array of alignment-specific tags
+                            } else {
+                                error!("couldn't find respective mate!");
+                            }
+                        } else { // there is no mate
+                            // alignment reference ID
+                            data.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
+                            let aln_type: u8;
+                            if rec1.is_first_in_template() == true { // right is unmapped
+                                aln_type = if rec1.is_reverse() {
+                                    5
+                                } else {
+                                    4
+                                };
+                            } else { // left is unmapped
+                                aln_type = if rec1.is_reverse() {
+                                    7
+                                } else {
+                                    6
+                                };
+                            }
+                            // alignment type (0..7)
+                            data.write_all(&aln_type.to_le_bytes()).unwrap();
+                            // alignment position of left/right mate
+                            data.write_all(&(rec1.pos() as u32).to_le_bytes()).unwrap();
+                            // array of alignment-specific tags
+                        }
+                    }
+                    chunk_reads += 1;
+                }
 
                 // prepare for the new read
                 last_qname = qname;
                 all_read_records.clear();
                 all_read_records.append(&mut txp_records);
-                chunk_reads += 1;
 
                 if chunk_reads >= buf_limit {
                     // dump current chunk and start a new one
@@ -368,62 +420,111 @@ pub fn bam2rad(input_bam_filename: &String,
                     // placeholder for number of bytes and number of records
                     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
                     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                    
+                    // TODO: remove dummy bytes
+                    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
                 }
             }
-
-            if n == 4 {
-                break;
-            }
+            // if n == 4 {
+            //     break;
+            // }
         }
+        if all_read_records.len() > 0 {
+            println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+            // TODO: remove dummy bytes
+            data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
+            // add stored data to the current chunk
+            // number of alignments
+            data.write_all(&num_align.to_le_bytes()).unwrap();
+            // first mate length
+            data.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
+            // second mate length
+            data.write_all(&(second_record.seq_len() as u16).to_le_bytes()).unwrap();
+            // No read-level tags for bulk
+            
+            let mut rec_iter = all_read_records.iter();
+            while let Some(rec1) = rec_iter.next() {
+                if !rec1.is_mate_unmapped() { // there should be another mate
+                    if let Some(rec2) = rec_iter.next() {
+                        // alignment reference ID
+                        assert_eq!(rec1.tid(), rec2.tid());
+                        data.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
+                        let mut aln_type: u8 = 0;
+                        let pos_left: u32;
+                        let pos_right: u32;
+                        if rec1.is_first_in_template() == true { // rec1 is left
+                            if rec1.is_reverse() {
+                                aln_type = aln_type | (2 as u8);
+                            }
+                            if rec2.is_reverse() {
+                                aln_type = aln_type | (1 as u8);
+                            }
+                            pos_left = rec1.pos() as u32;
+                            pos_right = rec2.pos() as u32;
+                        } else { // rec2 is left
+                            if rec1.is_reverse() {
+                                aln_type = aln_type | (1 as u8);
+                            }
+                            if rec2.is_reverse() {
+                                aln_type = aln_type | (2 as u8);
+                            }
+                            pos_right = rec1.pos() as u32;
+                            pos_left = rec2.pos() as u32;
+                        }
+                        // alignment type (0..7)
+                        data.write_all(&aln_type.to_le_bytes()).unwrap();
+                        // alignment position left mate
+                        data.write_all(&pos_left.to_le_bytes()).unwrap();
+                        // alignment position right mate
+                        data.write_all(&pos_right.to_le_bytes()).unwrap();
+                        // array of alignment-specific tags
+                    } else {
+                        error!("couldn't find respective mate!");
+                    }
+                } else { // there is no mate
+                    // alignment reference ID
+                    data.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
+                    let aln_type: u8;
+                    if rec1.is_first_in_template() == true { // right is unmapped
+                        aln_type = if rec1.is_reverse() {
+                            5
+                        } else {
+                            4
+                        };
+                    } else { // left is unmapped
+                        aln_type = if rec1.is_reverse() {
+                            7
+                        } else {
+                            6
+                        };
+                    }
+                    // alignment type (0..7)
+                    data.write_all(&aln_type.to_le_bytes()).unwrap();
+                    // alignment position of left/right mate
+                    data.write_all(&(rec1.pos() as u32).to_le_bytes()).unwrap();
+                    // array of alignment-specific tags
+                }
+            }
+            chunk_reads += 1;
+        }
+        // dump the last chunk
+        if chunk_reads > 0 {
+            data.set_position(0);
+            // number of bytes
+            data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
+            // number reads
+            data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+            
+            owriter.write_all(data.get_ref()).unwrap();
+            total_num_chunks += 1;
+        }
+        // update the number of chunks in the header
+        owriter.flush().expect("File buffer could not be flushed");
+        owriter.seek(SeekFrom::Start(end_header_pos))
+            .expect("couldn't seek in output file");
+        owriter.write_all(&total_num_chunks.to_le_bytes())
+            .expect("couldn't write to output file.");
     }
-
-    // for rec in bam_reader.records() {
-    //     n = n + 1;
-    //     let record = rec.unwrap();
-    //     let qname = str::from_utf8(record.qname()).unwrap();
-    //     debug!("qname: {}", qname);
-
-    //     if !record.is_paired() || record.is_mate_unmapped() {
-    //         let txp_records = convert::convert_single_end(&record, 
-    //                                        &header_view,
-    //                                        transcripts,
-    //                                        trees,
-    //                                        max_softlen);
-    //         for txp_rec in txp_records.iter() {
-    //             // output_bam.write(txp_rec).unwrap();
-    //         }
-    //         mate_wanted = false;
-    //     } else if !record.is_unmapped() {
-    //         if mate_wanted {
-    //             // this is the second read in pair... PROCESS!
-    //             // println!("processing2");
-    //             assert_eq!(first_record.qname(), record.qname());
-    //             let txp_records = convert::convert_paired_end(&first_record,
-    //                                                                     &record,
-    //                                                                     &header_view,
-    //                                                                     transcripts,
-    //                                                                     txp_lengths,
-    //                                                                     trees,
-    //                                                                     max_softlen);
-    //             // println!("vector length: {}", txp_records.len());
-    //             for txp_rec in txp_records.iter() {
-    //                 // output_bam.write(txp_rec).unwrap();
-    //                 // println!("converted {}", String::from_utf8(txp_rec.qname().to_vec()).unwrap());
-    //             }
-    //             mate_wanted = false;
-    //         } else {
-    //             // println!("processing1");
-    //             // this is the first read in pair... save and wait for the second read in the pair
-    //             mate_wanted = true;
-    //             first_record = record;
-    //         }
-    //     }
-    //     if n == 4 {
-    //         break;
-    //     }
-    // }
-    
-    // owriter.write_all(data.get_ref()).unwrap();
 }
 
 // A number of lines in this function is borrowed from bam2rad funciton at

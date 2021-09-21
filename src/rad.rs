@@ -16,7 +16,6 @@ use std::io::{BufWriter, Cursor, Write, Seek, SeekFrom};
 use rust_htslib::{bam, bam::Read, bam::record};
 use fnv::FnvHashMap;
 use coitrees::{COITree};
-use std::str;
 
 // struct RadRecord {
 //     pub fw: bool,
@@ -223,9 +222,6 @@ pub fn bam2rad(input_bam_filename: &String,
                     data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
                 }
             }
-            // if n == 4 {
-            //     break;
-            // }
         }
         // add stored data to the last chunk
         if all_read_records.len() > 0 {
@@ -273,7 +269,8 @@ pub fn bam2rad(input_bam_filename: &String,
         println!("debug 1: paired-end");
         let mut last_qname = String::from("");
         let mut all_read_records: Vec<record::Record> = Vec::new();
-        let mut num_align: u32 = 0;
+        let mut rec_num_align: u32;
+        let mut read_num_align: u32 = 0;
         let mut first_record: record::Record = record::Record::new();
         let mut second_record: record::Record = record::Record::new();
         let mut n = 0;
@@ -294,40 +291,47 @@ pub fn bam2rad(input_bam_filename: &String,
             second_record = record.clone();
             assert_eq!(first_record.qname(), second_record.qname());
 
-            let mut txp_records: Vec<record::Record> = 
-                if first_record.is_unmapped() {
-                    convert::convert_single_end(&second_record,
-                                                            &header_view,
-                                                            transcripts,
-                                                            trees,
-                                                            max_softlen)
-                } else if second_record.is_unmapped() {
-                    convert::convert_single_end(&first_record,
-                                                            &header_view,
-                                                            transcripts,
-                                                            trees,
-                                                            max_softlen)
-                } else { // both mates in pair are mapped
-                    convert::convert_paired_end(&first_record,
-                                                                        &second_record,
-                                                                        &header_view,
-                                                                        transcripts,
-                                                                        txp_lengths,
-                                                                        trees,
-                                                                        max_softlen)
-                };
-            num_align += 1;
+            let mut txp_records: Vec<record::Record>;
+            if first_record.is_unmapped() {
+                txp_records = convert::convert_single_end(&second_record,
+                                                        &header_view,
+                                                        transcripts,
+                                                        trees,
+                                                        max_softlen);
+                println!("rec_num_align: {}", txp_records.len());
+                rec_num_align = txp_records.len() as u32;
+            } else if second_record.is_unmapped() {
+                txp_records = convert::convert_single_end(&first_record,
+                                                        &header_view,
+                                                        transcripts,
+                                                        trees,
+                                                        max_softlen);
+                println!("rec_num_align: {}", txp_records.len());
+                rec_num_align = txp_records.len() as u32;
+            } else { // both mates in pair are mapped
+                txp_records = convert::convert_paired_end(&first_record,
+                                                                    &second_record,
+                                                                    &header_view,
+                                                                    transcripts,
+                                                                    txp_lengths,
+                                                                    trees,
+                                                                    max_softlen);
+                println!("rec_num_align: {}", (txp_records.len() / 2));
+                rec_num_align = (txp_records.len() / 2) as u32;
+            };
+            // num_align += 1;
 
             if qname == last_qname {
                 all_read_records.append(&mut txp_records);
+                read_num_align += rec_num_align;
             } else {
                 if all_read_records.len() > 0 {
-                    println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+                    println!("### dumping for {}, size: {}, read_num_align: {}", last_qname, all_read_records.len(), read_num_align);
                     // TODO: remove dummy bytes
                     data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
                     // add stored data to the current chunk
                     // number of alignments
-                    data.write_all(&num_align.to_le_bytes()).unwrap();
+                    data.write_all(&read_num_align.to_le_bytes()).unwrap();
                     // first mate length
                     data.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
                     // second mate length
@@ -404,6 +408,7 @@ pub fn bam2rad(input_bam_filename: &String,
                 last_qname = qname;
                 all_read_records.clear();
                 all_read_records.append(&mut txp_records);
+                read_num_align = rec_num_align;
 
                 if chunk_reads >= buf_limit {
                     // dump current chunk and start a new one
@@ -425,17 +430,14 @@ pub fn bam2rad(input_bam_filename: &String,
                     data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
                 }
             }
-            // if n == 4 {
-            //     break;
-            // }
         }
         if all_read_records.len() > 0 {
-            println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+            println!("### dumping for {}, size: {}, read_num_align: {}", last_qname, all_read_records.len(), read_num_align);
             // TODO: remove dummy bytes
             data.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
             // add stored data to the current chunk
             // number of alignments
-            data.write_all(&num_align.to_le_bytes()).unwrap();
+            data.write_all(&read_num_align.to_le_bytes()).unwrap();
             // first mate length
             data.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
             // second mate length
@@ -526,27 +528,3 @@ pub fn bam2rad(input_bam_filename: &String,
             .expect("couldn't write to output file.");
     }
 }
-
-// A number of lines in this function is borrowed from bam2rad funciton at
-// https://github.com/COMBINE-lab/alevin-fry/blob/master/libradicl/src/convert.rs
-// pub fn read_bamfile(records: &Vec<RadRecord>) {
-//     let mut data = Cursor::new(vec![]);
-
-//     for record in records.iter() {
-//         tid_list = record.tid_list;
-//         if !tid_list.is_empty() {
-//             assert!(!tid_list.is_empty(), "Trying to write empty tid_list");
-//             let na = tid_list.len();
-//             data.write_all(&(na as u32).to_le_bytes()).unwrap();
-//             // write bc
-//             // data.write_all(&(bc as u32).to_le_bytes()).unwrap();
-//             // write umi
-//             // data.write_all(&(umi as u32).to_le_bytes()).unwrap();
-//             // write tid list
-//             for t in tid_list.iter() {
-//                 data.write_all(&t.to_le_bytes()).unwrap();
-//             }
-//         }
-
-//     }
-// }

@@ -7,21 +7,58 @@ extern crate fnv;
 
 // use std::fs;
 use std::fs::File;
-// use std::path::Path;
+use std::error::Error;
+use libradicl::decode_int_type_tag;
 use log::{info, error, debug};
 
 use annotation::ExonNode;
 
 use std::io::{BufWriter, Cursor, Write, Seek, SeekFrom};
-use rust_htslib::{bam, bam::Read, bam::record};
+use rust_htslib::{bam, bam::Read, bam::record, bam::record::Aux};
 use fnv::FnvHashMap;
 use coitrees::{COITree};
+// use scroll::Pread;
 
-// struct RadRecord {
-//     pub fw: bool,
-//     pub qname: String,
-//     pub tid_list: Vec<i32>
+// fn read_into_u64<T: std::io::Read>(reader: &mut T, rt: &libradicl::RadIntId) -> u64 {
+//     let mut rbuf = [0u8; 8];
+//     let v: u64;
+//     match rt {
+//         libradicl::RadIntId::U8 => {
+//             reader.read_exact(&mut rbuf[0..1]).unwrap();
+//             v = rbuf.pread::<u8>(0).unwrap() as u64;
+//         }
+//         libradicl::RadIntId::U16 => {
+//             reader.read_exact(&mut rbuf[0..2]).unwrap();
+//             v = rbuf.pread::<u16>(0).unwrap() as u64;
+//         }
+//         libradicl::RadIntId::U32 => {
+//             reader.read_exact(&mut rbuf[0..4]).unwrap();
+//             v = rbuf.pread::<u32>(0).unwrap() as u64;
+//         }
+//         libradicl::RadIntId::U64 => {
+//             reader.read_exact(&mut rbuf[0..8]).unwrap();
+//             v = rbuf.pread::<u64>(0).unwrap();
+//         }
+//     }
+//     v
 // }
+
+// from https://github.com/COMBINE-lab/alevin-fry/blob/master/libradicl/src/convert.rs#L63-L85
+pub fn cb_string_to_u64(cb_str: &[u8]) -> Result<u64, Box<dyn Error>> {
+    let mut cb_id: u64 = 0;
+    for (idx, nt) in cb_str.iter().rev().enumerate() {
+        let offset = idx * 2;
+        match nt {
+            65 => (),                   // A 00
+            67 => cb_id |= 1 << offset, // C 01
+            71 => cb_id |= 2 << offset, // G 10
+            84 => cb_id |= 3 << offset, // T 11
+            _ => panic!("unknown nucleotide {}", nt),
+        };
+    }
+
+    Ok(cb_id)
+}
 
 fn bam_peek(bam_path: &String) -> record::Record {
     let mut bam_reader = bam::Reader::from_path(&bam_path).unwrap();
@@ -127,15 +164,6 @@ pub fn bam2rad(input_bam_filename: &String,
     } else {
         bam_reader.set_threads(1).unwrap();
     }
-
-    // NOT NEEDED ANYMORE
-    // // get the first record for creating flags
-    // let mut rec = bam::Record::new();
-    // let first_record_exists = bam.read(&mut rec).is_some();
-    // if !first_record_exists {
-    //     error!("bam file had no records!");
-    //     std::process::exit(1);
-    // }
 
     let mut total_num_chunks = 0u64;
     let mut chunk_reads = 0u32;
@@ -527,4 +555,334 @@ pub fn bam2rad(input_bam_filename: &String,
         owriter.write_all(&total_num_chunks.to_le_bytes())
             .expect("couldn't write to output file.");
     }
+}
+
+fn dump_collected_alignments_single_cell(all_read_records: &Vec<record::Record>,
+                                    bc_typeid: &u8,
+                                    umi_typeid: &u8,
+                                    owriter: &mut Cursor<Vec<u8>>) -> bool {
+    // check if barcode and UMI can be converted to numbers
+    let bc_string;
+    if let Ok(Aux::String(bc_str)) = all_read_records.first().unwrap().aux(b"CR") {
+        bc_string = bc_str.to_string();
+    } else {
+        panic!("Input record missing CR tag!");
+    }
+
+    let umi_string;
+    if let Ok(Aux::String(umi_str)) = all_read_records.first().unwrap().aux(b"UR") {
+        umi_string = umi_str.to_string();
+    } else {
+        panic!("Input record missing UR tag!");
+    }
+    
+    if (*bc_typeid != 8 && bc_string.contains('N') == true) || (*umi_typeid != 8 && umi_string.contains('N') == true) {
+        return false;
+    }
+
+    // println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
+    // TODO: remove dummy bytes
+    owriter.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
+    // add stored data to the current chunk
+    // number of alignments
+    owriter.write_all(&(all_read_records.len() as u32).to_le_bytes()).unwrap();
+    // read length
+    // owriter.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap();
+    // read-level tags for single-cell
+    // bc
+    if *bc_typeid == 8 { // write as a string
+        libradicl::write_str_bin(&bc_string, &libradicl::RadIntId::U16, owriter);
+    } else { // convert to integer
+        let bc_int: u64 = cb_string_to_u64(bc_string.as_bytes()).unwrap();
+        match decode_int_type_tag(*bc_typeid).unwrap() {
+            libradicl::RadIntId::U32 => {
+                owriter.write_all(&(bc_int as u32).to_le_bytes()).unwrap();
+            }
+            libradicl::RadIntId::U64 => {
+                owriter.write_all(&(bc_int as u64).to_le_bytes()).unwrap();
+            }
+            _ => {} // bc_typeid can only be 3, 4, or 8
+        }
+    }
+
+    // umi
+    if *umi_typeid == 8 { // write as a string
+        libradicl::write_str_bin(&umi_string, &libradicl::RadIntId::U16, owriter);
+    } else { // convert to integer
+        let umi_int: u64 = cb_string_to_u64(umi_string.as_bytes()).unwrap();
+        match decode_int_type_tag(*umi_typeid).unwrap() {
+            libradicl::RadIntId::U32 => {
+                owriter.write_all(&(umi_int as u32).to_le_bytes()).unwrap();
+            }
+            libradicl::RadIntId::U64 => {
+                owriter.write_all(&(umi_int as u64).to_le_bytes()).unwrap();
+            }
+            _ => {} // bc_typeid can only be 3, 4, or 8
+        }
+    }
+
+    for txp_rec in all_read_records.iter() {
+        // alignment reference ID
+        // owriter.write_all(&(txp_rec.tid() as u32).to_le_bytes()).unwrap();
+        // alignment orientation
+        // owriter.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
+        // alignment position
+        // owriter.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
+        
+        // array of alignment-specific tags
+        let mut tid_comressed = txp_rec.tid() as u32;
+        if txp_rec.is_reverse() == false {
+            tid_comressed |= 0x80000000 as u32;
+        }
+        owriter.write_all(&tid_comressed.to_le_bytes()).unwrap();
+    }
+    return true;
+}
+
+pub fn bam2rad_singlecell(input_bam_filename: &String, 
+                 output_rad_filename: &String,
+                 transcripts: &Vec<String>,
+                 trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
+                 threads_count: &usize,
+                 max_softlen: &usize) {
+    
+    let ofile = File::create(&output_rad_filename).unwrap();
+    // file writer and intermediate buffer
+    let mut owriter = BufWriter::with_capacity(1048576, ofile);
+    let mut data = Cursor::new(vec![]);
+    // 
+    let is_paired: u8;
+    let end_header_pos: u64;
+
+    let bc_typeid: u8;
+    let umi_typeid: u8;
+
+    {
+        let first_rec = bam_peek(input_bam_filename);
+        ////////////////////////////////////////////////// header section
+        // NOTE: we assume that all the single-cell protocols are single-end
+        // is paired-end
+        is_paired = 0;
+
+        data.write_all(&is_paired.to_le_bytes())
+            .expect("couldn't write to output file");
+        // number of references
+        let ref_count = transcripts.len() as u64;
+        println!("ref_count: {}", ref_count);
+        data.write_all(&ref_count.to_le_bytes())
+            .expect("couldn't write to output file");
+        // list of reference names
+        for tname in transcripts.iter() {
+            // let name_len = tname.len() as u16;
+            // data.write_all(&name_len.to_le_bytes())
+            //     .expect("coudn't write to output file");
+            // data.write_all(tname.as_bytes())
+            //     .expect("coudn't write to output file");
+            libradicl::write_str_bin(tname, &libradicl::RadIntId::U16, &mut data);
+        }
+        // keep a pointer to header pos
+        // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
+        end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
+        info!("end header pos: {:?}", end_header_pos);
+        // number of chunks
+        let initial_num_chunks = 0u64;
+        data.write_all(&initial_num_chunks.to_le_bytes())
+            .expect("coudn't write to output file");
+
+        ///////////////////////////////////////// tag definition section
+        // FILE-LEVEL tags
+
+        // for single-cell, keep length of cell-barcode and UMI
+        let mut num_tags = 2u16;
+        data.write_all(&num_tags.to_le_bytes())
+            .expect("coudn't write to output file");
+        
+        let mut typeid = 2u8;  // u16
+        let mut cb_tag_str = "cblen";
+        let mut umi_tag_str = "ulen";
+
+        // str - type
+        libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&typeid.to_le_bytes())
+            .expect("coudn't write to output file");
+
+        // str - type
+        libradicl::write_str_bin(&umi_tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&typeid.to_le_bytes())
+            .expect("coudn't write to output file");
+
+        // READ-LEVEL tags
+        let bc_string_in;
+        if let Ok(Aux::String(bcs)) = first_rec.aux(b"CR") {
+            bc_string_in = bcs.to_string();
+        } else {
+            panic!("Input record missing CR tag!");
+        }
+
+        let umi_string_in;
+        if let Ok(Aux::String(umis)) = first_rec.aux(b"UR") {
+            umi_string_in = umis.to_string();
+        } else {
+            panic!("Input record missing UR tag!");
+        }
+
+        let bclen = bc_string_in.len() as u16;
+        let umilen = umi_string_in.len() as u16;
+
+        num_tags = 2u16;
+        data.write_all(&num_tags.to_le_bytes())
+            .expect("coudn't write to output file");
+        cb_tag_str = "b";
+        umi_tag_str = "u";
+
+        // type is conditional on barcode and umi length
+        // this follows SalmonAlevin.cpp implementation
+        bc_typeid = match bclen {
+            1..=16 => libradicl::encode_type_tag(libradicl::RadType::U32).unwrap(),
+            17..=32 => libradicl::encode_type_tag(libradicl::RadType::U64).unwrap(),
+            _ => 8,
+        };
+
+        umi_typeid = match umilen {
+            1..=16 => libradicl::encode_type_tag(libradicl::RadType::U32).unwrap(),
+            17..=32 => libradicl::encode_type_tag(libradicl::RadType::U64).unwrap(),
+            _ => 8,
+        };
+
+        info!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
+        info!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
+
+        libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&bc_typeid.to_le_bytes())
+            .expect("coudn't write to output file");
+
+        libradicl::write_str_bin(&umi_tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&umi_typeid.to_le_bytes())
+            .expect("coudn't write to output file");
+
+        // ALIGNMENT-LEVEL tags
+        num_tags = 1u16;
+        data.write_all(&num_tags.to_le_bytes())
+            .expect("couldn't write to output file");
+
+        // reference id
+        let refid_str = "compressed_ori_refid";
+        typeid = 3u8;
+        libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&typeid.to_le_bytes())
+            .expect("coudn't write to output file");
+
+        ///////////////////////////////////////// file-level tag values
+        data.write_all(&bclen.to_le_bytes())
+            .expect("coudn't write to output file");
+        data.write_all(&umilen.to_le_bytes())
+            .expect("coudn't write to output file");
+    }
+
+    // TODO: remove dummy bytes
+    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
+
+    // dump current buffer content
+    owriter.write_all(data.get_ref()).unwrap();
+
+    let mut bam_reader = bam::Reader::from_path(&input_bam_filename).unwrap();
+    let header_view = bam_reader.header().to_owned();
+
+    if *threads_count > 1 {
+        bam_reader.set_threads(threads_count - 1).unwrap();
+    } else {
+        bam_reader.set_threads(1).unwrap();
+    }
+
+    let mut total_num_chunks = 0u64;
+    let mut chunk_reads = 0u32;
+
+    // allocate buffer
+    let buf_limit = 10000u32;
+    data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 100) as usize));
+    // placeholder for number of bytes and number of records
+    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+    data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+    
+    // TODO: remove dummy bytes
+    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
+
+    let mut last_qname = String::from("");
+    let mut all_read_records: Vec<record::Record> = Vec::new();
+    let mut n = 0;
+    for rec in bam_reader.records() {
+        n = n + 1;
+        let record = rec.unwrap();
+        let qname = String::from_utf8(record.qname().to_vec()).unwrap();
+        debug!("qname: {}", qname);
+        println!("qname: {}", qname);
+        if record.is_unmapped() {
+            continue;
+        }
+        // 
+        let mut txp_records = convert::convert_single_end(&record, 
+                                                                    &header_view,
+                                                                    transcripts,
+                                                                    trees,
+                                                                    max_softlen);
+        if qname == last_qname {
+            all_read_records.append(&mut txp_records);
+        } else {
+            if all_read_records.len() > 0 {
+                let write_success = dump_collected_alignments_single_cell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
+                if write_success == true {
+                    chunk_reads += 1;
+                }
+            }
+
+            // prepare for the new read
+            last_qname = qname;
+            all_read_records.clear();
+            all_read_records.append(&mut txp_records);
+
+            if chunk_reads >= buf_limit {
+                // dump current chunk and start a new one
+                data.set_position(0);
+                // number of bytes
+                data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
+                // number reads
+                data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                
+                owriter.write_all(data.get_ref()).unwrap();
+                total_num_chunks += 1;
+                chunk_reads = 0;
+                data = Cursor::new(Vec::<u8>::with_capacity((buf_limit * 100) as usize));
+                // placeholder for number of bytes and number of records
+                data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+                
+                // TODO: remove dummy bytes
+                data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
+            }
+        }
+    }
+    // add stored data to the last chunk
+    if all_read_records.len() > 0 {
+        let write_success = dump_collected_alignments_single_cell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
+        if write_success == true {
+            chunk_reads += 1;
+        }
+    }
+    // dump the last chunk
+    if chunk_reads > 0 {
+        data.set_position(0);
+        // number of bytes
+        data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
+        // number reads
+        data.write_all(&chunk_reads.to_le_bytes()).unwrap();
+        
+        owriter.write_all(data.get_ref()).unwrap();
+        total_num_chunks += 1;
+    }
+    // update the number of chunks in the header
+    owriter.flush().expect("File buffer could not be flushed");
+    owriter.seek(SeekFrom::Start(end_header_pos))
+        .expect("couldn't seek in output file");
+    owriter.write_all(&total_num_chunks.to_le_bytes())
+        .expect("couldn't write to output file.");
 }

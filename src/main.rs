@@ -41,6 +41,7 @@ fn main() {
         .arg(Arg::from("-b, --bam=<bam-file> 'input SAM/BAM file'"))
         .arg(Arg::from("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
         .arg(Arg::from("-o, --out=<output-file> 'output file name'"))
+        .arg(Arg::from("-r, --rad 'output in RAD format instead of BAM'"))
         .arg(Arg::from("-t, --threads 'Number of threads for the processing bam files.'").default_value(&default_num_threads))
         .arg(Arg::from("-s, --max-softlen 'Max allowed sofclip length allowed.'").default_value(&default_max_softlen))
         .arg(Arg::from("-c, --corrected-tags 'Output error-corrected cell barcode and UMI.'"));
@@ -108,14 +109,10 @@ fn main() {
         } else {
             required_tags = vec!["CR", "UR"];
         }
-        bam::bam2bam_tags(&bam_file_in,
-                          &out_file,
-                          &transcripts,
-                          &txp_lengths,
-                          &trees,
-                          &threads_count,
-                          &max_softlen,
-                          &required_tags);
-        // println!("{:?}", required_tags);
+        if t.is_present("rad") {
+            rad::bam2rad_singlecell(&bam_file_in, &out_file, &transcripts, &trees, &threads_count, &max_softlen);
+        } else {
+            bam::bam2bam_tags(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
+        }
     }
 }

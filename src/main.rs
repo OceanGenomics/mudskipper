@@ -111,7 +111,7 @@ fn main() {
             required_tags = vec!["CR", "UR"];
         }
         if t.is_present("rad") {
-            rad::bam2rad_singlecell(&bam_file_in, &out_file, &transcripts, &trees, &threads_count, &max_softlen);
+            rad::bam2rad_singlecell(&bam_file_in, &out_file, &transcripts, &trees, &threads_count, &max_softlen, t.is_present("corrected-tags"));
         } else {
             bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
         }

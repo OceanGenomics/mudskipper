@@ -577,20 +577,35 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
 fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
                                     bc_typeid: &u8,
                                     umi_typeid: &u8,
+                                    corrected_tags: bool,
                                     owriter: &mut Cursor<Vec<u8>>) -> bool {
     // check if barcode and UMI can be converted to numbers
-    let bc_string;
-    if let Ok(Aux::String(bc_str)) = all_read_records.first().unwrap().aux(b"CR") {
-        bc_string = bc_str.to_string();
-    } else {
-        panic!("Input record missing CR tag!");
-    }
+    let bc_string: String;
+    let umi_string: String;
+    if corrected_tags {
+        if let Ok(Aux::String(bc_str)) = all_read_records.first().unwrap().aux(b"CB") {
+            bc_string = bc_str.to_string();
+        } else {
+            panic!("Input record missing CB tag!");
+        }
 
-    let umi_string;
-    if let Ok(Aux::String(umi_str)) = all_read_records.first().unwrap().aux(b"UR") {
-        umi_string = umi_str.to_string();
+        if let Ok(Aux::String(umi_str)) = all_read_records.first().unwrap().aux(b"UB") {
+            umi_string = umi_str.to_string();
+        } else {
+            panic!("Input record missing UB tag!");
+        }
     } else {
-        panic!("Input record missing UR tag!");
+        if let Ok(Aux::String(bc_str)) = all_read_records.first().unwrap().aux(b"CR") {
+            bc_string = bc_str.to_string();
+        } else {
+            panic!("Input record missing CR tag!");
+        }
+
+        if let Ok(Aux::String(umi_str)) = all_read_records.first().unwrap().aux(b"UR") {
+            umi_string = umi_str.to_string();
+        } else {
+            panic!("Input record missing UR tag!");
+        }
     }
 
     debug!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
@@ -660,7 +675,8 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
                  transcripts: &Vec<String>,
                  trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
                  threads_count: &usize,
-                 max_softlen: &usize) {
+                 max_softlen: &usize,
+                 corrected_tags: bool) {
     
     let ofile = File::create(&output_rad_filename).unwrap();
     // file writer and intermediate buffer
@@ -728,18 +744,30 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
             .expect("coudn't write to output file");
 
         // READ-LEVEL tags
-        let bc_string_in;
-        if let Ok(Aux::String(bcs)) = first_record.aux(b"CR") {
-            bc_string_in = bcs.to_string();
+        let bc_string_in: String;
+        let umi_string_in: String;
+        if corrected_tags {
+            if let Ok(Aux::String(bcs)) = first_record.aux(b"CB") {
+                bc_string_in = bcs.to_string();
+            } else {
+                panic!("Input record missing CB tag!");
+            }
+            if let Ok(Aux::String(umis)) = first_record.aux(b"UB") {
+                umi_string_in = umis.to_string();
+            } else {
+                panic!("Input record missing UB tag!");
+            }
         } else {
-            panic!("Input record missing CR tag!");
-        }
-
-        let umi_string_in;
-        if let Ok(Aux::String(umis)) = first_record.aux(b"UR") {
-            umi_string_in = umis.to_string();
-        } else {
-            panic!("Input record missing UR tag!");
+            if let Ok(Aux::String(bcs)) = first_record.aux(b"CR") {
+                bc_string_in = bcs.to_string();
+            } else {
+                panic!("Input record missing CR tag!");
+            }
+            if let Ok(Aux::String(umis)) = first_record.aux(b"UR") {
+                umi_string_in = umis.to_string();
+            } else {
+                panic!("Input record missing UR tag!");
+            }
         }
 
         let bclen = bc_string_in.len() as u16;
@@ -838,7 +866,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
             all_read_records.append(&mut txp_records);
         } else {
             if all_read_records.len() > 0 {
-                let write_success = dump_collected_alignments_singlecell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
+                let write_success = dump_collected_alignments_singlecell(&all_read_records, &bc_typeid, &umi_typeid, corrected_tags, &mut data);
                 if write_success == true {
                     chunk_reads += 1;
                 }
@@ -869,7 +897,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
     }
     // add stored data to the last chunk
     if all_read_records.len() > 0 {
-        let write_success = dump_collected_alignments_singlecell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
+        let write_success = dump_collected_alignments_singlecell(&all_read_records, &bc_typeid, &umi_typeid, corrected_tags, &mut data);
         if write_success == true {
             chunk_reads += 1;
         }

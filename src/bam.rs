@@ -1,6 +1,6 @@
-use coitrees::{COITree};
+use coitrees::COITree;
 
-use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header, record};
+use rust_htslib::bam::{header, record, Format, Header, Read, Reader, Writer};
 
 use crate::annotation;
 use annotation::ExonNode;
@@ -12,16 +12,18 @@ use crate::convert;
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log::{info, debug, error};
+use log::{debug, error, info};
 
-pub fn bam2bam(input_bam_filename: &String, 
-               output_bam_filename: &String,
-               transcripts: &Vec<String>,
-               txp_lengths: &Vec<i32>,
-               trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-               threads_count: &usize,
-               max_softlen: &usize, 
-               required_tags: &Vec<&str>) {
+pub fn bam2bam(
+    input_bam_filename: &String,
+    output_bam_filename: &String,
+    transcripts: &Vec<String>,
+    txp_lengths: &Vec<i32>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    threads_count: &usize,
+    max_softlen: &usize,
+    required_tags: &Vec<&str>,
+) {
     let mut input_bam = Reader::from_path(input_bam_filename).unwrap();
     // let bam_records = input_bam.records();
 
@@ -30,7 +32,6 @@ pub fn bam2bam(input_bam_filename: &String,
 
     let input_bam_header = Reader::from_path(input_bam_filename).unwrap();
     let header_view = input_bam_header.header();
-    
     let mut new_header = Header::new();
     // new_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
 
@@ -47,8 +48,12 @@ pub fn bam2bam(input_bam_filename: &String,
     if *threads_count >= 2 {
         let threads_count_half = threads_count / 2;
         println!("thread count: {}", threads_count_half);
-        input_bam.set_threads(threads_count_half).expect("Failed to set number of BAM reading threads.");
-        output_bam.set_threads(threads_count_half).expect("Failed to set number of BAM writing threads.");
+        input_bam
+            .set_threads(threads_count_half)
+            .expect("Failed to set number of BAM reading threads.");
+        output_bam
+            .set_threads(threads_count_half)
+            .expect("Failed to set number of BAM writing threads.");
     }
 
     let mut n = 0;
@@ -67,11 +72,7 @@ pub fn bam2bam(input_bam_filename: &String,
 
         debug!("qname: {}", qname);
         if !record.is_paired() || record.is_mate_unmapped() {
-            let txp_records = convert::convert_single_end(&record, 
-                                           header_view,
-                                           transcripts,
-                                           trees,
-                                           max_softlen);
+            let txp_records = convert::convert_single_end(&record, header_view, transcripts, trees, max_softlen);
             for txp_rec in txp_records.iter() {
                 output_bam.write(txp_rec).unwrap();
             }
@@ -79,13 +80,7 @@ pub fn bam2bam(input_bam_filename: &String,
         } else {
             if mate_wanted {
                 // this is the second read in pair... PROCESS!
-                let txp_records = convert::convert_paired_end(&first_record,
-                                                                        &record,
-                                                                        header_view,
-                                                                        transcripts,
-                                                                        txp_lengths,
-                                                                        trees,
-                                                                        max_softlen);
+                let txp_records = convert::convert_paired_end(&first_record, &record, header_view, transcripts, txp_lengths, trees, max_softlen);
                 for txp_rec in txp_records.iter() {
                     output_bam.write(txp_rec).unwrap();
                 }

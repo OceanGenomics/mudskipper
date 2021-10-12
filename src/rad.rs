@@ -3,17 +3,17 @@ use crate::convert;
 
 extern crate fnv;
 
-use std::fs::File;
-use std::error::Error;
 use libradicl::decode_int_type_tag;
-use log::{info, error, debug};
+use log::{debug, error, info};
+use std::error::Error;
+use std::fs::File;
 
 use annotation::ExonNode;
 
-use std::io::{BufWriter, Cursor, Write, Seek, SeekFrom};
-use rust_htslib::{bam, bam::Read, bam::record, bam::record::Aux};
+use coitrees::COITree;
 use fnv::FnvHashMap;
-use coitrees::{COITree};
+use rust_htslib::{bam, bam::record, bam::record::Aux, bam::Read};
+use std::io::{BufWriter, Cursor, Seek, SeekFrom, Write};
 // use scroll::Pread;
 
 // fn read_into_u64<T: std::io::Read>(reader: &mut T, rt: &libradicl::RadIntId) -> u64 {
@@ -60,7 +60,7 @@ pub fn cb_string_to_u64(cb_str: &[u8]) -> Result<u64, Box<dyn Error>> {
 fn bam_peek(bam_path: &String) -> record::Record {
     let mut bam_reader = bam::Reader::from_path(&bam_path).unwrap();
     bam_reader.set_threads(1).unwrap();
-    // 
+    //
     let mut rec = record::Record::new();
     let first_record_exists = bam_reader.read(&mut rec).is_some();
     if !first_record_exists {
@@ -70,18 +70,28 @@ fn bam_peek(bam_path: &String) -> record::Record {
     rec
 }
 
-pub fn bam2rad_bulk_wrapper(input_bam_filename: &String,
-                 output_rad_filename: &String,
-                 transcripts: &Vec<String>,
-                 txp_lengths: &Vec<i32>,
-                 trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                 threads_count: &usize,
-                 max_softlen: &usize) {
+pub fn bam2rad_bulk_wrapper(
+    input_bam_filename: &String,
+    output_rad_filename: &String,
+    transcripts: &Vec<String>,
+    txp_lengths: &Vec<i32>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    threads_count: &usize,
+    max_softlen: &usize,
+) {
     let first_record = bam_peek(input_bam_filename);
     ////////////////////////////////////////////////// header section
     // is paired-end
     if first_record.is_paired() {
-        bam2rad_bulk_pe(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen);
+        bam2rad_bulk_pe(
+            input_bam_filename,
+            output_rad_filename,
+            transcripts,
+            txp_lengths,
+            trees,
+            threads_count,
+            max_softlen,
+        );
     } else {
         bam2rad_bulk_se(input_bam_filename, output_rad_filename, transcripts, trees, threads_count, max_softlen);
     }
@@ -102,7 +112,6 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
         // owriter.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
         // alignment position
         // owriter.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
-        
         // array of alignment-specific tags
         let mut tid_comressed = txp_rec.tid() as u32;
         if txp_rec.is_reverse() == false {
@@ -113,18 +122,19 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
     return true;
 }
 
-pub fn bam2rad_bulk_se(input_bam_filename: &String,
-                 output_rad_filename: &String,
-                 transcripts: &Vec<String>,
-                 trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                 threads_count: &usize,
-                 max_softlen: &usize) {
-    
+pub fn bam2rad_bulk_se(
+    input_bam_filename: &String,
+    output_rad_filename: &String,
+    transcripts: &Vec<String>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    threads_count: &usize,
+    max_softlen: &usize,
+) {
     let ofile = File::create(&output_rad_filename).unwrap();
     // file writer and intermediate buffer
     let mut owriter = BufWriter::with_capacity(1048576, ofile);
     let mut data = Cursor::new(vec![]);
-    // 
+    //
     let is_paired: u8;
     let end_header_pos: u64;
 
@@ -133,20 +143,16 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         // is paired-end
         is_paired = 0;
 
-        data.write_all(&is_paired.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&is_paired.to_le_bytes()).expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
         info!("Number of reference sequences: {}", ref_count);
-        data.write_all(&ref_count.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&ref_count.to_le_bytes()).expect("couldn't write to output file");
         // list of reference names
-        for tname in transcripts.iter() {            
+        for tname in transcripts.iter() {
             let name_len = tname.len() as u16;
-            data.write_all(&name_len.to_le_bytes())
-                .expect("coudn't write to output file");
-            data.write_all(tname.as_bytes())
-                .expect("coudn't write to output file");
+            data.write_all(&name_len.to_le_bytes()).expect("coudn't write to output file");
+            data.write_all(tname.as_bytes()).expect("coudn't write to output file");
         }
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
@@ -154,31 +160,26 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
-        data.write_all(&initial_num_chunks.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&initial_num_chunks.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// tag definition section
         // FILE-LEVEL tags
         let mut num_tags = 0u16; // no file-level tags for bulk
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
         num_tags = 0u16; // no read-level tags for bulk
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
         num_tags = 1u16;
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
         let refid_str = "compressed_ori_refid";
         let typeid = 3u8;
         libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
         // nothing for bulk!
@@ -217,12 +218,8 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         if record.is_unmapped() {
             continue;
         }
-        // 
-        let mut txp_records = convert::convert_single_end(&record, 
-                                                          &header_view,
-                                                          transcripts,
-                                                          trees,
-                                                          max_softlen);
+        //
+        let mut txp_records = convert::convert_single_end(&record, &header_view, transcripts, trees, max_softlen);
         if qname == last_qname {
             all_read_records.append(&mut txp_records);
         } else {
@@ -245,7 +242,6 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
                 data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
                 // number reads
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-                
                 owriter.write_all(data.get_ref()).unwrap();
                 total_num_chunks += 1;
                 chunk_reads = 0;
@@ -270,21 +266,18 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
         // number reads
         data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-        
         owriter.write_all(data.get_ref()).unwrap();
         total_num_chunks += 1;
     }
     // update the number of chunks in the header
     owriter.flush().expect("File buffer could not be flushed");
-    owriter.seek(SeekFrom::Start(end_header_pos))
-        .expect("couldn't seek in output file");
-    owriter.write_all(&total_num_chunks.to_le_bytes())
+    owriter.seek(SeekFrom::Start(end_header_pos)).expect("couldn't seek in output file");
+    owriter
+        .write_all(&total_num_chunks.to_le_bytes())
         .expect("couldn't write to output file.");
 }
 
-fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
-                                     read_num_align: u32,
-                                     owriter: &mut Cursor<Vec<u8>>) -> bool {
+fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, read_num_align: u32, owriter: &mut Cursor<Vec<u8>>) -> bool {
     // add stored data to the current chunk
     // number of alignments
     owriter.write_all(&read_num_align.to_le_bytes()).unwrap();
@@ -293,10 +286,10 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
     // second mate length
     // owriter.write_all(&(second_record.seq_len() as u16).to_le_bytes()).unwrap();
     // No read-level tags for bulk
-    
     let mut rec_iter = all_read_records.iter();
     while let Some(rec1) = rec_iter.next() {
-        if !rec1.is_mate_unmapped() { // there should be another mate
+        if !rec1.is_mate_unmapped() {
+            // there should be another mate
             if let Some(rec2) = rec_iter.next() {
                 // alignment reference ID
                 assert_eq!(rec1.tid(), rec2.tid());
@@ -304,7 +297,8 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
                 let mut aln_type: u8 = 0;
                 // let pos_left: u32;
                 // let pos_right: u32;
-                if rec1.is_first_in_template() == true { // rec1 is left
+                if rec1.is_first_in_template() == true {
+                    // rec1 is left
                     if rec1.is_reverse() {
                         aln_type = aln_type | (2 as u8);
                     }
@@ -313,7 +307,8 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
                     }
                     // pos_left = rec1.pos() as u32;
                     // pos_right = rec2.pos() as u32;
-                } else { // rec2 is left
+                } else {
+                    // rec2 is left
                     if rec1.is_reverse() {
                         aln_type = aln_type | (1 as u8);
                     }
@@ -334,22 +329,17 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
                 error!("couldn't find respective mate!");
                 return false;
             }
-        } else { // there is no mate
+        } else {
+            // there is no mate
             // alignment reference ID
             owriter.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
             let aln_type: u8;
-            if rec1.is_first_in_template() == true { // right is unmapped
-                aln_type = if rec1.is_reverse() {
-                    5
-                } else {
-                    4
-                };
-            } else { // left is unmapped
-                aln_type = if rec1.is_reverse() {
-                    7
-                } else {
-                    6
-                };
+            if rec1.is_first_in_template() == true {
+                // right is unmapped
+                aln_type = if rec1.is_reverse() { 5 } else { 4 };
+            } else {
+                // left is unmapped
+                aln_type = if rec1.is_reverse() { 7 } else { 6 };
             }
             // alignment type (0..7)
             owriter.write_all(&aln_type.to_le_bytes()).unwrap();
@@ -361,19 +351,20 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
     return true;
 }
 
-pub fn bam2rad_bulk_pe(input_bam_filename: &String,
-                 output_rad_filename: &String,
-                 transcripts: &Vec<String>,
-                 txp_lengths: &Vec<i32>,
-                 trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                 threads_count: &usize,
-                 max_softlen: &usize) {
-    
+pub fn bam2rad_bulk_pe(
+    input_bam_filename: &String,
+    output_rad_filename: &String,
+    transcripts: &Vec<String>,
+    txp_lengths: &Vec<i32>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    threads_count: &usize,
+    max_softlen: &usize,
+) {
     let ofile = File::create(&output_rad_filename).unwrap();
     // file writer and intermediate buffer
     let mut owriter = BufWriter::with_capacity(1048576, ofile);
     let mut data = Cursor::new(vec![]);
-    // 
+    //
     let is_paired: u8;
     let end_header_pos: u64;
 
@@ -382,20 +373,16 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         // is paired-end
         is_paired = 1;
 
-        data.write_all(&is_paired.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&is_paired.to_le_bytes()).expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
         info!("Number of reference sequences: {}", ref_count);
-        data.write_all(&ref_count.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&ref_count.to_le_bytes()).expect("couldn't write to output file");
         // list of reference names
-        for tname in transcripts.iter() {            
+        for tname in transcripts.iter() {
             let name_len = tname.len() as u16;
-            data.write_all(&name_len.to_le_bytes())
-                .expect("coudn't write to output file");
-            data.write_all(tname.as_bytes())
-                .expect("coudn't write to output file");
+            data.write_all(&name_len.to_le_bytes()).expect("coudn't write to output file");
+            data.write_all(tname.as_bytes()).expect("coudn't write to output file");
         }
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
@@ -403,38 +390,32 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
-        data.write_all(&initial_num_chunks.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&initial_num_chunks.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// tag definition section
         // FILE-LEVEL tags
         let mut num_tags = 0u16; // no file-level tags for bulk
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
         num_tags = 0u16; // no read-level tags for bulk
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
         num_tags = 2u16;
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
         let refid_str = "refid";
         let mut typeid = 3u8;
         libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment type
         let alntype_str = "alntype";
         typeid = 1u8;
         libradicl::write_str_bin(&alntype_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
         // nothing for bulk!
@@ -481,35 +462,22 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
             continue;
         }
 
-        // this is the second read in pair... 
+        // this is the second read in pair...
         second_record = record.clone();
         assert_eq!(first_record.qname(), second_record.qname());
 
         let mut txp_records: Vec<record::Record>;
         if first_record.is_unmapped() {
-            txp_records = convert::convert_single_end(&second_record,
-                                                    &header_view,
-                                                    transcripts,
-                                                    trees,
-                                                    max_softlen);
+            txp_records = convert::convert_single_end(&second_record, &header_view, transcripts, trees, max_softlen);
             // debug!("rec_num_align: {}", txp_records.len());
             rec_num_align = txp_records.len() as u32;
         } else if second_record.is_unmapped() {
-            txp_records = convert::convert_single_end(&first_record,
-                                                    &header_view,
-                                                    transcripts,
-                                                    trees,
-                                                    max_softlen);
+            txp_records = convert::convert_single_end(&first_record, &header_view, transcripts, trees, max_softlen);
             // debug!("rec_num_align: {}", txp_records.len());
             rec_num_align = txp_records.len() as u32;
-        } else { // both mates in pair are mapped
-            txp_records = convert::convert_paired_end(&first_record,
-                                                                &second_record,
-                                                                &header_view,
-                                                                transcripts,
-                                                                txp_lengths,
-                                                                trees,
-                                                                max_softlen);
+        } else {
+            // both mates in pair are mapped
+            txp_records = convert::convert_paired_end(&first_record, &second_record, &header_view, transcripts, txp_lengths, trees, max_softlen);
             // debug!("rec_num_align: {}", (txp_records.len() / 2));
             rec_num_align = (txp_records.len() / 2) as u32;
         };
@@ -538,7 +506,6 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                 data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
                 // number reads
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-                
                 owriter.write_all(data.get_ref()).unwrap();
                 total_num_chunks += 1;
                 chunk_reads = 0;
@@ -562,23 +529,24 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
         // number reads
         data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-        
         owriter.write_all(data.get_ref()).unwrap();
         total_num_chunks += 1;
     }
     // update the number of chunks in the header
     owriter.flush().expect("File buffer could not be flushed");
-    owriter.seek(SeekFrom::Start(end_header_pos))
-        .expect("couldn't seek in output file");
-    owriter.write_all(&total_num_chunks.to_le_bytes())
+    owriter.seek(SeekFrom::Start(end_header_pos)).expect("couldn't seek in output file");
+    owriter
+        .write_all(&total_num_chunks.to_le_bytes())
         .expect("couldn't write to output file.");
 }
 
-fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
-                                    bc_typeid: &u8,
-                                    umi_typeid: &u8,
-                                    corrected_tags: bool,
-                                    owriter: &mut Cursor<Vec<u8>>) -> bool {
+fn dump_collected_alignments_singlecell(
+    all_read_records: &Vec<record::Record>,
+    bc_typeid: &u8,
+    umi_typeid: &u8,
+    corrected_tags: bool,
+    owriter: &mut Cursor<Vec<u8>>,
+) -> bool {
     // check if barcode and UMI can be converted to numbers
     let bc_string: String;
     let umi_string: String;
@@ -608,7 +576,12 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
         }
     }
 
-    debug!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
+    debug!(
+        "qname:{} bc:{} umi:{}",
+        String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(),
+        bc_string,
+        umi_string
+    );
     if (*bc_typeid != 8 && bc_string.contains('N') == true) || (*umi_typeid != 8 && umi_string.contains('N') == true) {
         debug!("barcode or UMI has N");
         return false;
@@ -621,9 +594,11 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
     // owriter.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap();
     // read-level tags for single-cell
     // bc
-    if *bc_typeid == 8 { // write as a string
+    if *bc_typeid == 8 {
+        // write as a string
         libradicl::write_str_bin(&bc_string, &libradicl::RadIntId::U16, owriter);
-    } else { // convert to integer
+    } else {
+        // convert to integer
         let bc_int: u64 = cb_string_to_u64(bc_string.as_bytes()).unwrap();
         match decode_int_type_tag(*bc_typeid).unwrap() {
             libradicl::RadIntId::U32 => {
@@ -637,9 +612,11 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
     }
 
     // umi
-    if *umi_typeid == 8 { // write as a string
+    if *umi_typeid == 8 {
+        // write as a string
         libradicl::write_str_bin(&umi_string, &libradicl::RadIntId::U16, owriter);
-    } else { // convert to integer
+    } else {
+        // convert to integer
         let umi_int: u64 = cb_string_to_u64(umi_string.as_bytes()).unwrap();
         match decode_int_type_tag(*umi_typeid).unwrap() {
             libradicl::RadIntId::U32 => {
@@ -659,7 +636,6 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
         // owriter.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
         // alignment position
         // owriter.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
-        
         // array of alignment-specific tags
         let mut tid_comressed = txp_rec.tid() as u32;
         if txp_rec.is_reverse() == false {
@@ -670,19 +646,20 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
     return true;
 }
 
-pub fn bam2rad_singlecell(input_bam_filename: &String, 
-                 output_rad_filename: &String,
-                 transcripts: &Vec<String>,
-                 trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                 threads_count: &usize,
-                 max_softlen: &usize,
-                 corrected_tags: bool) {
-    
+pub fn bam2rad_singlecell(
+    input_bam_filename: &String,
+    output_rad_filename: &String,
+    transcripts: &Vec<String>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    threads_count: &usize,
+    max_softlen: &usize,
+    corrected_tags: bool,
+) {
     let ofile = File::create(&output_rad_filename).unwrap();
     // file writer and intermediate buffer
     let mut owriter = BufWriter::with_capacity(1048576, ofile);
     let mut data = Cursor::new(vec![]);
-    // 
+    //
     let is_paired: u8;
     let end_header_pos: u64;
 
@@ -696,13 +673,11 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         // is paired-end
         is_paired = 0;
 
-        data.write_all(&is_paired.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&is_paired.to_le_bytes()).expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
         info!("Number of reference sequences: {}", ref_count);
-        data.write_all(&ref_count.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&ref_count.to_le_bytes()).expect("couldn't write to output file");
         // list of reference names
         for tname in transcripts.iter() {
             // let name_len = tname.len() as u16;
@@ -718,30 +693,26 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
-        data.write_all(&initial_num_chunks.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&initial_num_chunks.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// tag definition section
         // FILE-LEVEL tags
 
         // for single-cell, keep length of cell-barcode and UMI
         let mut num_tags = 2u16;
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("coudn't write to output file");
-        
-        let mut typeid = 2u8;  // u16
+        data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
+
+        let mut typeid = 2u8; // u16
         let mut cb_tag_str = "cblen";
         let mut umi_tag_str = "ulen";
 
         // str - type
         libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // str - type
         libradicl::write_str_bin(&umi_tag_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
         let bc_string_in: String;
@@ -774,8 +745,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         let umilen = umi_string_in.len() as u16;
 
         num_tags = 2u16;
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
         cb_tag_str = "b";
         umi_tag_str = "u";
 
@@ -797,30 +767,24 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         debug!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
 
         libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&bc_typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&bc_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         libradicl::write_str_bin(&umi_tag_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&umi_typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&umi_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
         num_tags = 1u16;
-        data.write_all(&num_tags.to_le_bytes())
-            .expect("couldn't write to output file");
+        data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
         let refid_str = "compressed_ori_refid";
         typeid = 3u8;
         libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
-        data.write_all(&bclen.to_le_bytes())
-            .expect("coudn't write to output file");
-        data.write_all(&umilen.to_le_bytes())
-            .expect("coudn't write to output file");
+        data.write_all(&bclen.to_le_bytes()).expect("coudn't write to output file");
+        data.write_all(&umilen.to_le_bytes()).expect("coudn't write to output file");
     }
 
     // dump current buffer content
@@ -856,12 +820,8 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         if record.is_unmapped() {
             continue;
         }
-        // 
-        let mut txp_records = convert::convert_single_end(&record, 
-                                                                    &header_view,
-                                                                    transcripts,
-                                                                    trees,
-                                                                    max_softlen);
+        //
+        let mut txp_records = convert::convert_single_end(&record, &header_view, transcripts, trees, max_softlen);
         if qname == last_qname {
             all_read_records.append(&mut txp_records);
         } else {
@@ -884,7 +844,6 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
                 data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
                 // number reads
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-                
                 owriter.write_all(data.get_ref()).unwrap();
                 total_num_chunks += 1;
                 chunk_reads = 0;
@@ -909,14 +868,13 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         data.write_all(&(data.get_ref().len() as u32).to_le_bytes()).unwrap();
         // number reads
         data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-        
         owriter.write_all(data.get_ref()).unwrap();
         total_num_chunks += 1;
     }
     // update the number of chunks in the header
     owriter.flush().expect("File buffer could not be flushed");
-    owriter.seek(SeekFrom::Start(end_header_pos))
-        .expect("couldn't seek in output file");
-    owriter.write_all(&total_num_chunks.to_le_bytes())
+    owriter.seek(SeekFrom::Start(end_header_pos)).expect("couldn't seek in output file");
+    owriter
+        .write_all(&total_num_chunks.to_le_bytes())
         .expect("couldn't write to output file.");
 }

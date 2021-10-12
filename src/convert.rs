@@ -1,6 +1,6 @@
+use coitrees::COITree;
 use rust_htslib::bam::record;
-use coitrees::{COITree};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use rust_htslib::bam::HeaderView;
 // use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header};
@@ -14,7 +14,7 @@ use annotation::ExonNode;
 
 use log::{debug, warn};
 
-pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashMap<i32, (i32, Strand)> {
+pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> HashMap<i32, (i32, Strand)> {
     let mut tids: HashMap<i32, (i32, Strand)> = HashMap::new();
     let mut tids_set: HashSet<i32> = HashSet::new();
     let mut tid_pos: HashMap<i32, (i32, Strand)> = HashMap::new();
@@ -32,26 +32,30 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
         debug!("first: {}, last: {}", first, last);
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
-                debug!("query for {} {}:{}",range.0, range.1, node.metadata);
+                debug!("query for {} {}:{}", range.0, range.1, node.metadata);
                 //if (node.metadata.start-10 <= range.0 && node.metadata.end+10 >= range.1) ||
                 //    (node.metadata.end-10 <= range.0 && node.metadata.start+10 >= range.1) {
-                    
-                    curr_tids.insert(node.metadata.tid);
-                    if first && node.metadata.strand == Strand::Forward {
-                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                        debug!("start:{} - tpos_start:{} = {}",
-                                node.metadata.start, node.metadata.tpos_start, 
-                                node.metadata.start - node.metadata.tpos_start);
-                        tid_pos.insert(node.metadata.tid, 
-                            (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
-                    } else if last && node.metadata.strand == Strand::Reverse {
-                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                        debug!("end:{} + tpos_start:{} = {}",
-                                node.metadata.end, node.metadata.tpos_start, 
-                                node.metadata.end + node.metadata.tpos_start);
-                        tid_pos.insert(node.metadata.tid, 
-                            (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
-                    }
+
+                curr_tids.insert(node.metadata.tid);
+                if first && node.metadata.strand == Strand::Forward {
+                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                    debug!(
+                        "start:{} - tpos_start:{} = {}",
+                        node.metadata.start,
+                        node.metadata.tpos_start,
+                        node.metadata.start - node.metadata.tpos_start
+                    );
+                    tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
+                } else if last && node.metadata.strand == Strand::Reverse {
+                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                    debug!(
+                        "end:{} + tpos_start:{} = {}",
+                        node.metadata.end,
+                        node.metadata.tpos_start,
+                        node.metadata.end + node.metadata.tpos_start
+                    );
+                    tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
+                }
                 //}
             });
             debug!("found coverage: {:?}", res)
@@ -70,20 +74,22 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) ->HashM
     return tids;
 }
 
-pub fn find_tids_paired(tree: &COITree<ExonNode, u32>,
-                        read_pos1: &i32,
-                        cigar1: &record::CigarStringView, 
-                        new_cigar1: &mut record::CigarString, 
-                        len1: &mut i32,
-                        read_pos2: &i32, 
-                        cigar2: &record::CigarStringView,
-                        new_cigar2: &mut record::CigarString,
-                        len2: &mut i32,
-                        long_softclip: &mut bool,
-                        max_softlen: &usize) -> HashMap<i32, ((i32, Strand), (i32, Strand))> {
+pub fn find_tids_paired(
+    tree: &COITree<ExonNode, u32>,
+    read_pos1: &i32,
+    cigar1: &record::CigarStringView,
+    new_cigar1: &mut record::CigarString,
+    len1: &mut i32,
+    read_pos2: &i32,
+    cigar2: &record::CigarStringView,
+    new_cigar2: &mut record::CigarString,
+    len2: &mut i32,
+    long_softclip: &mut bool,
+    max_softlen: &usize,
+) -> HashMap<i32, ((i32, Strand), (i32, Strand))> {
     let mut tid_pos: HashMap<i32, ((i32, Strand), (i32, Strand))> = HashMap::new();
     debug!("read1: {} {}", read_pos1, cigar1);
-    let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1, long_softclip, max_softlen);   
+    let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1, long_softclip, max_softlen);
     let tids1 = find_tid(&tree, &ranges1);
     debug!("read2: {} {}", read_pos2, cigar2);
     let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2, long_softclip, max_softlen);
@@ -96,23 +102,25 @@ pub fn find_tids_paired(tree: &COITree<ExonNode, u32>,
     return tid_pos;
 }
 
-pub fn find_ranges_single(read_pos: &i32, 
-                          cigar: &record::CigarStringView,
-                          new_cigar_view: &mut record::CigarString,
-                          len: &mut i32,
-                          long_softclip: &mut bool,
-                          max_softlen: &usize) -> Vec<(i32, i32)> {
+pub fn find_ranges_single(
+    read_pos: &i32,
+    cigar: &record::CigarStringView,
+    new_cigar_view: &mut record::CigarString,
+    len: &mut i32,
+    long_softclip: &mut bool,
+    max_softlen: &usize,
+) -> Vec<(i32, i32)> {
     let mut ranges = Vec::new();
     let mut curr_range: (i32, i32) = (-1, -1);
 
-    // This variable declares whether a new exon is reached 
+    // This variable declares whether a new exon is reached
     // or the next cigar item belongs to the current exon.
     let mut end_range: bool = true;
 
     // Set the current position to the base right before the beginning of the alignment
     // after discarding the softclipped bases
     let mut curr_pos = *read_pos - 1 + (cigar.leading_softclips() as i32);
-    let mut new_cigar: Vec::<record::Cigar> = Vec::<record::Cigar>::new();
+    let mut new_cigar: Vec<record::Cigar> = Vec::<record::Cigar>::new();
     *len = 0;
     for cigar_item in cigar.iter() {
         debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
@@ -129,12 +137,12 @@ pub fn find_ranges_single(read_pos: &i32,
                         'M' => new_cigar.push(record::Cigar::Match(new_cigar_len)),
                         'I' => new_cigar.push(record::Cigar::Ins(new_cigar_len)),
                         'D' => new_cigar.push(record::Cigar::Del(new_cigar_len)),
-                        _ => warn!("Unexpected cigar item: {}", new_cigar_len)
+                        _ => warn!("Unexpected cigar item: {}", new_cigar_len),
                     }
                 }
                 if cigar_char != 'I' {
                     debug!("len:{} + cigar_len:{} = {}", *len, cigar_len, *len + cigar_len as i32);
-                    *len = *len + cigar_len as i32; 
+                    *len = *len + cigar_len as i32;
                 }
 
                 if end_range {
@@ -144,7 +152,7 @@ pub fn find_ranges_single(read_pos: &i32,
                 curr_pos = curr_pos + cigar_len as i32;
                 curr_range.1 = curr_pos;
             }
-            // Observing N means that the rest of 
+            // Observing N means that the rest of
             // the cigar belongs to another exon
             'N' => {
                 end_range = true;
@@ -164,7 +172,7 @@ pub fn find_ranges_single(read_pos: &i32,
                     *long_softclip = true;
                 }
             }
-            _ => warn!("Unexpected cigar char! {}", cigar_char)
+            _ => warn!("Unexpected cigar char! {}", cigar_char),
         }
         debug!("{} {}", curr_range.0, curr_range.1);
     }
@@ -174,14 +182,15 @@ pub fn find_ranges_single(read_pos: &i32,
     return ranges;
 }
 
-pub fn convert_paired_end(bam_record1: &record::Record,
-                          bam_record2: &record::Record,
-                          header_view: &HeaderView,
-                          transcripts: &Vec<String>,
-                          txp_lengths: &Vec<i32>,
-                          trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                          max_softlen: &usize)
-    -> Vec<record::Record> {
+pub fn convert_paired_end(
+    bam_record1: &record::Record,
+    bam_record2: &record::Record,
+    header_view: &HeaderView,
+    transcripts: &Vec<String>,
+    txp_lengths: &Vec<i32>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    max_softlen: &usize,
+) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
     let mut cigar1_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut cigar2_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
@@ -189,20 +198,21 @@ pub fn convert_paired_end(bam_record1: &record::Record,
     let mut len2 = 0;
     let mut long_softclip = false;
 
-    let genome_tname = String::from_utf8(header_view.tid2name(bam_record2.tid() as u32).to_vec())
-        .expect("cannot find the tname!");
+    let genome_tname = String::from_utf8(header_view.tid2name(bam_record2.tid() as u32).to_vec()).expect("cannot find the tname!");
     if let Some(tree) = trees.get(&genome_tname) {
-        let tids = find_tids_paired(&tree,
-                                                    &(bam_record1.pos() as i32),
-                                                    &bam_record1.cigar(),
-                                                    &mut cigar1_new,
-                                                    &mut len1,
-                                                    &(bam_record2.pos() as i32),
-                                                    &bam_record2.cigar(),
-                                                    &mut cigar2_new,
-                                                    &mut len2,
-                                                    &mut long_softclip,
-                                                    &max_softlen);
+        let tids = find_tids_paired(
+            &tree,
+            &(bam_record1.pos() as i32),
+            &bam_record1.cigar(),
+            &mut cigar1_new,
+            &mut len1,
+            &(bam_record2.pos() as i32),
+            &bam_record2.cigar(),
+            &mut cigar2_new,
+            &mut len2,
+            &mut long_softclip,
+            &max_softlen,
+        );
         if long_softclip {
             debug!("The softclip length is too long!");
             return converted_records;
@@ -216,20 +226,28 @@ pub fn convert_paired_end(bam_record1: &record::Record,
 
                 let mut first_pos = 0;
                 let mut second_pos = 0;
-                if pos_strand.0.1 == Strand::Forward {
-                    first_pos = bam_record1.pos() - (pos_strand.0.0 as i64);
-                    debug!("first_pos:{} - pos:{} = {}",
-                            bam_record1.pos(), pos_strand.0.0, first_pos);
-                    second_pos = bam_record2.pos() - (pos_strand.1.0 as i64); 
-                    debug!("second_pos:{} - pos:{} = {}",
-                        bam_record2.pos(), pos_strand.1.0, second_pos);
-                } else if pos_strand.0.1 == Strand::Reverse{ 
-                    first_pos = (pos_strand.0.0 as i64) - bam_record1.pos() - len1 as i64;
-                    debug!("pos:{} - first_pos:{} - len1:{} = {}",
-                            pos_strand.0.0, bam_record1.pos(), len1, first_pos);
-                    second_pos = (pos_strand.1.0 as i64) - bam_record2.pos() - len2 as i64;
-                    debug!("pos:{} - second_pos:{} - len2:{} = {}",
-                            pos_strand.1.0, bam_record2.pos(), len2, second_pos);
+                if pos_strand.0 .1 == Strand::Forward {
+                    first_pos = bam_record1.pos() - (pos_strand.0 .0 as i64);
+                    debug!("first_pos:{} - pos:{} = {}", bam_record1.pos(), pos_strand.0 .0, first_pos);
+                    second_pos = bam_record2.pos() - (pos_strand.1 .0 as i64);
+                    debug!("second_pos:{} - pos:{} = {}", bam_record2.pos(), pos_strand.1 .0, second_pos);
+                } else if pos_strand.0 .1 == Strand::Reverse {
+                    first_pos = (pos_strand.0 .0 as i64) - bam_record1.pos() - len1 as i64;
+                    debug!(
+                        "pos:{} - first_pos:{} - len1:{} = {}",
+                        pos_strand.0 .0,
+                        bam_record1.pos(),
+                        len1,
+                        first_pos
+                    );
+                    second_pos = (pos_strand.1 .0 as i64) - bam_record2.pos() - len2 as i64;
+                    debug!(
+                        "pos:{} - second_pos:{} - len2:{} = {}",
+                        pos_strand.1 .0,
+                        bam_record2.pos(),
+                        len2,
+                        second_pos
+                    );
                     if bam_record1.is_reverse() {
                         debug!("bam_record1 is reversed");
                         first_record_.unset_reverse();
@@ -248,37 +266,42 @@ pub fn convert_paired_end(bam_record1: &record::Record,
                         second_record_.set_reverse();
                         second_record_.unset_mate_reverse();
                     }
-
                 }
                 let first_read_len: i64 = bam_record1.seq().len() as i64;
                 let second_read_len: i64 = bam_record2.seq().len() as i64;
                 let first_length: i64;
                 let second_length: i64;
-                if pos_strand.0.1 == Strand::Forward {
+                if pos_strand.0 .1 == Strand::Forward {
                     first_length = if !bam_record1.is_reverse() {
-                                        second_pos - first_pos + second_read_len } else {
-                                        second_pos - first_pos + first_read_len };
+                        second_pos - first_pos + second_read_len
+                    } else {
+                        second_pos - first_pos + first_read_len
+                    };
                     second_length = if !bam_record2.is_reverse() {
-                                        first_pos - second_pos - first_read_len } else {
-                                        first_pos - second_pos - second_read_len };
-                }
-                else {
+                        first_pos - second_pos - first_read_len
+                    } else {
+                        first_pos - second_pos - second_read_len
+                    };
+                } else {
                     first_length = if !bam_record1.is_reverse() {
-                        second_pos - first_pos - first_read_len } else {
-                        second_pos - first_pos - second_read_len };
+                        second_pos - first_pos - first_read_len
+                    } else {
+                        second_pos - first_pos - second_read_len
+                    };
                     second_length = if !bam_record2.is_reverse() {
-                        first_pos - second_pos + second_read_len } else {
-                        first_pos - second_pos + first_read_len };
+                        first_pos - second_pos + second_read_len
+                    } else {
+                        first_pos - second_pos + first_read_len
+                    };
                 }
                 debug!("tid:{} {}", tid, transcripts[*tid as usize]);
-                debug!("first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
-                        first_pos, second_pos, first_read_len, second_read_len, first_length, second_length);
+                debug!(
+                    "first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
+                    first_pos, second_pos, first_read_len, second_read_len, first_length, second_length
+                );
                 debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
                 debug!("record.is_reverse():{}", bam_record2.is_reverse());
-                first_record_.set(bam_record1.qname(), 
-                                Some(&cigar1_new), 
-                                &bam_record1.seq().as_bytes(), 
-                                bam_record1.qual());
+                first_record_.set(bam_record1.qname(), Some(&cigar1_new), &bam_record1.seq().as_bytes(), bam_record1.qual());
                 first_record_.set_tid(*tid);
                 first_record_.set_mtid(*tid);
 
@@ -287,9 +310,7 @@ pub fn convert_paired_end(bam_record1: &record::Record,
                 first_record_.set_insert_size(first_length);
                 // first_record_.remove_aux("AS".as_bytes());
 
-                second_record_.set(bam_record2.qname(), Some(&cigar2_new), 
-                                    &bam_record2.seq().as_bytes(), 
-                                    bam_record2.qual());
+                second_record_.set(bam_record2.qname(), Some(&cigar2_new), &bam_record2.seq().as_bytes(), bam_record2.qual());
                 second_record_.set_tid(*tid);
                 second_record_.set_mtid(*tid);
 
@@ -327,25 +348,27 @@ pub fn convert_paired_end(bam_record1: &record::Record,
     return converted_records;
 }
 
-pub fn convert_single_end(bam_record: &record::Record,
-                          header_view: &HeaderView,
-                          transcripts: &Vec<String>,
-                          trees: &FnvHashMap::<String, COITree<ExonNode, u32>>,
-                          max_softlen: &usize)
-    -> Vec<record::Record> {
+pub fn convert_single_end(
+    bam_record: &record::Record,
+    header_view: &HeaderView,
+    transcripts: &Vec<String>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    max_softlen: &usize,
+) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
     let mut cigar_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut len1 = 0;
     let mut long_softclip = false;
 
-    let ranges = find_ranges_single(&(bam_record.pos() as i32),
-                                                    &bam_record.cigar(),
-                                                    &mut cigar_new,
-                                                    &mut len1,
-                                                    &mut long_softclip,
-                                                    &max_softlen);
-    let genome_tname = String::from_utf8(header_view.tid2name(bam_record.tid() as u32).to_vec())
-                                        .expect("cannot find the tname!");
+    let ranges = find_ranges_single(
+        &(bam_record.pos() as i32),
+        &bam_record.cigar(),
+        &mut cigar_new,
+        &mut len1,
+        &mut long_softclip,
+        &max_softlen,
+    );
+    let genome_tname = String::from_utf8(header_view.tid2name(bam_record.tid() as u32).to_vec()).expect("cannot find the tname!");
     if let Some(tree) = trees.get(&genome_tname) {
         let tids = find_tid(&tree, &ranges);
         if long_softclip {
@@ -360,7 +383,7 @@ pub fn convert_single_end(bam_record: &record::Record,
                 let mut pos = 0;
                 if pos_strand.1 == Strand::Forward {
                     pos = bam_record.pos() - (pos_strand.0 as i64);
-                } else if pos_strand.1 == Strand::Reverse { 
+                } else if pos_strand.1 == Strand::Reverse {
                     pos = (pos_strand.0 as i64) - bam_record.pos() - len1 as i64;
                     if bam_record.is_reverse() {
                         record_.unset_reverse();
@@ -369,10 +392,7 @@ pub fn convert_single_end(bam_record: &record::Record,
                     }
                 }
 
-                record_.set(bam_record.qname(),
-                            Some(&cigar_new),
-                            &bam_record.seq().as_bytes(),
-                            bam_record.qual());
+                record_.set(bam_record.qname(), Some(&cigar_new), &bam_record.seq().as_bytes(), bam_record.qual());
                 record_.set_tid(*tid);
                 record_.set_pos(pos);
 

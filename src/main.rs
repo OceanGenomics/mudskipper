@@ -2,22 +2,16 @@ extern crate clap;
 extern crate num_cpus;
 
 use clap::{crate_version, App, AppSettings, Arg};
-// use fnv::FnvHashMap;
-// use std::{collections::HashMap, io::BufRead};
 use std::collections::HashMap;
 use std::env;
-// use coitrees::{COITree, IntervalNode};
-// use bio_types::strand::Strand;
 
 mod annotation;
-mod convert;
 mod bam;
+mod convert;
 mod rad;
 
-// use annotations::ExonNode;
-
 use env_logger;
-use log::{info};
+use log::info;
 
 fn main() {
     env_logger::init();
@@ -63,25 +57,29 @@ fn main() {
         let out_file: String = t.value_of_t("out").unwrap();
         let threads_count: usize = t.value_of_t("threads").unwrap();
         let max_softlen: usize = t.value_of_t("max-softlen").unwrap();
-        // 
+        //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
         let trees = if std::fs::metadata("parsed_gtf.exon").is_ok() {
-            annotation::load_tree(&mut transcripts_map,
-                                   &mut transcripts,
-                                   &mut &mut txp_lengths).expect("cannot load the tree!")
+            annotation::load_tree(&mut transcripts_map, &mut transcripts, &mut &mut txp_lengths).expect("cannot load the tree!")
         } else {
-            annotation::build_tree(&ann_file_adr, 
-                &mut transcripts_map,
-                &mut transcripts,
-                &mut txp_lengths).expect("cannot build the tree!")
+            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot build the tree!")
         };
         if t.is_present("rad") {
             rad::bam2rad_bulk_wrapper(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         } else {
             let required_tags: Vec<&str> = Vec::new();
-            bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
+            bam::bam2bam(
+                &bam_file_in,
+                &out_file,
+                &transcripts,
+                &txp_lengths,
+                &trees,
+                &threads_count,
+                &max_softlen,
+                &required_tags,
+            );
         }
     } else if let Some(ref t) = opts.subcommand_matches("sc") {
         let bam_file_in: String = t.value_of_t("bam").unwrap();
@@ -89,19 +87,14 @@ fn main() {
         let out_file: String = t.value_of_t("out").unwrap();
         let threads_count: usize = t.value_of_t("threads").unwrap();
         let max_softlen: usize = t.value_of_t("max-softlen").unwrap();
-        // 
+        //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
         let trees = if std::fs::metadata("parsed_gtf.exon").is_ok() {
-            annotation::load_tree(&mut transcripts_map,
-                                   &mut transcripts,
-                                   &mut &mut txp_lengths).expect("cannot load the tree!")
+            annotation::load_tree(&mut transcripts_map, &mut transcripts, &mut &mut txp_lengths).expect("cannot load the tree!")
         } else {
-            annotation::build_tree(&ann_file_adr, 
-                &mut transcripts_map,
-                &mut transcripts,
-                &mut txp_lengths).expect("cannot build the tree!")
+            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot build the tree!")
         };
 
         let required_tags: Vec<&str>;
@@ -111,11 +104,27 @@ fn main() {
             required_tags = vec!["CR", "UR"];
         }
         if t.is_present("rad") {
-            rad::bam2rad_singlecell(&bam_file_in, &out_file, &transcripts, &trees, &threads_count, &max_softlen, t.is_present("corrected-tags"));
+            rad::bam2rad_singlecell(
+                &bam_file_in,
+                &out_file,
+                &transcripts,
+                &trees,
+                &threads_count,
+                &max_softlen,
+                t.is_present("corrected-tags"),
+            );
         } else {
-            bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
+            bam::bam2bam(
+                &bam_file_in,
+                &out_file,
+                &transcripts,
+                &txp_lengths,
+                &trees,
+                &threads_count,
+                &max_softlen,
+                &required_tags,
+            );
         }
     }
-    
     info!("Mudskipper finished.");
 }

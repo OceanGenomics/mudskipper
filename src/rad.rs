@@ -1,11 +1,8 @@
-// use std::io::{stdout, BufReader, BufWriter, Cursor, Seek, SeekFrom, Write};
-
 use crate::annotation;
 use crate::convert;
 
 extern crate fnv;
 
-// use std::fs;
 use std::fs::File;
 use std::error::Error;
 use libradicl::decode_int_type_tag;
@@ -91,8 +88,6 @@ pub fn bam2rad_bulk_wrapper(input_bam_filename: &String,
 }
 
 fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owriter: &mut Cursor<Vec<u8>>) -> bool {
-    // TODO: remove dummy bytes
-    owriter.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
     // add stored data to the current chunk
     // number of alignments
     owriter.write_all(&(all_read_records.len() as u32).to_le_bytes()).unwrap();
@@ -189,9 +184,6 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         // nothing for bulk!
     }
 
-    // TODO: remove dummy bytes
-    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
-
     // dump current buffer content
     owriter.write_all(data.get_ref()).unwrap();
 
@@ -213,9 +205,6 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
     // placeholder for number of bytes and number of records
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-    
-    // TODO: remove dummy bytes
-    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
 
     let mut last_qname = String::from("");
     let mut all_read_records: Vec<record::Record> = Vec::new();
@@ -264,9 +253,6 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
                 // placeholder for number of bytes and number of records
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-                
-                // TODO: remove dummy bytes
-                data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
             }
         }
     }
@@ -299,8 +285,6 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
 fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>,
                                      read_num_align: u32,
                                      owriter: &mut Cursor<Vec<u8>>) -> bool {
-    // TODO: remove dummy bytes
-    owriter.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
     // add stored data to the current chunk
     // number of alignments
     owriter.write_all(&read_num_align.to_le_bytes()).unwrap();
@@ -456,9 +440,6 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         // nothing for bulk!
     }
 
-    // TODO: remove dummy bytes
-    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
-
     // dump current buffer content
     owriter.write_all(data.get_ref()).unwrap();
 
@@ -480,9 +461,6 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
     // placeholder for number of bytes and number of records
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-    
-    // TODO: remove dummy bytes
-    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
 
     let mut last_qname = String::from("");
     let mut all_read_records: Vec<record::Record> = Vec::new();
@@ -514,7 +492,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                                                     transcripts,
                                                     trees,
                                                     max_softlen);
-            // println!("rec_num_align: {}", txp_records.len());
+            // debug!("rec_num_align: {}", txp_records.len());
             rec_num_align = txp_records.len() as u32;
         } else if second_record.is_unmapped() {
             txp_records = convert::convert_single_end(&first_record,
@@ -522,7 +500,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                                                     transcripts,
                                                     trees,
                                                     max_softlen);
-            // println!("rec_num_align: {}", txp_records.len());
+            // debug!("rec_num_align: {}", txp_records.len());
             rec_num_align = txp_records.len() as u32;
         } else { // both mates in pair are mapped
             txp_records = convert::convert_paired_end(&first_record,
@@ -532,7 +510,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                                                                 txp_lengths,
                                                                 trees,
                                                                 max_softlen);
-            // println!("rec_num_align: {}", (txp_records.len() / 2));
+            // debug!("rec_num_align: {}", (txp_records.len() / 2));
             rec_num_align = (txp_records.len() / 2) as u32;
         };
 
@@ -568,9 +546,6 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                 // placeholder for number of bytes and number of records
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-                
-                // TODO: remove dummy bytes
-                data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
             }
         }
     }
@@ -624,9 +599,6 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
         return false;
     }
 
-    // println!("### dumping for {}, size: {}", last_qname, all_read_records.len());
-    // TODO: remove dummy bytes
-    owriter.write_all(&(0xaaaaaaaaaaaaaaaa as u64).to_le_bytes()).expect("coudn't write to output file");
     // add stored data to the current chunk
     // number of alignments
     owriter.write_all(&(all_read_records.len() as u32).to_le_bytes()).unwrap();
@@ -823,9 +795,6 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
             .expect("coudn't write to output file");
     }
 
-    // TODO: remove dummy bytes
-    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
-
     // dump current buffer content
     owriter.write_all(data.get_ref()).unwrap();
 
@@ -847,9 +816,6 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
     // placeholder for number of bytes and number of records
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
     data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-    
-    // TODO: remove dummy bytes
-    data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
 
     let mut last_qname = String::from("");
     let mut all_read_records: Vec<record::Record> = Vec::new();
@@ -898,9 +864,6 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
                 // placeholder for number of bytes and number of records
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
                 data.write_all(&chunk_reads.to_le_bytes()).unwrap();
-                
-                // TODO: remove dummy bytes
-                data.write_all(&(0xffffffffffffffff as u64).to_le_bytes()).expect("coudn't write to output file");
             }
         }
     }

@@ -601,7 +601,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         .expect("couldn't write to output file.");
 }
 
-fn dump_collected_alignments_single_cell(all_read_records: &Vec<record::Record>,
+fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
                                     bc_typeid: &u8,
                                     umi_typeid: &u8,
                                     owriter: &mut Cursor<Vec<u8>>) -> bool {
@@ -619,8 +619,10 @@ fn dump_collected_alignments_single_cell(all_read_records: &Vec<record::Record>,
     } else {
         panic!("Input record missing UR tag!");
     }
-    
+
+    println!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
     if (*bc_typeid != 8 && bc_string.contains('N') == true) || (*umi_typeid != 8 && umi_string.contains('N') == true) {
+        println!("barcode or UMI has N");
         return false;
     }
 
@@ -859,7 +861,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         let record = rec.unwrap();
         let qname = String::from_utf8(record.qname().to_vec()).unwrap();
         debug!("qname: {}", qname);
-        println!("qname: {}", qname);
+        // println!("qname: {}", qname);
         if record.is_unmapped() {
             continue;
         }
@@ -873,7 +875,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
             all_read_records.append(&mut txp_records);
         } else {
             if all_read_records.len() > 0 {
-                let write_success = dump_collected_alignments_single_cell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
+                let write_success = dump_collected_alignments_singlecell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
                 if write_success == true {
                     chunk_reads += 1;
                 }
@@ -907,7 +909,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
     }
     // add stored data to the last chunk
     if all_read_records.len() > 0 {
-        let write_success = dump_collected_alignments_single_cell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
+        let write_success = dump_collected_alignments_singlecell(&all_read_records, &bc_typeid, &umi_typeid, &mut data);
         if write_success == true {
             chunk_reads += 1;
         }

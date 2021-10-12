@@ -80,7 +80,8 @@ fn main() {
         if t.is_present("rad") {
             rad::bam2rad_bulk_wrapper(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         } else {
-            bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
+            let required_tags: Vec<&str> = Vec::new();
+            bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
         }
     } else if let Some(ref t) = opts.subcommand_matches("sc") {
         let bam_file_in: String = t.value_of_t("bam").unwrap();
@@ -112,7 +113,7 @@ fn main() {
         if t.is_present("rad") {
             rad::bam2rad_singlecell(&bam_file_in, &out_file, &transcripts, &trees, &threads_count, &max_softlen);
         } else {
-            bam::bam2bam_tags(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
+            bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
         }
     }
 }

@@ -21,7 +21,7 @@ use log::{info};
 
 fn main() {
     env_logger::init();
-    info!("Mudskipper starts...");
+    info!("Mudskipper started...");
     let version = crate_version!();
     let default_num_threads: String = (num_cpus::get() as u32).to_string();
     // let default_num_threads: String = "1".to_string();
@@ -116,4 +116,6 @@ fn main() {
             bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &required_tags);
         }
     }
+    
+    info!("Mudskipper finished.");
 }

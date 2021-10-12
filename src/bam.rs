@@ -12,7 +12,7 @@ use crate::convert;
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log::{debug, error};
+use log::{info, debug, error};
 
 pub fn bam2bam(input_bam_filename: &String, 
                output_bam_filename: &String,
@@ -34,6 +34,7 @@ pub fn bam2bam(input_bam_filename: &String,
     let mut new_header = Header::new();
     // new_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
 
+    info!("Number of reference sequences: {}", transcripts.len());
     let mut counter = 0;
     for tid in transcripts.iter() {
         let txp_len = txp_lengths[counter];

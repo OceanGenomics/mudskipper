@@ -142,7 +142,7 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
             .expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
-        println!("ref_count: {}", ref_count);
+        info!("Number of reference sequences: {}", ref_count);
         data.write_all(&ref_count.to_le_bytes())
             .expect("couldn't write to output file");
         // list of reference names
@@ -156,7 +156,7 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
-        info!("end header pos: {:?}", end_header_pos);
+        debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes())
@@ -225,7 +225,6 @@ pub fn bam2rad_bulk_se(input_bam_filename: &String,
         let record = rec.unwrap();
         let qname = String::from_utf8(record.qname().to_vec()).unwrap();
         debug!("qname: {}", qname);
-        println!("qname: {}", qname);
         if record.is_unmapped() {
             continue;
         }
@@ -403,7 +402,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
             .expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
-        println!("ref_count: {}", ref_count);
+        info!("Number of reference sequences: {}", ref_count);
         data.write_all(&ref_count.to_le_bytes())
             .expect("couldn't write to output file");
         // list of reference names
@@ -417,7 +416,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
-        info!("end header pos: {:?}", end_header_pos);
+        debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes())
@@ -497,7 +496,6 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
         let record = rec.unwrap();
         let qname = String::from_utf8(record.qname().to_vec()).unwrap();
         debug!("qname: {}", qname);
-        println!("qname: {}", qname);
 
         if n % 2 == 1 {
             // this is the first read in pair... save and wait for the second read in the pair
@@ -516,7 +514,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                                                     transcripts,
                                                     trees,
                                                     max_softlen);
-            println!("rec_num_align: {}", txp_records.len());
+            // println!("rec_num_align: {}", txp_records.len());
             rec_num_align = txp_records.len() as u32;
         } else if second_record.is_unmapped() {
             txp_records = convert::convert_single_end(&first_record,
@@ -524,7 +522,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                                                     transcripts,
                                                     trees,
                                                     max_softlen);
-            println!("rec_num_align: {}", txp_records.len());
+            // println!("rec_num_align: {}", txp_records.len());
             rec_num_align = txp_records.len() as u32;
         } else { // both mates in pair are mapped
             txp_records = convert::convert_paired_end(&first_record,
@@ -534,7 +532,7 @@ pub fn bam2rad_bulk_pe(input_bam_filename: &String,
                                                                 txp_lengths,
                                                                 trees,
                                                                 max_softlen);
-            println!("rec_num_align: {}", (txp_records.len() / 2));
+            // println!("rec_num_align: {}", (txp_records.len() / 2));
             rec_num_align = (txp_records.len() / 2) as u32;
         };
 
@@ -620,9 +618,9 @@ fn dump_collected_alignments_singlecell(all_read_records: &Vec<record::Record>,
         panic!("Input record missing UR tag!");
     }
 
-    println!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
+    debug!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
     if (*bc_typeid != 8 && bc_string.contains('N') == true) || (*umi_typeid != 8 && umi_string.contains('N') == true) {
-        println!("barcode or UMI has N");
+        debug!("barcode or UMI has N");
         return false;
     }
 
@@ -714,7 +712,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
             .expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
-        println!("ref_count: {}", ref_count);
+        info!("Number of reference sequences: {}", ref_count);
         data.write_all(&ref_count.to_le_bytes())
             .expect("couldn't write to output file");
         // list of reference names
@@ -729,7 +727,7 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
-        info!("end header pos: {:?}", end_header_pos);
+        debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes())
@@ -795,8 +793,8 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
             _ => 8,
         };
 
-        info!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
-        info!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
+        debug!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
+        debug!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
 
         libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
         data.write_all(&bc_typeid.to_le_bytes())
@@ -861,7 +859,6 @@ pub fn bam2rad_singlecell(input_bam_filename: &String,
         let record = rec.unwrap();
         let qname = String::from_utf8(record.qname().to_vec()).unwrap();
         debug!("qname: {}", qname);
-        // println!("qname: {}", qname);
         if record.is_unmapped() {
             continue;
         }

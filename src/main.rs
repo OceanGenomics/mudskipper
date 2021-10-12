@@ -78,7 +78,7 @@ fn main() {
                 &mut txp_lengths).expect("cannot build the tree!")
         };
         if t.is_present("rad") {
-            rad::bam2rad(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
+            rad::bam2rad_bulk_wrapper(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         } else {
             bam::bam2bam(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         }

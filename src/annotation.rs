@@ -16,9 +16,7 @@ use log::{info, debug};
 use indicatif::ProgressBar;
 use linecount::count_lines;
 
-type GenericError = Box<dyn Error>;
-
-pub fn read(ann_file_adr: &String) -> Result<gff::Reader<File>, GenericError> {
+pub fn read(ann_file_adr: &String) -> Result<gff::Reader<File>, Box<dyn Error>> {
     let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
     info!("reading the {} file and building the tree.", file_type);
@@ -59,7 +57,7 @@ impl Clone for ExonNode {
 pub fn load_tree(transcripts_map: &mut HashMap<String, i32>,
                  transcripts: &mut Vec<String>,
                  txp_lengths: &mut Vec<i32>) 
-    -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, GenericError> {
+    -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, Box<dyn Error>> {
     info!("Loading parsed GTF...");
     // load info
     {
@@ -127,7 +125,7 @@ pub fn build_tree(ann_file_adr: &String,
                   transcripts_map: &mut HashMap<String, i32>,
                   transcripts: &mut Vec<String>,
                   txp_lengths: &mut Vec<i32>) 
-    -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, GenericError> {
+    -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, Box<dyn Error>> {
     
     let mut nodes = FnvHashMap::<String, Vec<IntervalNode<ExonNode, u32>>>::default();
     let a = Instant::now();

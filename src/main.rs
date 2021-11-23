@@ -8,6 +8,7 @@ use std::env;
 mod annotation;
 mod bam;
 mod convert;
+mod query_bam_records;
 mod rad;
 
 use env_logger;
@@ -17,8 +18,8 @@ fn main() {
     env_logger::init();
     info!("Mudskipper started...");
     let version = crate_version!();
-    let default_num_threads: String = (num_cpus::get() as u32).to_string();
-    // let default_num_threads: String = "1".to_string();
+    // let default_num_threads: String = (num_cpus::get() as u32).to_string();
+    let default_num_threads: String = "1".to_string();
     let default_max_softlen: String = "200".to_string();
     let app_bulk = App::new("bulk")
         .version(version)

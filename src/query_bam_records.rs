@@ -1,5 +1,4 @@
 use std::convert::TryFrom;
-// use log::{debug, error, info};
 
 use rust_htslib::bam::{Record, record::Aux, record::CigarString, HeaderView, Read, Reader};
 
@@ -119,7 +118,6 @@ impl BAMQueryRecordReader {
     }
 
     fn records_equal(a: &Record, b: &Record) -> bool {
-        // println!("\tCOMPARE {}:{} {}:{} cigar:{}", a.pos(), a.is_reverse(), b.pos(), b.is_reverse(), a.cigar() == b.cigar());
         a.tid() == b.tid()
         && a.pos() == b.pos()
         && a.is_reverse() == b.is_reverse()
@@ -147,10 +145,6 @@ impl BAMQueryRecordReader {
             if self.record_list[i].is_paired() == false { // single-end
                 // add the primary alignment first
                 first_vec.push(self.record_list[i].to_owned());
-                // println!("INSIDE\tSE {}:{}", 
-                //     String::from_utf8(self.header.tid2name(self.record_list[i].tid() as u32).to_vec()).expect("cannot find the tname!"), 
-                //     self.record_list[i].pos()
-                // );
                 // search for possible matching of a supplementary alignment with the alignment in first_vec
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
@@ -159,15 +153,6 @@ impl BAMQueryRecordReader {
                         supp_assigned[j] = true;
                     }
                 }
-                // for supp in self.supp_list.iter() {
-                //     if let Ok(Aux::String(sa_tag)) = supp.aux(b"SA") {
-                //         println!("SUPP\t{}", sa_tag);
-                        
-                //     }
-                //     else {
-                //         panic!("Error reading SA tag for query {}", String::from_utf8(supp.qname().to_vec()).expect("cannot find the qname!"));
-                //     }
-                // }
                 record_groups.push(BAMQueryRecord {
                     is_paired: false,
                     first: first_vec,
@@ -178,50 +163,23 @@ impl BAMQueryRecordReader {
                 // add the primary alignments first
                 first_vec.push(self.record_list[i].to_owned());
                 second_vec.push(self.record_list[i+1].to_owned());
-                // println!("INSIDE\tPE {}:{} {}:{}", 
-                //     String::from_utf8(self.header.tid2name(self.record_list[i].tid() as u32).to_vec()).expect("cannot find the tname!"),
-                //     self.record_list[i].pos(), 
-                //     String::from_utf8(self.header.tid2name(self.record_list[i+1].tid() as u32).to_vec()).expect("cannot find the tname!"),
-                //     self.record_list[i+1].pos(), 
-                // );
                 // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false {
                         if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
-                            // println!("ADDING to first_vec");
                             first_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
                         } else if BAMQueryRecordReader::records_equal(&self.record_list[i+1], &primary_of_supp[j]) {
-                            // println!("ADDING to second_vec");
                             second_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
                         }
                     }
                 }
-                // // search for possible matching supplementary alignment
-                // for supp in self.supp_list.iter() {
-                //     match supp.aux(b"SA") {
-                //         Ok(value) => {
-                //             if let Aux::String(v) = value {
-                //                 println!("SUPP\t{}", v);
-                //             }
-                //         }
-                //         Err(e) => {
-                //             panic!("Error reading SA tag: {}", e);
-                //         }
-                //     }
-                // }
                 record_groups.push(BAMQueryRecord {
                     is_paired: true,
                     first: first_vec,
                     second: second_vec,
                 });
-                // println!("INSIDE\tPE {}:{} {}:{}", 
-                //     String::from_utf8(self.header.tid2name(self.record_list[i].tid() as u32).to_vec()).expect("cannot find the tname!"),
-                //     self.record_list[i].pos(), 
-                //     String::from_utf8(self.header.tid2name(self.record_list[i+1].tid() as u32).to_vec()).expect("cannot find the tname!"),
-                //     self.record_list[i+1].pos(), 
-                // );
                 i += 2;
             }
         }
@@ -237,14 +195,7 @@ impl BAMQueryRecordReader {
             res.expect("Failed to parse BAM record");
             let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
             if qname != self.last_qname { // a new query
-                // process the last group
-                // println!("INSIDE\tqname: {}", self.last_qname);
-                // for r in self.record_list.iter() {
-                //     println!("INSIDE\t\t{}:{}", String::from_utf8(self.header.tid2name(r.tid() as u32).to_vec()).expect("cannot find the tname!"), r.pos());
-                // }
-                // for r in self.supp_list.iter() {
-                //     println!("INSIDE\t\tsupp\t{}:{}", String::from_utf8(self.header.tid2name(r.tid() as u32).to_vec()).expect("cannot find the tname!"), r.pos());
-                // }
+                // process the previous group
                 query_records = self.group_records();
                 // reset
                 self.last_qname = qname;
@@ -265,24 +216,14 @@ impl BAMQueryRecordReader {
                 }
             }
         }
-        // info!("out of loop!");
         // process the last record
-        // println!("INSIDE\tqname: {}", self.last_qname);
-        // for r in self.record_list.iter() {
-        //     println!("INSIDE\t\t{}:{}", String::from_utf8(self.header.tid2name(r.tid() as u32).to_vec()).expect("cannot find the tname!"), r.pos());
-        // }
-        // for r in self.supp_list.iter() {
-        //     println!("INSIDE\t\tsupp\t{}:{}", String::from_utf8(self.header.tid2name(r.tid() as u32).to_vec()).expect("cannot find the tname!"), r.pos());
-        // }
         query_records = self.group_records();
         // reset
         self.record_list.clear();
         self.supp_list.clear();
         if query_records.is_empty() {
-            // info!("here1");
             None
         } else {
-            // info!("here2");
             Some(query_records)
         }
     }

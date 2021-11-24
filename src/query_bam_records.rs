@@ -1,5 +1,5 @@
 use std::convert::TryFrom;
-use log::{debug, error, info};
+// use log::{debug, error, info};
 
 use rust_htslib::bam::{Record, record::Aux, record::CigarString, HeaderView, Read, Reader};
 
@@ -119,8 +119,7 @@ impl BAMQueryRecordReader {
     }
 
     fn records_equal(a: &Record, b: &Record) -> bool {
-        // println!("\tCOMPARE {}:{}:{}", String::from_utf8(self.header.tid2name(a.tid() as u32).to_vec()).expect("cannot find the tname!"), a.pos(), a.is_reverse());
-        println!("\tCOMPARE {}:{} {}:{} cigar:{}", a.pos(), a.is_reverse(), b.pos(), b.is_reverse(), a.cigar() == b.cigar());
+        // println!("\tCOMPARE {}:{} {}:{} cigar:{}", a.pos(), a.is_reverse(), b.pos(), b.is_reverse(), a.cigar() == b.cigar());
         a.tid() == b.tid()
         && a.pos() == b.pos()
         && a.is_reverse() == b.is_reverse()
@@ -155,7 +154,7 @@ impl BAMQueryRecordReader {
                 // search for possible matching of a supplementary alignment with the alignment in first_vec
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
-                        println!("ADDING to first_vec");
+                        // println!("ADDING to first_vec");
                         first_vec.push(self.supp_list[j].to_owned());
                         supp_assigned[j] = true;
                     }
@@ -189,11 +188,11 @@ impl BAMQueryRecordReader {
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false {
                         if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
-                            println!("ADDING to first_vec");
+                            // println!("ADDING to first_vec");
                             first_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
                         } else if BAMQueryRecordReader::records_equal(&self.record_list[i+1], &primary_of_supp[j]) {
-                            println!("ADDING to second_vec");
+                            // println!("ADDING to second_vec");
                             second_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
                         }

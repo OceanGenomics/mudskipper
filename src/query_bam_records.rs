@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use log::{debug, error, info};
 
 use rust_htslib::bam::{Record, record::Aux, record::CigarString, HeaderView, Read, Reader};
 
@@ -31,8 +32,12 @@ pub struct BAMQueryRecordReader {
 }
 
 impl BAMQueryRecordReader {
-    pub fn new(bam_filename: &String) -> BAMQueryRecordReader {
+    pub fn new(bam_filename: &String, thread_num: Option<usize>) -> BAMQueryRecordReader {
         let mut breader = Reader::from_path(bam_filename).unwrap();
+        match thread_num {
+            Some(th) => breader.set_threads(th).expect("Failed to set number of BAM reader threads."),
+            None => (),
+        }
         let hv = breader.header().to_owned();
         // init record_list by finding the first non-supplementary record
         let mut last_qname = String::from("");
@@ -224,10 +229,12 @@ impl BAMQueryRecordReader {
         record_groups
     }
 
-    pub fn get_next_query_records(&mut self) -> Vec<BAMQueryRecord> {
+    pub fn get_next_query_records(&mut self) -> Option<Vec<BAMQueryRecord>> {
         let mut brecord = Record::new();
         let query_records: Vec<BAMQueryRecord>;
+        // info!("in func");
         while let Some(res) = self.bam_reader.read(&mut brecord) {
+            // info!("in loop!");
             res.expect("Failed to parse BAM record");
             let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
             if qname != self.last_qname { // a new query
@@ -250,7 +257,7 @@ impl BAMQueryRecordReader {
                 } else {
                     self.record_list.push(brecord.to_owned());
                 }
-                return query_records;
+                return Some(query_records);
             } else { // same query
                 if brecord.flags() & 0x800 != 0 {
                     self.supp_list.push(brecord.to_owned());
@@ -259,6 +266,7 @@ impl BAMQueryRecordReader {
                 }
             }
         }
+        // info!("out of loop!");
         // process the last record
         // println!("INSIDE\tqname: {}", self.last_qname);
         // for r in self.record_list.iter() {
@@ -271,6 +279,12 @@ impl BAMQueryRecordReader {
         // reset
         self.record_list.clear();
         self.supp_list.clear();
-        query_records
+        if query_records.is_empty() {
+            // info!("here1");
+            None
+        } else {
+            // info!("here2");
+            Some(query_records)
+        }
     }
 }

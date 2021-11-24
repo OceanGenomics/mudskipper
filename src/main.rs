@@ -15,6 +15,8 @@ use env_logger;
 use log::info;
 
 fn main() {
+    // bam::test_read_bam();
+    // return;
     env_logger::init();
     info!("Mudskipper started...");
     let version = crate_version!();

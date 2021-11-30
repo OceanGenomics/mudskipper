@@ -11,8 +11,9 @@ use bio_types::strand::Strand;
 
 use crate::annotation;
 use annotation::ExonNode;
+use crate::query_bam_records::{BAMQueryRecord};
 
-use log::{debug, warn};
+use log::{error, warn, debug};
 
 pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> HashMap<i32, (i32, Strand)> {
     let mut tids: HashMap<i32, (i32, Strand)> = HashMap::new();
@@ -430,6 +431,55 @@ pub fn convert_single_end(
     } else {
         // log for unannotated splicing junction
         debug!("unannotated splicing junction observed!")
+    }
+    return converted_records;
+}
+
+pub fn convert_query_bam_records(
+    qrecord: &BAMQueryRecord,
+    header_view: &HeaderView,
+    transcripts: &Vec<String>,
+    txp_lengths: &Vec<i32>,
+    trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
+    max_softlen: &usize,
+    required_tags: &Vec<&str>,
+) -> Vec<record::Record> {
+    let mut converted_records: Vec<record::Record> = Vec::new();
+    let first_mate = qrecord.get_first();
+    let second_mate = qrecord.get_second();
+
+    // drop the record if it contains chimeric alignments (those with supplementary bit set in FLAF, i.e. 0x800)
+    // TODO: improve on this by allowing user to choose what to do: https://github.com/OceanGenomics/mudskipper/issues/2
+    if first_mate.len() > 1 || second_mate.len() > 1 {
+        return converted_records;
+    }
+
+    if qrecord.is_paired() {
+        debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+        // check for required tags
+        for tag in required_tags.iter() {
+            if first_mate[0].aux(tag.as_bytes()).is_err() {
+                error!("Could not find {} tag for first mate of read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                panic!("Some required tags do not exist!");
+            }
+            if second_mate[0].aux(tag.as_bytes()).is_err() {
+                error!("Could not find {} tag for second mate of read {}", tag, String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+                panic!("Some required tags do not exist!");
+            }
+        }
+        let mut txp_records = convert_paired_end(&first_mate[0], &second_mate[0], header_view, transcripts, txp_lengths, trees, max_softlen);
+        converted_records.append(&mut txp_records);
+    } else {
+        debug!("qname: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+        // check for required tags
+        for tag in required_tags.iter() {
+            if first_mate[0].aux(tag.as_bytes()).is_err() {
+                error!("Could not find {} tag for read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                panic!("Some required tags do not exist!");
+            }
+        }
+        let mut txp_records = convert_single_end(&first_mate[0], header_view, transcripts, trees, max_softlen);
+        converted_records.append(&mut txp_records);
     }
     return converted_records;
 }

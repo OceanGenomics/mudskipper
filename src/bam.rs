@@ -13,7 +13,7 @@ use crate::query_bam_records::{BAMQueryRecordReader};
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log::{debug, error, info};
+use log::{info};
 
 pub fn bam2bam(
     input_bam_filename: &String,
@@ -57,44 +57,9 @@ pub fn bam2bam(
     // TODO: support for unmapped reads
     while let Some(ret_vec) = bqr.get_next_query_records() {
         for r in ret_vec.iter() {
-            let first_mate = r.get_first();
-            let second_mate = r.get_second();
-
-            // drop the record if it contains chimeric alignments (those with supplementary bit set in FLAF, i.e. 0x800)
-            if first_mate.len() > 1 || second_mate.len() > 1 {
-                continue;
-            }
-
-            if r.is_paired() {
-                debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
-                // check for required tags
-                for tag in required_tags.iter() {
-                    if first_mate[0].aux(tag.as_bytes()).is_err() {
-                        error!("Could not find {} tag for first mate of read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
-                        panic!("Some required tags do not exist!");
-                    }
-                    if second_mate[0].aux(tag.as_bytes()).is_err() {
-                        error!("Could not find {} tag for second mate of read {}", tag, String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
-                        panic!("Some required tags do not exist!");
-                    }
-                }
-                let txp_records = convert::convert_paired_end(&first_mate[0], &second_mate[0], &input_header, transcripts, txp_lengths, trees, max_softlen);
-                for txp_rec in txp_records.iter() {
-                    output_writer.write(txp_rec).unwrap();
-                }
-            } else {
-                debug!("qname: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
-                // check for required tags
-                for tag in required_tags.iter() {
-                    if first_mate[0].aux(tag.as_bytes()).is_err() {
-                        error!("Could not find {} tag for read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
-                        panic!("Some required tags do not exist!");
-                    }
-                }
-                let txp_records = convert::convert_single_end(&first_mate[0], &input_header, transcripts, trees, max_softlen);
-                for txp_rec in txp_records.iter() {
-                    output_writer.write(txp_rec).unwrap();
-                }
+            let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+            for txp_rec in txp_records.iter() {
+                output_writer.write(txp_rec).unwrap();
             }
         }
     }

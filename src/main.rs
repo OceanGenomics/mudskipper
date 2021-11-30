@@ -73,7 +73,7 @@ fn main() {
             annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot build the tree!")
         };
         if t.is_present("rad") {
-            rad::bam2rad_bulk_wrapper(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
+            rad::bam2rad_bulk(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         } else {
             let required_tags: Vec<&str> = Vec::new();
             bam::bam2bam(

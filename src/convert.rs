@@ -192,6 +192,25 @@ pub fn convert_paired_end(
     max_softlen: &usize,
 ) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
+    if bam_record1.is_unmapped() && bam_record2.is_unmapped() {
+        converted_records.push(bam_record1.clone());
+        converted_records.push(bam_record2.clone());
+        return converted_records;
+    } else if bam_record1.is_unmapped() && !bam_record2.is_unmapped() {
+        let converted_se = convert_single_end(bam_record2, &header_view, transcripts, trees, max_softlen);
+        for txp_rec in converted_se.iter() {
+            converted_records.push(bam_record1.clone());
+            converted_records.push(txp_rec.clone());
+        }
+        return converted_records;
+    } else if !bam_record1.is_unmapped() && bam_record2.is_unmapped() {
+        let converted_se = convert_single_end(bam_record1, &header_view, transcripts, trees, max_softlen);
+        for txp_rec in converted_se.iter() {
+            converted_records.push(txp_rec.clone());
+            converted_records.push(bam_record2.clone());
+        }
+        return converted_records;
+    }
     let mut cigar1_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut cigar2_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut len1 = 0;
@@ -356,6 +375,11 @@ pub fn convert_single_end(
     max_softlen: &usize,
 ) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
+    if bam_record.is_unmapped() { // no need to convert, just return the unmapped record
+        converted_records.push(bam_record.clone());
+        return converted_records;
+    }
+
     let mut cigar_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
     let mut len1 = 0;
     let mut long_softclip = false;

@@ -70,7 +70,7 @@ fn bam_peek(bam_path: &String) -> record::Record {
     rec
 }
 
-pub fn bam2rad_bulk_wrapper(
+pub fn bam2rad_bulk(
     input_bam_filename: &String,
     output_rad_filename: &String,
     transcripts: &Vec<String>,

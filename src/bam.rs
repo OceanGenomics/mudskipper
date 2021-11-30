@@ -60,6 +60,11 @@ pub fn bam2bam(
             let first_mate = r.get_first();
             let second_mate = r.get_second();
 
+            // drop the record if it contains chimeric alignments (those with supplementary bit set in FLAF, i.e. 0x800)
+            if first_mate.len() > 1 || second_mate.len() > 1 {
+                continue;
+            }
+
             if r.is_paired() {
                 debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
                 // check for required tags

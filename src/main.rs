@@ -21,8 +21,9 @@ fn main() {
     info!("Mudskipper started...");
     let version = crate_version!();
     // let default_num_threads: String = (num_cpus::get() as u32).to_string();
-    let default_num_threads: String = "1".to_string();
-    let default_max_softlen: String = "200".to_string();
+    let default_num_threads = String::from("1");
+    let default_max_softlen = String::from("200");
+    // let default_supplementary = String::from("keep");
     let app_bulk = App::new("bulk")
         .version(version)
         .about("Convert alignment of bulk RNA-Seq reads against genome to alignment against transcriptome.")
@@ -30,8 +31,9 @@ fn main() {
         .arg(Arg::from("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
         .arg(Arg::from("-o, --out=<output-file> 'output file name'"))
         .arg(Arg::from("-r, --rad 'output in RAD format instead of BAM'"))
-        .arg(Arg::from("-t, --threads 'Number of threads for the processing bam files.'").default_value(&default_num_threads))
-        .arg(Arg::from("-s, --max-softlen 'Max allowed sofclip length allowed.'").default_value(&default_max_softlen));
+        .arg(Arg::from("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
+        .arg(Arg::from("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen));
+        // .arg(Arg::from("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
     let app_sc = App::new("sc")
         .version(version)
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
@@ -39,9 +41,10 @@ fn main() {
         .arg(Arg::from("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
         .arg(Arg::from("-o, --out=<output-file> 'output file name'"))
         .arg(Arg::from("-r, --rad 'output in RAD format instead of BAM'"))
-        .arg(Arg::from("-t, --threads 'Number of threads for the processing bam files.'").default_value(&default_num_threads))
-        .arg(Arg::from("-s, --max-softlen 'Max allowed sofclip length allowed.'").default_value(&default_max_softlen))
-        .arg(Arg::from("-c, --corrected-tags 'Output error-corrected cell barcode and UMI.'"));
+        .arg(Arg::from("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
+        .arg(Arg::from("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen))
+        .arg(Arg::from("-c, --corrected-tags 'output error-corrected cell barcode and UMI'"));
+        // .arg(Arg::from("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
 
     let opts = App::new("mudskipper")
         .setting(AppSettings::SubcommandRequiredElseHelp)

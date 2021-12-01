@@ -114,6 +114,7 @@ fn main() {
                 &bam_file_in,
                 &out_file,
                 &transcripts,
+                &txp_lengths,
                 &trees,
                 &threads_count,
                 &max_softlen,

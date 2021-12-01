@@ -54,7 +54,6 @@ pub fn bam2bam(
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
 
-    // TODO: support for unmapped reads
     while let Some(ret_vec) = bqr.get_next_query_records() {
         for r in ret_vec.iter() {
             let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);

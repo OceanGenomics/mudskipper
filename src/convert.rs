@@ -46,7 +46,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                         node.metadata.tpos_start,
                         node.metadata.start - node.metadata.tpos_start
                     );
-                    tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start - 1, Strand::Forward));
+                    tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
                 } else if last && node.metadata.strand == Strand::Reverse {
                     debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
                     debug!(

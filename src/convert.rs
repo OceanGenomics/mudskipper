@@ -1,6 +1,7 @@
 use coitrees::COITree;
 use rust_htslib::bam::record;
 use std::collections::{HashMap, HashSet};
+use bio::alphabets::dna::revcomp;
 
 use rust_htslib::bam::HeaderView;
 // use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header};
@@ -50,12 +51,12 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                 } else if last && node.metadata.strand == Strand::Reverse {
                     debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
                     debug!(
-                        "end:{} + tpos_start:{} = {}",
+                        "end:{} + tpos_start:{} + 1 = {}",
                         node.metadata.end,
                         node.metadata.tpos_start,
-                        node.metadata.end + node.metadata.tpos_start
+                        node.metadata.end + node.metadata.tpos_start + 1
                     );
-                    tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start, Strand::Reverse));
+                    tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start + 1, Strand::Reverse));
                 }
                 //}
             });
@@ -242,7 +243,13 @@ pub fn convert_paired_end(
         if tids.len() > 0 {
             for (tid, pos_strand) in tids.iter() {
                 let mut first_record_ = bam_record1.clone();
+                let mut first_record_cigar = cigar1_new.clone();
+                let mut first_record_seq = bam_record1.seq().as_bytes();
+                let mut first_record_qual = bam_record1.qual().to_vec();
                 let mut second_record_ = bam_record2.clone();
+                let mut second_record_cigar = cigar2_new.clone();
+                let mut second_record_seq = bam_record2.seq().as_bytes();
+                let mut second_record_qual = bam_record2.qual().to_vec();
 
                 let mut first_pos = 0;
                 let mut second_pos = 0;
@@ -286,6 +293,22 @@ pub fn convert_paired_end(
                         second_record_.set_reverse();
                         second_record_.unset_mate_reverse();
                     }
+                    // reverse the first record
+                    let mut cigar_new_rev: Vec<record::Cigar> = Vec::<record::Cigar>::new();
+                    for cigar_item in first_record_cigar.into_view(0).iter().rev() {
+                        cigar_new_rev.push(*cigar_item);
+                    }
+                    first_record_cigar = record::CigarString(cigar_new_rev);
+                    first_record_seq = revcomp(first_record_seq);
+                    first_record_qual.reverse();
+                    // reverse the second record
+                    let mut cigar_new_rev: Vec<record::Cigar> = Vec::<record::Cigar>::new();
+                    for cigar_item in second_record_cigar.into_view(0).iter().rev() {
+                        cigar_new_rev.push(*cigar_item);
+                    }
+                    second_record_cigar = record::CigarString(cigar_new_rev);
+                    second_record_seq = revcomp(second_record_seq);
+                    second_record_qual.reverse();
                 }
                 let first_read_len: i64 = bam_record1.seq().len() as i64;
                 let second_read_len: i64 = bam_record2.seq().len() as i64;
@@ -321,7 +344,7 @@ pub fn convert_paired_end(
                 );
                 debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
                 debug!("record.is_reverse():{}", bam_record2.is_reverse());
-                first_record_.set(bam_record1.qname(), Some(&cigar1_new), &bam_record1.seq().as_bytes(), bam_record1.qual());
+                first_record_.set(bam_record1.qname(), Some(&first_record_cigar), &first_record_seq, &first_record_qual);
                 first_record_.set_tid(*tid);
                 first_record_.set_mtid(*tid);
 
@@ -330,7 +353,7 @@ pub fn convert_paired_end(
                 first_record_.set_insert_size(first_length);
                 // first_record_.remove_aux("AS".as_bytes());
 
-                second_record_.set(bam_record2.qname(), Some(&cigar2_new), &bam_record2.seq().as_bytes(), bam_record2.qual());
+                second_record_.set(bam_record2.qname(), Some(&second_record_cigar), &second_record_seq, &second_record_qual);
                 second_record_.set_tid(*tid);
                 second_record_.set_mtid(*tid);
 

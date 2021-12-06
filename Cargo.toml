@@ -20,4 +20,5 @@ linecount = "*"
 num_cpus = "1.13.0"
 libradicl = "=0.4.1"
 clap = "~2.34.0"
+sysinfo = "0.21.1"
 

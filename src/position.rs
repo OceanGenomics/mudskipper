@@ -92,11 +92,16 @@ fn bucket_names(prefix: &str, nbuckets: u32) -> Vec<String> {
     (0..nbuckets).map(|i| format!("{}/bucket_{}.bam", prefix, i)).collect()
 }
 
+<<<<<<< HEAD
 fn sort_key(r: &bam::Record) -> (u64, u64, u64, u64) {
+=======
+fn sort_key(r: &bam::Record) -> (u64, u64, u64) {
+>>>>>>> Initial implementation of shuffle command
     //We hash both the read name and the position, combine them, and return that as the sort key
     //This to eliminate problems with unusual read names (that could have some meaningful order),
     //and to ensure that multiple alignments from one read don't come out in any particular order
     let mut qhasher = DefaultHasher::new();
+<<<<<<< HEAD
     qhasher.write(r.qname());
 
     //For paired reads, hash out the lowest reference ID and position
@@ -127,6 +132,14 @@ fn sort_key(r: &bam::Record) -> (u64, u64, u64, u64) {
     let mut poshasher = DefaultHasher::new();
     poshasher.write_i64(r.pos());
     (qhasher.finish(), mhasher.finish(), chash, poshasher.finish())
+=======
+    let mut poshasher = DefaultHasher::new();
+    let mut mhasher = DefaultHasher::new();
+    qhasher.write(r.qname());
+    mhasher.write_i64(std::cmp::min(r.pos(), r.mpos()));
+    poshasher.write_i64(r.pos());
+    (qhasher.finish(), mhasher.finish(), poshasher.finish())
+>>>>>>> Initial implementation of shuffle command
 }
 
 fn threaded_bam_reader(path: &str, nthreads: usize) -> bam::Reader {

@@ -35,30 +35,29 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
         if res.0 != 0 || res.1 != 0 {
             tree.query(range.0, range.1, |node| {
                 debug!("query for {} {}:{}", range.0, range.1, node.metadata);
-                //if (node.metadata.start-10 <= range.0 && node.metadata.end+10 >= range.1) ||
-                //    (node.metadata.end-10 <= range.0 && node.metadata.start+10 >= range.1) {
-
-                curr_tids.insert(node.metadata.tid);
-                if first && node.metadata.strand == Strand::Forward {
-                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                    debug!(
-                        "start:{} - tpos_start:{} = {}",
-                        node.metadata.start,
-                        node.metadata.tpos_start,
-                        node.metadata.start - node.metadata.tpos_start
-                    );
-                    tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
-                } else if last && node.metadata.strand == Strand::Reverse {
-                    debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                    debug!(
-                        "end:{} + tpos_start:{} + 1 = {}",
-                        node.metadata.end,
-                        node.metadata.tpos_start,
-                        node.metadata.end + node.metadata.tpos_start + 1
-                    );
-                    tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start + 1, Strand::Reverse));
+                // TODO: for now we are dropping overhanging alignments. This can be improved.
+                if node.metadata.start <= range.0 && node.metadata.end >= range.1 {
+                    curr_tids.insert(node.metadata.tid);
+                    if first && node.metadata.strand == Strand::Forward {
+                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                        debug!(
+                            "start:{} - tpos_start:{} = {}",
+                            node.metadata.start,
+                            node.metadata.tpos_start,
+                            node.metadata.start - node.metadata.tpos_start
+                        );
+                        tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
+                    } else if last && node.metadata.strand == Strand::Reverse {
+                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
+                        debug!(
+                            "end:{} + tpos_start:{} + 1 = {}",
+                            node.metadata.end,
+                            node.metadata.tpos_start,
+                            node.metadata.end + node.metadata.tpos_start + 1
+                        );
+                        tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start + 1, Strand::Reverse));
+                    }
                 }
-                //}
             });
             debug!("found coverage: {:?}", res)
         }

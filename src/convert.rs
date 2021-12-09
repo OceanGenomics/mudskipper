@@ -435,14 +435,14 @@ pub fn convert_single_end(
     }
 
     let mut cigar_new: record::CigarString = record::CigarString(vec![record::Cigar::Match(100)]);
-    let mut len1 = 0;
+    let mut ref_len = 0;
     let mut long_softclip = false;
 
     let ranges = find_ranges_single(
         &(bam_record.pos() as i32),
         &bam_record.cigar(),
         &mut cigar_new,
-        &mut len1,
+        &mut ref_len,
         &mut long_softclip,
         &max_softlen,
     );
@@ -458,21 +458,32 @@ pub fn convert_single_end(
                 debug!("tid:{} {}", tid, transcripts[*tid as usize]);
 
                 let mut record_ = bam_record.clone();
+                let mut record_cigar = cigar_new.clone();
+                let mut record_seq = bam_record.seq().as_bytes();
+                let mut record_qual = bam_record.qual().to_vec();
                 let mut pos = 0;
                 if pos_strand.1 == Strand::Forward {
                     pos = bam_record.pos() - (pos_strand.0 as i64);
                     debug!("bam_pos:{} - pos:{} = {}", bam_record.pos(), pos_strand.0, pos);
                 } else if pos_strand.1 == Strand::Reverse {
-                    pos = (pos_strand.0 as i64) - bam_record.pos() - len1 as i64;
-                    debug!("pos:{} - bam_pos:{} - len1:{} = {}", pos_strand.0, bam_record.pos(), len1, pos);
+                    pos = (pos_strand.0 as i64) - bam_record.pos() - ref_len as i64;
+                    debug!("pos:{} - bam_pos:{} - len1:{} = {}", pos_strand.0, bam_record.pos(), ref_len, pos);
                     if bam_record.is_reverse() {
                         record_.unset_reverse();
                     } else {
                         record_.set_reverse();
                     }
+                    // reverse the record
+                    let mut cigar_new_rev: Vec<record::Cigar> = Vec::<record::Cigar>::new();
+                    for cigar_item in record_cigar.into_view(0).iter().rev() {
+                        cigar_new_rev.push(*cigar_item);
+                    }
+                    record_cigar = record::CigarString(cigar_new_rev);
+                    record_seq = revcomp(record_seq);
+                    record_qual.reverse();
                 }
 
-                record_.set(bam_record.qname(), Some(&cigar_new), &bam_record.seq().as_bytes(), bam_record.qual());
+                record_.set(bam_record.qname(), Some(&record_cigar), &record_seq, &record_qual);
                 record_.set_tid(*tid);
                 record_.set_pos(pos);
 

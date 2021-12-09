@@ -16,63 +16,75 @@ use crate::query_bam_records::{BAMQueryRecord};
 
 use log::{error, warn, debug};
 
+/// Given ranges of genomic bases where a spliced alignment is mapped against, returns a map of transcripts that are covered by the projected alignments.
+/// For each transcript, the position and orientation of the alignment is also returned.
+///
+/// # Arguments
+///
+/// * `tree` - INPUT. The COITree containing exon coordinates of the target chromosome
+/// * `ranges` - INPUT. The ranges of genomic bases for the input spliced alignment
 pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> HashMap<i32, (i32, Strand)> {
-    let mut tids: HashMap<i32, (i32, Strand)> = HashMap::new();
-    let mut tids_set: HashSet<i32> = HashSet::new();
-    let mut tid_pos: HashMap<i32, (i32, Strand)> = HashMap::new();
-    let mut first = true;
-    let mut last = false;
-    let mut counter = 1;
-    for range in ranges {
-        if counter == ranges.len() {
-            last = true;
-        }
-        counter = counter + 1;
-        let res = tree.coverage(range.0, range.1);
-        let mut curr_tids: HashSet<i32> = HashSet::new();
-        debug!("range: {} {}", res.0, res.1);
-        debug!("first: {}, last: {}", first, last);
-        if res.0 != 0 || res.1 != 0 {
+    let mut tid_set: HashSet<i32> = HashSet::new(); // stores all the transcripts that are overlapping ALL the ranges of the spliced alignment
+    let mut tid_pos: HashMap<i32, (i32, Strand)> = HashMap::new(); // final (tid, pos, strand) to return
+    for (i, range) in ranges.iter().enumerate() {
+        let range_cov = tree.coverage(range.0, range.1);
+        let mut tid_curr: HashSet<i32> = HashSet::new(); // stores all the transcript ids that are covered by the current range 
+        debug!("range coverage: {:?}", range_cov);
+        if range_cov.0 != 0 || range_cov.1 != 0 {
             tree.query(range.0, range.1, |node| {
-                debug!("query for {} {}:{}", range.0, range.1, node.metadata);
+                debug!("query for {} {} => {}", range.0, range.1, node.metadata);
                 // TODO: for now we are dropping overhanging alignments. This can be improved.
                 if node.metadata.start <= range.0 && node.metadata.end >= range.1 {
-                    curr_tids.insert(node.metadata.tid);
-                    if first && node.metadata.strand == Strand::Forward {
-                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                        debug!(
-                            "start:{} - tpos_start:{} = {}",
-                            node.metadata.start,
-                            node.metadata.tpos_start,
-                            node.metadata.start - node.metadata.tpos_start
-                        );
+                    // add to tid_curr
+                    if  ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
+                    (i == 0 && range.1 == node.metadata.end) ||
+                    (i == ranges.len() - 1 && range.0 == node.metadata.start) || 
+                    (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end) {
+                        debug!("keeping");
+                        tid_curr.insert(node.metadata.tid);
+                    }
+                    // keep track of the alignment position and strand
+                    if i == 0 && node.metadata.strand == Strand::Forward { // first range of the spliced alignment 
+                        debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}", 
+                            node.metadata.tid, 
+                            node.metadata.strand, 
+                            node.metadata.start - node.metadata.tpos_start, 
+                            node.metadata.start, 
+                            node.metadata.tpos_start);
                         tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
-                    } else if last && node.metadata.strand == Strand::Reverse {
-                        debug!("inserting: {} {}", node.metadata.tid, node.metadata.strand);
-                        debug!(
-                            "end:{} + tpos_start:{} + 1 = {}",
-                            node.metadata.end,
-                            node.metadata.tpos_start,
-                            node.metadata.end + node.metadata.tpos_start + 1
-                        );
+                    } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse {
+                        debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1", 
+                            node.metadata.tid, 
+                            node.metadata.strand, 
+                            node.metadata.end + node.metadata.tpos_start + 1, 
+                            node.metadata.end, 
+                            node.metadata.tpos_start);
                         tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start + 1, Strand::Reverse));
                     }
                 }
             });
-            debug!("found coverage: {:?}", res)
+            debug!("found coverage: {:?}", range_cov);
         }
-        if first {
-            tids_set = curr_tids;
-            first = false;
+        if i ==0 {
+            tid_set = tid_curr;
         } else {
-            tids_set = &tids_set & &curr_tids;
+            tid_set = &tid_set & &tid_curr; // only transcripts that overlap ALL the ranges will be reported, hence the intersection
         }
     }
-    for tid in tids_set {
-        debug!("querying: {}", tid);
-        tids.insert(tid, tid_pos[&tid]);
+    // 
+    let mut tid_to_remove: HashSet<i32> = HashSet::new();
+    for (k, _v) in &tid_pos {
+        if tid_set.contains(k) == false {
+            tid_to_remove.insert(*k);
+        }
     }
-    return tids;
+    for tid in tid_to_remove {
+        tid_pos.remove(&tid);
+    }
+    for (k, _v) in &tid_pos {
+        debug!("overlapping tid: {}", k);
+    }
+    return tid_pos;
 }
 
 pub fn find_tids_paired(

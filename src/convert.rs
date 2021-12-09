@@ -103,11 +103,22 @@ pub fn find_tids_paired(
     return tid_pos;
 }
 
+/// Returns a vector of ranges in exons covered by the input alignment. 
+/// Each range is a tuple in format of (start, end) and both coordinates are inclusive.
+///
+/// # Arguments
+///
+/// * `read_pos` - INPUT. The alignment position of the input BAM record
+/// * `cigar` - INPUT. The CIGAR string view of the BAM record
+/// * `new_cigar_view` - OUTPUT. The CIGAR string for the alignment projected to the transcriptome
+/// * `ref_len` - OUTPUT. The number of reference bases covered by the input alignment
+/// * `long_softclip` - OUTPUT. Whether the total number of soft-clipped bases is above the threshold
+/// * `max_softlen` - INPUT. The maximum number of soft-clipped bases allowed
 pub fn find_ranges_single(
     read_pos: &i32,
     cigar: &record::CigarStringView,
-    new_cigar_view: &mut record::CigarString,
-    len: &mut i32,
+    new_cigar: &mut record::CigarString,
+    ref_len: &mut i32,
     long_softclip: &mut bool,
     max_softlen: &usize,
 ) -> Vec<(i32, i32)> {
@@ -115,71 +126,79 @@ pub fn find_ranges_single(
     let mut curr_range: (i32, i32) = (-1, -1);
 
     // This variable declares whether a new exon is reached
-    // or the next cigar item belongs to the current exon.
-    let mut end_range: bool = true;
+    // or the next cigar item corresponds to the current exon positions.
+    let mut new_range: bool = true;
 
     // Set the current position to the base right before the beginning of the alignment
-    // after discarding the softclipped bases
-    let mut curr_pos = *read_pos - 1 + (cigar.leading_softclips() as i32);
-    let mut new_cigar: Vec<record::Cigar> = Vec::<record::Cigar>::new();
-    *len = 0;
+    // debug!("bam_pos: {}", *read_pos);
+    let mut curr_pos = *read_pos - 1;
+    // debug!("curr_pos: {}", curr_pos);
+    let mut new_cigar_vec: Vec<record::Cigar> = Vec::<record::Cigar>::new();
+    *ref_len = 0;
     for cigar_item in cigar.iter() {
         debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
         let cigar_char = cigar_item.char();
         let cigar_len = cigar_item.len();
+        // TODO: Do we need support hard-clip?
         match cigar_char {
-            'M' | 'I' | 'D' => {
-                if new_cigar.len() == 0 || new_cigar.last().unwrap().char() != cigar_char {
-                    new_cigar.push(*cigar_item);
+            'M' | '=' | 'X' | 'I' | 'D' => {
+                if new_range {
+                    curr_range = (curr_pos + 1, -1);
+                    new_range = false;
+                }
+                
+                if cigar_char != 'I' {
+                    // debug!("curr_pos: {}", curr_pos);
+                    curr_pos = curr_pos + cigar_len as i32;
+                    // debug!("ref_len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
+                    *ref_len = *ref_len + cigar_len as i32;
+                }
+
+                // debug!("curr_pos: {}", curr_pos);
+                curr_range.1 = curr_pos;
+                
+                // update the new cigar
+                if new_cigar_vec.len() == 0 || cigar_char != new_cigar_vec.last().unwrap().char() {
+                    new_cigar_vec.push(*cigar_item);
                 } else {
-                    let new_cigar_len = cigar_len + new_cigar.last().unwrap().len();
-                    new_cigar.pop();
+                    let new_cigar_len = cigar_len + new_cigar_vec.last().unwrap().len();
+                    new_cigar_vec.pop();
                     match cigar_char {
-                        'M' => new_cigar.push(record::Cigar::Match(new_cigar_len)),
-                        'I' => new_cigar.push(record::Cigar::Ins(new_cigar_len)),
-                        'D' => new_cigar.push(record::Cigar::Del(new_cigar_len)),
+                        'M' => new_cigar_vec.push(record::Cigar::Match(new_cigar_len)),
+                        '=' => new_cigar_vec.push(record::Cigar::Equal(new_cigar_len)),
+                        'X' => new_cigar_vec.push(record::Cigar::Diff(new_cigar_len)),
+                        'I' => new_cigar_vec.push(record::Cigar::Ins(new_cigar_len)),
+                        'D' => new_cigar_vec.push(record::Cigar::Del(new_cigar_len)),
                         _ => warn!("Unexpected cigar item: {}", new_cigar_len),
                     }
                 }
-                if cigar_char != 'I' {
-                    debug!("len:{} + cigar_len:{} = {}", *len, cigar_len, *len + cigar_len as i32);
-                    *len = *len + cigar_len as i32;
-                }
-
-                if end_range {
-                    curr_range = (curr_pos + 1, -1);
-                    end_range = false;
-                }
-                curr_pos = curr_pos + cigar_len as i32;
-                curr_range.1 = curr_pos;
             }
             // Observing N means that the rest of
             // the cigar belongs to another exon
             'N' => {
-                end_range = true;
+                new_range = true;
                 ranges.push(curr_range);
-                debug!("pushing {} {}", curr_range.0, curr_range.1);
+                debug!("RANGE {} {}", curr_range.0, curr_range.1);
                 curr_pos = curr_pos + cigar_len as i32;
-                *len = *len + cigar_len as i32;
-                debug!("len:{} + cigar_len:{} = {}", *len, cigar_len, *len + cigar_len as i32);
+                // debug!("curr_pos: {}", curr_pos);
+                // debug!("len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
+                *ref_len = *ref_len + cigar_len as i32;
             }
-            // Soft clipped bases at the beginning are
-            // taken care of before beginning the loop
-            // and the ending softclipped bases should
-            // be ignored.
+            // Soft clipped bases don't consume reference bases
             'S' => {
-                new_cigar.push(*cigar_item);
+                new_cigar_vec.push(*cigar_item);
                 if cigar_len > *max_softlen as u32 {
                     *long_softclip = true;
                 }
             }
             _ => warn!("Unexpected cigar char! {}", cigar_char),
         }
-        debug!("{} {}", curr_range.0, curr_range.1);
+        // debug!("{} {}", curr_range.0, curr_range.1);
     }
     ranges.push(curr_range);
-    debug!("pushing {} {}", curr_range.0, curr_range.1);
-    *new_cigar_view = record::CigarString(new_cigar);
+    debug!("RANGE {} {}", curr_range.0, curr_range.1);
+    debug!("REF_LEN {}", *ref_len);
+    *new_cigar = record::CigarString(new_cigar_vec);
     return ranges;
 }
 
@@ -430,8 +449,10 @@ pub fn convert_single_end(
                 let mut pos = 0;
                 if pos_strand.1 == Strand::Forward {
                     pos = bam_record.pos() - (pos_strand.0 as i64);
+                    debug!("bam_pos:{} - pos:{} = {}", bam_record.pos(), pos_strand.0, pos);
                 } else if pos_strand.1 == Strand::Reverse {
                     pos = (pos_strand.0 as i64) - bam_record.pos() - len1 as i64;
+                    debug!("pos:{} - bam_pos:{} - len1:{} = {}", pos_strand.0, bam_record.pos(), len1, pos);
                     if bam_record.is_reverse() {
                         record_.unset_reverse();
                     } else {

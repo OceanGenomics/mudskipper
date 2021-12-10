@@ -3,7 +3,6 @@ extern crate num_cpus;
 
 use clap::{crate_version, App, AppSettings, Arg};
 use std::collections::HashMap;
-use std::env;
 
 mod annotation;
 mod bam;
@@ -27,24 +26,24 @@ fn main() {
     let app_bulk = App::new("bulk")
         .version(version)
         .about("Convert alignment of bulk RNA-Seq reads against genome to alignment against transcriptome.")
-        .arg(Arg::from("-b, --bam=<bam-file> 'input SAM/BAM file'"))
-        .arg(Arg::from("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
-        .arg(Arg::from("-o, --out=<output-file> 'output file name'"))
-        .arg(Arg::from("-r, --rad 'output in RAD format instead of BAM'"))
-        .arg(Arg::from("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
-        .arg(Arg::from("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen));
-        // .arg(Arg::from("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
+        .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
+        .arg(Arg::from_usage("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
+        .arg(Arg::from_usage("-o, --out=<output-file> 'output file name'"))
+        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'"))
+        .arg(Arg::from_usage("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
+        .arg(Arg::from_usage("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen));
+        // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
     let app_sc = App::new("sc")
         .version(version)
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
-        .arg(Arg::from("-b, --bam=<bam-file> 'input SAM/BAM file'"))
-        .arg(Arg::from("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
-        .arg(Arg::from("-o, --out=<output-file> 'output file name'"))
-        .arg(Arg::from("-r, --rad 'output in RAD format instead of BAM'"))
-        .arg(Arg::from("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
-        .arg(Arg::from("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen))
-        .arg(Arg::from("-c, --corrected-tags 'output error-corrected cell barcode and UMI'"));
-        // .arg(Arg::from("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
+        .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
+        .arg(Arg::from_usage("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
+        .arg(Arg::from_usage("-o, --out=<output-file> 'output file name'"))
+        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'"))
+        .arg(Arg::from_usage("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
+        .arg(Arg::from_usage("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen))
+        .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'"));
+        // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
 
     let opts = App::new("mudskipper")
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -58,11 +57,11 @@ fn main() {
     // convert a SAM/BAM file, in *genome coordinates*,
     // into a BAM file in *transcriptome coordinates*
     if let Some(ref t) = opts.subcommand_matches("bulk") {
-        let bam_file_in: String = t.value_of_t("bam").unwrap();
-        let ann_file_adr: String = t.value_of_t("gtf").unwrap();
-        let out_file: String = t.value_of_t("out").unwrap();
-        let threads_count: usize = t.value_of_t("threads").unwrap();
-        let max_softlen: usize = t.value_of_t("max-softlen").unwrap();
+        let bam_file_in: String = t.value_of("bam").unwrap().to_string();
+        let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
+        let out_file: String = t.value_of("out").unwrap().to_string();
+        let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
+        let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
         //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
@@ -88,11 +87,11 @@ fn main() {
             );
         }
     } else if let Some(ref t) = opts.subcommand_matches("sc") {
-        let bam_file_in: String = t.value_of_t("bam").unwrap();
-        let ann_file_adr: String = t.value_of_t("gtf").unwrap();
-        let out_file: String = t.value_of_t("out").unwrap();
-        let threads_count: usize = t.value_of_t("threads").unwrap();
-        let max_softlen: usize = t.value_of_t("max-softlen").unwrap();
+        let bam_file_in: String = t.value_of("bam").unwrap().to_string();
+        let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
+        let out_file: String = t.value_of("out").unwrap().to_string();
+        let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
+        let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
         //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();

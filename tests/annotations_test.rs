@@ -2,21 +2,21 @@
 // #[macro_use]
 
 extern crate mudskipper;
-use mudskipper::annotations;
+use mudskipper::annotation;
 
 use std::collections::HashMap;
 
 #[test]
 fn test_gtf_read() {
     let ann_file_adr = "tests/NC_002333.2.gtf".to_string();
-    let reader = annotations::read(&ann_file_adr);
+    let reader = annotation::read(&ann_file_adr);
     assert!(reader.is_ok());
 }
 
 #[test]
 fn test_gff_read() {
     let ann_file_adr = "tests/NC_002333.2.gff".to_string();
-    let reader = annotations::read(&ann_file_adr);
+    let reader = annotation::read(&ann_file_adr);
     assert!(reader.is_ok());
 }
 
@@ -27,13 +27,13 @@ pub fn test_tree() {
     let mut transcripts: Vec<String> = Vec::new();
     let mut tx_lengths: Vec<i32> = Vec::new();
 
-    let trees = annotations::build_tree(&ann_file_adr,
+    let trees = annotation::build_tree(&ann_file_adr,
                                         &mut transcripts_map,
                                         &mut transcripts,
                                         &mut tx_lengths).expect("cannot build the tree!");
 
     let query_file_adr = "tests/NC_002333.2.gff".to_string();
-    let reader = annotations::read(&query_file_adr);
+    let reader = annotation::read(&query_file_adr);
     assert!(reader.is_ok());
     let mut failed_count = 0;
     for record in reader.expect("Error reading file.").records() {

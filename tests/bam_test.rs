@@ -4,7 +4,7 @@
 use std::str;
 
 extern crate mudskipper;
-use mudskipper::annotations;
+use mudskipper::annotation;
 use mudskipper::bam;
 
 use std::collections::HashMap;
@@ -18,12 +18,12 @@ pub fn read_and_process(ann_file_adr: &String,
     let mut transcripts_map: HashMap<String, i32> = HashMap::new();
     let mut transcripts: Vec<String> = Vec::new();
     let mut txp_lengths: Vec<i32> = Vec::new();
-    let trees = annotations::build_tree(ann_file_adr, 
+    let trees = annotation::build_tree(ann_file_adr, 
                                         &mut transcripts_map,
                                         &mut transcripts,
                                         &mut txp_lengths).expect("cannot build the tree!");
     let threads = 0;
-    return bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads);
+    return bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200);
 }
 
 #[test]

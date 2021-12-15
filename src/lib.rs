@@ -1,4 +1,4 @@
 #[macro_use]
-pub mod annotations;
+pub mod annotation;
 pub mod bam;
-pub mod intersection;
+pub mod convert;

@@ -161,9 +161,9 @@ pub fn build_tree(
                 tpos = 0;
             }
             let seqname = rec.seqname().to_string();
-            debug!("\r{:?}\t{:?}", rec.feature_type(), seqname);
-            let exon_start = *rec.start() as i32;
-            let exon_end = *rec.end() as i32;
+            // debug!("{:?}\t{:?}", rec.feature_type(), seqname);
+            let exon_start = (*rec.start() - 1) as i32;
+            let exon_end = (*rec.end() - 1) as i32;
             let exon_len = exon_end - exon_start + 1;
             let exon_strand = rec.strand(); //.unwrap();
             let exon_strand = match exon_strand {

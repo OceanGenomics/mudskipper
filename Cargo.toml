@@ -19,7 +19,5 @@ indicatif = "*"
 linecount = "*"
 num_cpus = "1.13.0"
 libradicl = "=0.4.1"
+clap = "~2.34.0"
 
-[dependencies.clap]
-version = "3.0.0-beta.2"
-features = ["wrap_help"]

@@ -10,14 +10,12 @@ mod convert;
 mod query_bam_records;
 mod rad;
 
-use env_logger;
-use log::info;
+use env_logger::{self, Env};
+use log;
 
 fn main() {
-    // bam::test_read_bam();
-    // return;
-    env_logger::init();
-    info!("Mudskipper started...");
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    log::info!("Mudskipper started...");
     let version = crate_version!();
     // let default_num_threads: String = (num_cpus::get() as u32).to_string();
     let default_num_threads = String::from("1");
@@ -26,24 +24,23 @@ fn main() {
     let app_bulk = App::new("bulk")
         .version(version)
         .about("Convert alignment of bulk RNA-Seq reads against genome to alignment against transcriptome.")
-        .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
-        .arg(Arg::from_usage("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
-        .arg(Arg::from_usage("-o, --out=<output-file> 'output file name'"))
-        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'"))
-        .arg(Arg::from_usage("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
-        .arg(Arg::from_usage("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen));
+        .arg(Arg::from_usage("-a, --alignment=<FILE> 'input SAM/BAM file'").display_order(1))
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input gtf/gff file'").display_order(1))
+        .arg(Arg::from_usage("-o, --out=<FILE> 'output file name'").display_order(1))
+        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").display_order(100))
+        .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
+        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2));
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
     let app_sc = App::new("sc")
         .version(version)
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
-        .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
-        .arg(Arg::from_usage("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
-        .arg(Arg::from_usage("-o, --out=<output-file> 'output file name (required if --rad is not passed)'").required_unless("rad"))
-        .arg(Arg::from_usage("-d, --out-dir=<output-directory> 'output directory name (required if --rad is passed)'").required(false))
-        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").requires("out-dir"))
-        .arg(Arg::from_usage("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
-        .arg(Arg::from_usage("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen))
-        .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'"));
+        .arg(Arg::from_usage("-a, --alignment=<FILE> 'input SAM/BAM file'").display_order(1))
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input gtf/gff file'").display_order(1))
+        .arg(Arg::from_usage("-o, --out=<FILE/DIR> 'output file name (or directory name when --rad is passed)'").display_order(1))
+        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").display_order(100))
+        .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'").display_order(101))
+        .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
+        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2));
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
 
     let opts = App::new("mudskipper")
@@ -58,7 +55,7 @@ fn main() {
     // convert a SAM/BAM file, in *genome coordinates*,
     // into a BAM file in *transcriptome coordinates*
     if let Some(ref t) = opts.subcommand_matches("bulk") {
-        let bam_file_in: String = t.value_of("bam").unwrap().to_string();
+        let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
@@ -88,8 +85,9 @@ fn main() {
             );
         }
     } else if let Some(ref t) = opts.subcommand_matches("sc") {
-        let bam_file_in: String = t.value_of("bam").unwrap().to_string();
+        let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
+        let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
         //
@@ -109,10 +107,9 @@ fn main() {
             required_tags = vec!["CR", "UR"];
         }
         if t.is_present("rad") {
-            let out_dir: String = t.value_of("out-dir").unwrap().to_string();
             rad::bam2rad_singlecell(
                 &bam_file_in,
-                &out_dir,
+                &out_file,
                 &transcripts,
                 &txp_lengths,
                 &trees,
@@ -121,7 +118,6 @@ fn main() {
                 t.is_present("corrected-tags"),
             );
         } else {
-            let out_file: String = t.value_of("out").unwrap().to_string();
             bam::bam2bam(
                 &bam_file_in,
                 &out_file,
@@ -134,5 +130,5 @@ fn main() {
             );
         }
     }
-    info!("Mudskipper finished.");
+    log::info!("Mudskipper finished.");
 }

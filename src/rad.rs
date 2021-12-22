@@ -4,7 +4,7 @@ use crate::convert;
 extern crate fnv;
 
 use libradicl::decode_int_type_tag;
-use log::{debug, error, info};
+use log;
 use std::error::Error;
 use std::path::Path;
 use std::fs::{self, File};
@@ -66,7 +66,7 @@ fn bam_peek(bam_path: &String) -> record::Record {
     let mut rec = record::Record::new();
     let first_record_exists = bam_reader.read(&mut rec).is_some();
     if !first_record_exists {
-        error!("bam file had no records!");
+        log::error!("bam file had no records!");
         std::process::exit(1);
     }
     rec
@@ -154,7 +154,7 @@ pub fn bam2rad_bulk_se(
         data.write_all(&is_paired.to_le_bytes()).expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
-        info!("Number of reference sequences: {}", ref_count);
+        log::info!("Number of reference sequences: {}", ref_count);
         data.write_all(&ref_count.to_le_bytes()).expect("couldn't write to output file");
         // list of reference names
         for tname in transcripts.iter() {
@@ -165,7 +165,7 @@ pub fn bam2rad_bulk_se(
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
-        debug!("end header pos: {:?}", end_header_pos);
+        log::debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes()).expect("coudn't write to output file");
@@ -207,11 +207,11 @@ pub fn bam2rad_bulk_se(
 
     let reader_threads: Option<usize>;
     if *threads_count > 1 {
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
         reader_threads = Some(threads_count - 1);
     } else {
         reader_threads = None;
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
     }
     
     // setup the input BAM Reader
@@ -351,7 +351,7 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 written_records += 1;
             }
         } else {
-            error!("couldn't find respective mate!");
+            log::error!("couldn't find respective mate!");
             return false;
         }
     }
@@ -396,7 +396,7 @@ pub fn bam2rad_bulk_pe(
         data.write_all(&is_paired.to_le_bytes()).expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
-        info!("Number of reference sequences: {}", ref_count);
+        log::info!("Number of reference sequences: {}", ref_count);
         data.write_all(&ref_count.to_le_bytes()).expect("couldn't write to output file");
         // list of reference names
         for tname in transcripts.iter() {
@@ -407,7 +407,7 @@ pub fn bam2rad_bulk_pe(
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
-        debug!("end header pos: {:?}", end_header_pos);
+        log::debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes()).expect("coudn't write to output file");
@@ -455,11 +455,11 @@ pub fn bam2rad_bulk_pe(
 
     let reader_threads: Option<usize>;
     if *threads_count > 1 {
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
         reader_threads = Some(threads_count - 1);
     } else {
         reader_threads = None;
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
     }
     
     // setup the input BAM Reader
@@ -570,9 +570,9 @@ fn dump_collected_alignments_singlecell(
         }
     }
 
-    debug!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
+    log::debug!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
     if (*bc_typeid != 8 && bc_string.contains('N') == true) || (*umi_typeid != 8 && umi_string.contains('N') == true) {
-        debug!("barcode or UMI has N");
+        log::debug!("barcode or UMI has N");
         return false;
     }
 
@@ -679,7 +679,7 @@ pub fn bam2rad_singlecell(
         data.write_all(&is_paired.to_le_bytes()).expect("couldn't write to output file");
         // number of references
         let ref_count = transcripts.len() as u64;
-        info!("Number of reference sequences: {}", ref_count);
+        log::info!("Number of reference sequences: {}", ref_count);
         data.write_all(&ref_count.to_le_bytes()).expect("couldn't write to output file");
         // list of reference names
         for tname in transcripts.iter() {
@@ -693,7 +693,7 @@ pub fn bam2rad_singlecell(
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
         end_header_pos = data.seek(SeekFrom::Current(0)).unwrap();
-        debug!("end header pos: {:?}", end_header_pos);
+        log::debug!("end header pos: {:?}", end_header_pos);
         // number of chunks
         let initial_num_chunks = 0u64;
         data.write_all(&initial_num_chunks.to_le_bytes()).expect("coudn't write to output file");
@@ -766,8 +766,8 @@ pub fn bam2rad_singlecell(
             _ => 8,
         };
 
-        debug!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
-        debug!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
+        log::debug!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
+        log::debug!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
 
         libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
         data.write_all(&bc_typeid.to_le_bytes()).expect("coudn't write to output file");
@@ -804,11 +804,11 @@ pub fn bam2rad_singlecell(
 
     let reader_threads: Option<usize>;
     if *threads_count > 1 {
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
         reader_threads = Some(threads_count - 1);
     } else {
         reader_threads = None;
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
     }
     
     // setup the input BAM Reader

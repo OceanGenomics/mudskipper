@@ -13,7 +13,7 @@ use crate::query_bam_records::{BAMQueryRecordReader};
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log::{info};
+use log;
 
 pub fn bam2bam(
     input_bam_filename: &String,
@@ -28,7 +28,7 @@ pub fn bam2bam(
     // setup the output BAM Writer
     let mut output_header = Header::new();
     // output_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
-    info!("Number of reference sequences: {}", transcripts.len());
+    log::info!("Number of reference sequences: {}", transcripts.len());
     let mut counter = 0;
     for tname in transcripts.iter() {
         let tlen = txp_lengths[counter];
@@ -40,14 +40,14 @@ pub fn bam2bam(
     let reader_threads: Option<usize>;
     if *threads_count >= 2 {
         let threads_count_half = threads_count / 2;
-        info!("thread count: {} in total", threads_count_half * 2);
-        info!("thread count: {} for reading", threads_count_half);
-        info!("thread count: {} for writing", threads_count_half);
+        log::info!("thread count: {} in total", threads_count_half * 2);
+        log::info!("thread count: {} for reading", threads_count_half);
+        log::info!("thread count: {} for writing", threads_count_half);
         reader_threads = Some(threads_count_half);
         output_writer.set_threads(threads_count_half).expect("Failed to set number of BAM writing threads.");
     } else {
         reader_threads = None;
-        info!("thread count: {}", threads_count);
+        log::info!("thread count: {}", threads_count);
     }
     
     // setup the input BAM Reader

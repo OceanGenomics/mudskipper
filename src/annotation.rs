@@ -14,12 +14,12 @@ use fnv::FnvHashMap;
 
 use indicatif::ProgressBar;
 use linecount::count_lines;
-use log::{debug, info};
+use log;
 
 pub fn read(ann_file_adr: &String) -> Result<gff::Reader<File>, Box<dyn Error>> {
     let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
-    info!("reading the {} file and building the tree.", file_type);
+    log::info!("reading the {} file and building the tree.", file_type);
     let ann_type: gff::GffType = if file_type == "gtf" {
         gff::GffType::GTF2
     } else {
@@ -69,7 +69,7 @@ pub fn load_tree(
     transcripts: &mut Vec<String>,
     txp_lengths: &mut Vec<i32>,
 ) -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, Box<dyn Error>> {
-    info!("Loading parsed GTF...");
+    log::info!("Loading parsed GTF...");
     // load info
     {
         let mut ifile = File::open("parsed_gtf.map").unwrap();
@@ -161,7 +161,7 @@ pub fn build_tree(
                 tpos = 0;
             }
             let seqname = rec.seqname().to_string();
-            // debug!("{:?}\t{:?}", rec.feature_type(), seqname);
+            // log::debug!("{:?}\t{:?}", rec.feature_type(), seqname);
             let exon_start = (*rec.start() - 1) as i32;
             let exon_end = (*rec.end() - 1) as i32;
             let exon_len = exon_end - exon_start + 1;
@@ -169,7 +169,7 @@ pub fn build_tree(
             let exon_strand = match exon_strand {
                 Some(strand) => strand,
                 None => {
-                    debug!("The gtf/gff record doesn't specify the strand, will be ignored.");
+                    log::debug!("The gtf/gff record doesn't specify the strand, will be ignored.");
                     continue;
                 }
             };
@@ -225,7 +225,7 @@ pub fn build_tree(
         }
     }
 
-    info!("building the tree");
+    log::info!("building the tree");
     let mut outfile = File::create("parsed_gtf.exon").unwrap();
     let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();
     for (seqname, seqname_nodes) in nodes {
@@ -241,6 +241,6 @@ pub fn build_tree(
         trees.insert(seqname, COITree::new(seqname_nodes));
     }
     let b = Instant::now();
-    info!("Time to build the tree: {:?}", b - a);
+    log::info!("Time to build the tree: {:?}", b - a);
     return Ok(trees);
 }

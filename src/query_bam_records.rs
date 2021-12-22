@@ -189,9 +189,9 @@ impl BAMQueryRecordReader {
     pub fn get_next_query_records(&mut self) -> Option<Vec<BAMQueryRecord>> {
         let mut brecord = Record::new();
         let query_records: Vec<BAMQueryRecord>;
-        // info!("in func");
+        // log::debug!("in func");
         while let Some(res) = self.bam_reader.read(&mut brecord) {
-            // info!("in loop!");
+            // log::debug!("in loop!");
             res.expect("Failed to parse BAM record");
             let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
             if qname != self.last_qname { // a new query

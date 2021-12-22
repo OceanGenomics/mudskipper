@@ -14,7 +14,7 @@ use crate::annotation;
 use annotation::ExonNode;
 use crate::query_bam_records::{BAMQueryRecord};
 
-use log::{error, warn, debug};
+use log;
 
 /// Given ranges of genomic bases where a spliced alignment is mapped against, returns a map of transcripts that are covered by the projected alignments.
 /// For each transcript, the position and orientation of the alignment is also returned.
@@ -29,10 +29,10 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
     for (i, range) in ranges.iter().enumerate() {
         let range_cov = tree.coverage(range.0, range.1);
         let mut tid_curr: HashSet<i32> = HashSet::new(); // stores all the transcript ids that are covered by the current range 
-        debug!("range coverage: {:?}", range_cov);
+        log::debug!("range coverage: {:?}", range_cov);
         if range_cov.0 != 0 || range_cov.1 != 0 {
             tree.query(range.0, range.1, |node| {
-                debug!("query for {} {} => {}", range.0, range.1, node.metadata);
+                log::debug!("query for {} {} => {}", range.0, range.1, node.metadata);
                 // TODO: for now we are dropping overhanging alignments. This can be improved.
                 if node.metadata.start <= range.0 && node.metadata.end >= range.1 {
                     // add to tid_curr
@@ -40,12 +40,12 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                     (i == 0 && range.1 == node.metadata.end) ||
                     (i == ranges.len() - 1 && range.0 == node.metadata.start) || 
                     (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end) {
-                        debug!("keeping");
+                        log::debug!("keeping");
                         tid_curr.insert(node.metadata.tid);
                     }
                     // keep track of the alignment position and strand
                     if i == 0 && node.metadata.strand == Strand::Forward { // first range of the spliced alignment 
-                        debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}", 
+                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}", 
                             node.metadata.tid, 
                             node.metadata.strand, 
                             node.metadata.start - node.metadata.tpos_start, 
@@ -53,7 +53,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                             node.metadata.tpos_start);
                         tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
                     } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse {
-                        debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1", 
+                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1", 
                             node.metadata.tid, 
                             node.metadata.strand, 
                             node.metadata.end + node.metadata.tpos_start + 1, 
@@ -63,7 +63,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                     }
                 }
             });
-            debug!("found coverage: {:?}", range_cov);
+            log::debug!("found coverage: {:?}", range_cov);
         }
         if i ==0 {
             tid_set = tid_curr;
@@ -82,7 +82,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
         tid_pos.remove(&tid);
     }
     for (k, _v) in &tid_pos {
-        debug!("overlapping tid: {}", k);
+        log::debug!("overlapping tid: {}", k);
     }
     return tid_pos;
 }
@@ -101,10 +101,10 @@ pub fn find_tids_paired(
     max_softlen: &usize,
 ) -> HashMap<i32, ((i32, Strand), (i32, Strand))> {
     let mut tid_pos: HashMap<i32, ((i32, Strand), (i32, Strand))> = HashMap::new();
-    debug!("read1: {} {}", read_pos1, cigar1);
+    log::debug!("read1: {} {}", read_pos1, cigar1);
     let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1, long_softclip, max_softlen);
     let tids1 = find_tid(&tree, &ranges1);
-    debug!("read2: {} {}", read_pos2, cigar2);
+    log::debug!("read2: {} {}", read_pos2, cigar2);
     let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2, long_softclip, max_softlen);
     let tids2 = find_tid(&tree, &ranges2);
     for (tid, pos1) in tids1.iter() {
@@ -142,13 +142,13 @@ pub fn find_ranges_single(
     let mut new_range: bool = true;
 
     // Set the current position to the base right before the beginning of the alignment
-    // debug!("bam_pos: {}", *read_pos);
+    // log::debug!("bam_pos: {}", *read_pos);
     let mut curr_pos = *read_pos - 1;
-    // debug!("curr_pos: {}", curr_pos);
+    // log::debug!("curr_pos: {}", curr_pos);
     let mut new_cigar_vec: Vec<record::Cigar> = Vec::<record::Cigar>::new();
     *ref_len = 0;
     for cigar_item in cigar.iter() {
-        debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
+        log::debug!("cigar item: {} {}", cigar_item.char(), cigar_item.len());
         let cigar_char = cigar_item.char();
         let cigar_len = cigar_item.len();
         // TODO: Do we need support hard-clip?
@@ -160,13 +160,13 @@ pub fn find_ranges_single(
                 }
                 
                 if cigar_char != 'I' {
-                    // debug!("curr_pos: {}", curr_pos);
+                    // log::debug!("curr_pos: {}", curr_pos);
                     curr_pos = curr_pos + cigar_len as i32;
-                    // debug!("ref_len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
+                    // log::debug!("ref_len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
                     *ref_len = *ref_len + cigar_len as i32;
                 }
 
-                // debug!("curr_pos: {}", curr_pos);
+                // log::debug!("curr_pos: {}", curr_pos);
                 curr_range.1 = curr_pos;
                 
                 // update the new cigar
@@ -181,7 +181,7 @@ pub fn find_ranges_single(
                         'X' => new_cigar_vec.push(record::Cigar::Diff(new_cigar_len)),
                         'I' => new_cigar_vec.push(record::Cigar::Ins(new_cigar_len)),
                         'D' => new_cigar_vec.push(record::Cigar::Del(new_cigar_len)),
-                        _ => warn!("Unexpected cigar item: {}", new_cigar_len),
+                        _ => log::warn!("Unexpected cigar item: {}", new_cigar_len),
                     }
                 }
             }
@@ -190,10 +190,10 @@ pub fn find_ranges_single(
             'N' => {
                 new_range = true;
                 ranges.push(curr_range);
-                debug!("RANGE {} {}", curr_range.0, curr_range.1);
+                log::debug!("RANGE {} {}", curr_range.0, curr_range.1);
                 curr_pos = curr_pos + cigar_len as i32;
-                // debug!("curr_pos: {}", curr_pos);
-                // debug!("len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
+                // log::debug!("curr_pos: {}", curr_pos);
+                // log::debug!("len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
                 *ref_len = *ref_len + cigar_len as i32;
             }
             // Soft clipped bases don't consume reference bases
@@ -203,13 +203,13 @@ pub fn find_ranges_single(
                     *long_softclip = true;
                 }
             }
-            _ => warn!("Unexpected cigar char! {}", cigar_char),
+            _ => log::warn!("Unexpected cigar char! {}", cigar_char),
         }
-        // debug!("{} {}", curr_range.0, curr_range.1);
+        // log::debug!("{} {}", curr_range.0, curr_range.1);
     }
     ranges.push(curr_range);
-    debug!("RANGE {} {}", curr_range.0, curr_range.1);
-    debug!("REF_LEN {}", *ref_len);
+    log::debug!("RANGE {} {}", curr_range.0, curr_range.1);
+    log::debug!("REF_LEN {}", *ref_len);
     *new_cigar = record::CigarString(new_cigar_vec);
     return ranges;
 }
@@ -265,11 +265,11 @@ pub fn convert_paired_end(
             &max_softlen,
         );
         if long_softclip {
-            debug!("The softclip length is too long!");
+            log::debug!("The softclip length is too long!");
             return converted_records;
         }
-        debug!("{}: {}", bam_record1.cigar(), bam_record1.cigar().len());
-        debug!("{}: {}", bam_record2.cigar(), bam_record2.cigar().len());
+        log::debug!("{}: {}", bam_record1.cigar(), bam_record1.cigar().len());
+        log::debug!("{}: {}", bam_record2.cigar(), bam_record2.cigar().len());
         if tids.len() > 0 {
             for (tid, pos_strand) in tids.iter() {
                 let mut first_record_ = bam_record1.clone();
@@ -285,12 +285,12 @@ pub fn convert_paired_end(
                 let mut second_pos = 0;
                 if pos_strand.0 .1 == Strand::Forward {
                     first_pos = bam_record1.pos() - (pos_strand.0 .0 as i64);
-                    debug!("first_pos:{} - pos:{} = {}", bam_record1.pos(), pos_strand.0 .0, first_pos);
+                    log::debug!("first_pos:{} - pos:{} = {}", bam_record1.pos(), pos_strand.0 .0, first_pos);
                     second_pos = bam_record2.pos() - (pos_strand.1 .0 as i64);
-                    debug!("second_pos:{} - pos:{} = {}", bam_record2.pos(), pos_strand.1 .0, second_pos);
+                    log::debug!("second_pos:{} - pos:{} = {}", bam_record2.pos(), pos_strand.1 .0, second_pos);
                 } else if pos_strand.0 .1 == Strand::Reverse {
                     first_pos = (pos_strand.0 .0 as i64) - bam_record1.pos() - len1 as i64;
-                    debug!(
+                    log::debug!(
                         "pos:{} - first_pos:{} - len1:{} = {}",
                         pos_strand.0 .0,
                         bam_record1.pos(),
@@ -298,7 +298,7 @@ pub fn convert_paired_end(
                         first_pos
                     );
                     second_pos = (pos_strand.1 .0 as i64) - bam_record2.pos() - len2 as i64;
-                    debug!(
+                    log::debug!(
                         "pos:{} - second_pos:{} - len2:{} = {}",
                         pos_strand.1 .0,
                         bam_record2.pos(),
@@ -306,20 +306,20 @@ pub fn convert_paired_end(
                         second_pos
                     );
                     if bam_record1.is_reverse() {
-                        debug!("bam_record1 is reversed");
+                        log::debug!("bam_record1 is reversed");
                         first_record_.unset_reverse();
                         first_record_.set_mate_reverse();
                     } else {
-                        debug!("bam_record1 is not reversed");
+                        log::debug!("bam_record1 is not reversed");
                         first_record_.set_reverse();
                         first_record_.unset_mate_reverse();
                     }
                     if bam_record2.is_reverse() {
-                        debug!("second_record is reversed");
+                        log::debug!("second_record is reversed");
                         second_record_.unset_reverse();
                         second_record_.set_mate_reverse();
                     } else {
-                        debug!("second_record is not reversed");
+                        log::debug!("second_record is not reversed");
                         second_record_.set_reverse();
                         second_record_.unset_mate_reverse();
                     }
@@ -367,13 +367,13 @@ pub fn convert_paired_end(
                         first_pos - second_pos + first_read_len
                     };
                 }
-                debug!("tid:{} {}", tid, transcripts[*tid as usize]);
-                debug!(
+                log::debug!("tid:{} {}", tid, transcripts[*tid as usize]);
+                log::debug!(
                     "first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
                     first_pos, second_pos, first_read_len, second_read_len, first_length, second_length
                 );
-                debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
-                debug!("record.is_reverse():{}", bam_record2.is_reverse());
+                log::debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
+                log::debug!("record.is_reverse():{}", bam_record2.is_reverse());
                 first_record_.set(bam_record1.qname(), Some(&first_record_cigar), &first_record_seq, &first_record_qual);
                 first_record_.set_tid(*tid);
                 first_record_.set_mtid(*tid);
@@ -412,11 +412,11 @@ pub fn convert_paired_end(
             }
         } else {
             // missed_read = missed_read + 1;
-            debug!("missed read!")
+            log::debug!("missed read!")
         }
     } else {
         // log for unannotated splicing junction
-        debug!("unannotated splicing junction observed!")
+        log::debug!("unannotated splicing junction observed!")
     }
     return converted_records;
 }
@@ -450,12 +450,12 @@ pub fn convert_single_end(
     if let Some(tree) = trees.get(&genome_tname) {
         let tids = find_tid(&tree, &ranges);
         if long_softclip {
-            debug!("The softclip length is too long!");
+            log::debug!("The softclip length is too long!");
             return converted_records;
         }
         if tids.len() > 0 {
             for (tid, pos_strand) in tids.iter() {
-                debug!("tid:{} {}", tid, transcripts[*tid as usize]);
+                log::debug!("tid:{} {}", tid, transcripts[*tid as usize]);
 
                 let mut record_ = bam_record.clone();
                 let mut record_cigar = cigar_new.clone();
@@ -464,10 +464,10 @@ pub fn convert_single_end(
                 let mut pos = 0;
                 if pos_strand.1 == Strand::Forward {
                     pos = bam_record.pos() - (pos_strand.0 as i64);
-                    debug!("bam_pos:{} - pos:{} = {}", bam_record.pos(), pos_strand.0, pos);
+                    log::debug!("bam_pos:{} - pos:{} = {}", bam_record.pos(), pos_strand.0, pos);
                 } else if pos_strand.1 == Strand::Reverse {
                     pos = (pos_strand.0 as i64) - bam_record.pos() - ref_len as i64;
-                    debug!("pos:{} - bam_pos:{} - len1:{} = {}", pos_strand.0, bam_record.pos(), ref_len, pos);
+                    log::debug!("pos:{} - bam_pos:{} - len1:{} = {}", pos_strand.0, bam_record.pos(), ref_len, pos);
                     if bam_record.is_reverse() {
                         record_.unset_reverse();
                     } else {
@@ -492,11 +492,11 @@ pub fn convert_single_end(
             }
         } else {
             // missed_read = missed_read + 1;
-            debug!("missed read!")
+            log::debug!("missed read!")
         }
     } else {
         // log for unannotated splicing junction
-        debug!("unannotated splicing junction observed!")
+        log::debug!("unannotated splicing junction observed!")
     }
     return converted_records;
 }
@@ -521,26 +521,26 @@ pub fn convert_query_bam_records(
     }
 
     if qrecord.is_paired() {
-        debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+        log::debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
         // check for required tags
         for tag in required_tags.iter() {
             if first_mate[0].aux(tag.as_bytes()).is_err() {
-                error!("Could not find {} tag for first mate of read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                log::error!("Could not find {} tag for first mate of read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
                 panic!("Some required tags do not exist!");
             }
             if second_mate[0].aux(tag.as_bytes()).is_err() {
-                error!("Could not find {} tag for second mate of read {}", tag, String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+                log::error!("Could not find {} tag for second mate of read {}", tag, String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
                 panic!("Some required tags do not exist!");
             }
         }
         let mut txp_records = convert_paired_end(&first_mate[0], &second_mate[0], header_view, transcripts, txp_lengths, trees, max_softlen);
         converted_records.append(&mut txp_records);
     } else {
-        debug!("qname: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+        log::debug!("qname: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
         // check for required tags
         for tag in required_tags.iter() {
             if first_mate[0].aux(tag.as_bytes()).is_err() {
-                error!("Could not find {} tag for read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                log::error!("Could not find {} tag for read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
                 panic!("Some required tags do not exist!");
             }
         }

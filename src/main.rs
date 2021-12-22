@@ -38,8 +38,9 @@ fn main() {
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
         .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
         .arg(Arg::from_usage("-g, --gtf=<gtf-file> 'input gtf/gff file'"))
-        .arg(Arg::from_usage("-o, --out=<output-file> 'output file name'"))
-        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'"))
+        .arg(Arg::from_usage("-o, --out=<output-file> 'output file name (required if --rad is not passed)'").required_unless("rad"))
+        .arg(Arg::from_usage("-d, --out-dir=<output-directory> 'output directory name (required if --rad is passed)'").required(false))
+        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").requires("out-dir"))
         .arg(Arg::from_usage("-t, --threads 'number of threads for processing bam files'").default_value(&default_num_threads))
         .arg(Arg::from_usage("-s, --max-softlen 'max allowed softclip length'").default_value(&default_max_softlen))
         .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'"));
@@ -89,7 +90,6 @@ fn main() {
     } else if let Some(ref t) = opts.subcommand_matches("sc") {
         let bam_file_in: String = t.value_of("bam").unwrap().to_string();
         let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
-        let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
         //
@@ -109,9 +109,10 @@ fn main() {
             required_tags = vec!["CR", "UR"];
         }
         if t.is_present("rad") {
+            let out_dir: String = t.value_of("out-dir").unwrap().to_string();
             rad::bam2rad_singlecell(
                 &bam_file_in,
-                &out_file,
+                &out_dir,
                 &transcripts,
                 &txp_lengths,
                 &trees,
@@ -120,6 +121,7 @@ fn main() {
                 t.is_present("corrected-tags"),
             );
         } else {
+            let out_file: String = t.value_of("out").unwrap().to_string();
             bam::bam2bam(
                 &bam_file_in,
                 &out_file,

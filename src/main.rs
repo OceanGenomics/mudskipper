@@ -1,7 +1,7 @@
 extern crate clap;
 extern crate num_cpus;
 
-use clap::{crate_version, App, AppSettings, Arg};
+use clap::{crate_version, App, AppSettings, Arg, ArgGroup};
 use std::collections::HashMap;
 
 mod annotation;
@@ -21,26 +21,35 @@ fn main() {
     let default_num_threads = String::from("1");
     let default_max_softlen = String::from("200");
     // let default_supplementary = String::from("keep");
+    let app_index = App::new("index")
+        .version(version)
+        .about("Parse the GTF and build an index to make later runs faster.")
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input GTF/GFF file'").required_unless("index").display_order(1))
+        .arg(Arg::from_usage("-d, --dir-index=<DIR> 'output index directory name'").display_order(2));
     let app_bulk = App::new("bulk")
         .version(version)
         .about("Convert alignment of bulk RNA-Seq reads against genome to alignment against transcriptome.")
         .arg(Arg::from_usage("-a, --alignment=<FILE> 'input SAM/BAM file'").display_order(1))
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input gtf/gff file'").display_order(1))
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input GTF/GFF file'").required_unless("index").display_order(1))
+        .arg(Arg::from_usage("-i, --index=<DIR> 'index directory containing parsed GTF files'").required_unless("gtf").display_order(1))
         .arg(Arg::from_usage("-o, --out=<FILE> 'output file name'").display_order(1))
         .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2));
+        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .group(ArgGroup::with_name("alaki").args(&["gtf", "index"]).multiple(false).required(true));
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
     let app_sc = App::new("sc")
         .version(version)
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
         .arg(Arg::from_usage("-a, --alignment=<FILE> 'input SAM/BAM file'").display_order(1))
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input gtf/gff file'").display_order(1))
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input GTF/GFF file'").required_unless("index").display_order(1))
+        .arg(Arg::from_usage("-i, --index=<DIR> 'index directory containing parsed GTF files'").required_unless("gtf").display_order(1))
         .arg(Arg::from_usage("-o, --out=<FILE/DIR> 'output file name (or directory name when --rad is passed)'").display_order(1))
         .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'").display_order(101))
         .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2));
+        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .group(ArgGroup::with_name("alaki").args(&["gtf", "index"]).multiple(false).required(true));
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
 
     let opts = App::new("mudskipper")
@@ -48,15 +57,24 @@ fn main() {
         .setting(AppSettings::DisableHelpSubcommand)
         .version(version)
         .about("Converting RNA-Seq alignments from genome cooridinates to transcriptome coordinates.")
+        .subcommand(app_index)
         .subcommand(app_bulk)
         .subcommand(app_sc)
         .get_matches();
 
     // convert a SAM/BAM file, in *genome coordinates*,
     // into a BAM file in *transcriptome coordinates*
-    if let Some(ref t) = opts.subcommand_matches("bulk") {
-        let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
+    if let Some(ref t) = opts.subcommand_matches("index") {
         let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
+        let index_dir: String = t.value_of("dir-index").unwrap().to_string();
+        // 
+        let mut transcripts_map: HashMap<String, i32> = HashMap::new();
+        let mut transcripts: Vec<String> = Vec::new();
+        let mut txp_lengths: Vec<i32> = Vec::new();
+        annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, Some(index_dir))
+            .expect("cannot build the tree!");
+    } else if let Some(ref t) = opts.subcommand_matches("bulk") {
+        let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
@@ -64,10 +82,14 @@ fn main() {
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
-        let trees = if std::fs::metadata("parsed_gtf.exon").is_ok() {
-            annotation::load_tree(&mut transcripts_map, &mut transcripts, &mut &mut txp_lengths).expect("cannot load the tree!")
+        let trees = if t.is_present("index"){
+            let index_dir_adr: String = t.value_of("index").unwrap().to_string();
+            annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths)
+                .expect("cannot load the tree!")
         } else {
-            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot build the tree!")
+            let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
+            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
+                .expect("cannot build the tree!")
         };
         if t.is_present("rad") {
             rad::bam2rad_bulk(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
@@ -86,7 +108,6 @@ fn main() {
         }
     } else if let Some(ref t) = opts.subcommand_matches("sc") {
         let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
-        let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
@@ -94,10 +115,14 @@ fn main() {
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
-        let trees = if std::fs::metadata("parsed_gtf.exon").is_ok() {
-            annotation::load_tree(&mut transcripts_map, &mut transcripts, &mut &mut txp_lengths).expect("cannot load the tree!")
+        let trees = if t.is_present("index") {
+            let index_dir_adr: String = t.value_of("index").unwrap().to_string();
+            annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths)
+                .expect("cannot load the tree!")
         } else {
-            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot build the tree!")
+            let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
+            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
+                .expect("cannot build the tree!")
         };
 
         let required_tags: Vec<&str>;

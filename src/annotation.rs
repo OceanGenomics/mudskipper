@@ -2,7 +2,8 @@ use bio::io::gff;
 use coitrees::{COITree, IntervalNode};
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs::File;
+use std::path::Path;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
 use std::time::Instant;
 
@@ -65,35 +66,39 @@ impl Clone for ExonNode {
 }
 
 pub fn load_tree(
+    index_dir: &String,
     transcripts_map: &mut HashMap<String, i32>,
     transcripts: &mut Vec<String>,
     txp_lengths: &mut Vec<i32>,
 ) -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, Box<dyn Error>> {
     log::info!("Loading parsed GTF...");
+    let index_dir_path = Path::new(index_dir);
     // load info
-    {
-        let mut ifile = File::open("parsed_gtf.map").unwrap();
-        let mut ireader = BufReader::new(ifile);
-        for line in ireader.lines() {
-            let line_str = line.unwrap();
-            let cols: Vec<&str> = line_str.trim().split("\t").collect();
-            transcripts_map.insert(cols[0].to_string(), cols[1].parse::<i32>().unwrap());
-        }
-        ifile = File::open("parsed_gtf.name").unwrap();
-        ireader = BufReader::new(ifile);
-        for line in ireader.lines() {
-            transcripts.push(line.unwrap().trim().to_string());
-        }
-        ifile = File::open("parsed_gtf.len").unwrap();
-        ireader = BufReader::new(ifile);
-        for line in ireader.lines() {
-            txp_lengths.push(line.unwrap().parse::<i32>().unwrap());
-        }
+    let mut file_path = index_dir_path.join("gtf.map");
+    let mut ifile = File::open(file_path.to_str().unwrap()).expect("Could not open index file!");
+    let mut ireader = BufReader::new(ifile);
+    for line in ireader.lines() {
+        let line_str = line.unwrap();
+        let cols: Vec<&str> = line_str.trim().split("\t").collect();
+        transcripts_map.insert(cols[0].to_string(), cols[1].parse::<i32>().unwrap());
+    }
+    file_path = index_dir_path.join("gtf.name");
+    ifile = File::open(file_path.to_str().unwrap()).expect("Could not open index file!");
+    ireader = BufReader::new(ifile);
+    for line in ireader.lines() {
+        transcripts.push(line.unwrap().trim().to_string());
+    }
+    file_path = index_dir_path.join("gtf.len");
+    ifile = File::open(file_path.to_str().unwrap()).expect("Could not open index file!");
+    ireader = BufReader::new(ifile);
+    for line in ireader.lines() {
+        txp_lengths.push(line.unwrap().parse::<i32>().unwrap());
     }
     //
     let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();
-    let ifile = File::open("parsed_gtf.exon").unwrap();
-    let ireader = BufReader::new(ifile);
+    file_path = index_dir_path.join("gtf.exon");
+    ifile = File::open(file_path.to_str().unwrap()).expect("Could not open index file!");
+    ireader = BufReader::new(ifile);
     let mut last_name: String = String::from("");
     let mut node_vec: Vec<IntervalNode<ExonNode, u32>> = Vec::new();
     for line in ireader.lines() {
@@ -139,6 +144,7 @@ pub fn build_tree(
     transcripts_map: &mut HashMap<String, i32>,
     transcripts: &mut Vec<String>,
     txp_lengths: &mut Vec<i32>,
+    out_index_dir: Option<String>,
 ) -> Result<FnvHashMap<String, COITree<ExonNode, u32>>, Box<dyn Error>> {
     let mut nodes = FnvHashMap::<String, Vec<IntervalNode<ExonNode, u32>>>::default();
     let a = Instant::now();
@@ -209,38 +215,53 @@ pub fn build_tree(
     }
     pb.finish_with_message("finish reading the file");
 
-    // save info
-    {
-        let mut outfile = File::create("parsed_gtf.map").unwrap();
-        for (seqname, seqid) in transcripts_map.iter() {
-            write!(outfile, "{}\t{}\n", seqname, seqid).unwrap();
-        }
-        outfile = File::create("parsed_gtf.name").unwrap();
-        for tname in transcripts.iter() {
-            write!(outfile, "{}\n", tname).unwrap();
-        }
-        outfile = File::create("parsed_gtf.len").unwrap();
-        for tlen in txp_lengths.iter() {
-            write!(outfile, "{}\n", tlen).unwrap();
-        }
-    }
-
     log::info!("building the tree");
-    let mut outfile = File::create("parsed_gtf.exon").unwrap();
     let mut trees = FnvHashMap::<String, COITree<ExonNode, u32>>::default();
-    for (seqname, seqname_nodes) in nodes {
-        // write!(outfile, "{}\t{}\n", seqname, seqname_nodes.len()).unwrap();
-        for inode in seqname_nodes.iter() {
-            write!(
-                outfile,
-                "{}\t{}\t{}\t{}\t{}\t{}\n",
-                seqname, inode.metadata.start, inode.metadata.end, inode.metadata.tid, inode.metadata.tpos_start, inode.metadata.strand
-            )
-            .unwrap();
-        }
-        trees.insert(seqname, COITree::new(seqname_nodes));
+    for (seqname, seqname_nodes) in &nodes {
+        trees.insert(seqname.to_string(), COITree::new(seqname_nodes.to_vec()));
     }
     let b = Instant::now();
     log::info!("Time to build the tree: {:?}", b - a);
+
+    // save parsed GTF files
+
+    if let Some(index_dir) = out_index_dir {
+        log::info!("saving the GTF index");
+        let index_dir_path = Path::new(&index_dir);
+        fs::create_dir_all(index_dir_path).unwrap();
+
+        let index_file_map = index_dir_path.join("gtf.map");
+        let mut outfile = File::create(index_file_map.to_str().unwrap()).unwrap();
+        for (seqname, seqid) in transcripts_map.iter() {
+            write!(outfile, "{}\t{}\n", seqname, seqid).unwrap();
+        }
+
+        let index_file_name = index_dir_path.join("gtf.name");
+        outfile = File::create(index_file_name.to_str().unwrap()).unwrap();
+        for tname in transcripts.iter() {
+            write!(outfile, "{}\n", tname).unwrap();
+        }
+
+        let index_file_len = index_dir_path.join("gtf.len");
+        outfile = File::create(index_file_len.to_str().unwrap()).unwrap();
+        for tlen in txp_lengths.iter() {
+            write!(outfile, "{}\n", tlen).unwrap();
+        }
+
+        let index_file_exon = index_dir_path.join("gtf.exon");
+        outfile = File::create(index_file_exon.to_str().unwrap()).unwrap();
+        for (seqname, seqname_nodes) in &nodes {
+            for inode in seqname_nodes.iter() {
+                write!(
+                    outfile,
+                    "{}\t{}\t{}\t{}\t{}\t{}\n",
+                    seqname, inode.metadata.start, inode.metadata.end, inode.metadata.tid, inode.metadata.tpos_start, inode.metadata.strand
+                )
+                .unwrap();
+            }
+        }
+        log::info!("Done with saving the GTF index");
+    }
+
     return Ok(trees);
 }

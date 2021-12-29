@@ -33,7 +33,8 @@ fn main() {
         .version(version)
         .about("Parse the GTF and build an index to make later runs faster.")
         .arg(Arg::from_usage("-g, --gtf=<FILE> 'input GTF/GFF file'").required_unless("index").display_order(1))
-        .arg(Arg::from_usage("-d, --dir-index=<DIR> 'output index directory name'").display_order(2));
+        .arg(Arg::from_usage("-d, --dir-index=<DIR> 'output index directory name'").display_order(2))
+        .display_order(1);
     let app_bulk = App::new("bulk")
         .version(version)
         .about("Convert alignment of bulk RNA-Seq reads against genome to alignment against transcriptome.")
@@ -46,7 +47,8 @@ fn main() {
         .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .arg(Arg::from_usage("-u, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-m, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
-        .group(ArgGroup::with_name("alaki").args(&["gtf", "index"]).multiple(false).required(true));
+        .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
+        .display_order(2);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
     let app_sc = App::new("sc")
         .version(version)
@@ -59,9 +61,11 @@ fn main() {
         .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'").display_order(101))
         .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
         .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'the name of output rad file; Only used with --bam'").default_value("map.rad").display_order(3))
         .arg(Arg::from_usage("-u, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-m, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
-        .group(ArgGroup::with_name("alaki").args(&["gtf", "index"]).multiple(false).required(true));
+        .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
+        .display_order(3);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
 
     let shuffle_app = App::new("shuffle")
@@ -136,6 +140,7 @@ fn main() {
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
+        let rad_mapped: String = t.value_of("rad-mapped").unwrap().to_string();
         //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
@@ -160,6 +165,7 @@ fn main() {
             rad::bam2rad_singlecell(
                 &bam_file_in,
                 &out_file,
+                &rad_mapped,
                 &transcripts,
                 &txp_lengths,
                 &trees,

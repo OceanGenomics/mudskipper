@@ -648,6 +648,7 @@ fn dump_collected_alignments_singlecell(
 pub fn bam2rad_singlecell(
     input_bam_filename: &String,
     output_dirname: &String,
+    rad_mapped_filename: &String,
     transcripts: &Vec<String>,
     txp_lengths: &Vec<i32>,
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
@@ -656,7 +657,7 @@ pub fn bam2rad_singlecell(
     corrected_tags: bool,
 ) {
     let out_dir_path = Path::new(output_dirname);
-    let out_rad_path = out_dir_path.join("map.rad");
+    let out_rad_path = out_dir_path.join(rad_mapped_filename);
     fs::create_dir_all(out_dir_path).unwrap();
     let ofile = File::create(out_rad_path.to_str().unwrap()).unwrap();
     // file writer and intermediate buffer

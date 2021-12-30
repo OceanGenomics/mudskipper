@@ -649,6 +649,7 @@ pub fn bam2rad_singlecell(
     input_bam_filename: &String,
     output_dirname: &String,
     rad_mapped_filename: &String,
+    rad_unmapped_filename: &String,
     transcripts: &Vec<String>,
     txp_lengths: &Vec<i32>,
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
@@ -657,9 +658,11 @@ pub fn bam2rad_singlecell(
     corrected_tags: bool,
 ) {
     let out_dir_path = Path::new(output_dirname);
-    let out_rad_path = out_dir_path.join(rad_mapped_filename);
     fs::create_dir_all(out_dir_path).unwrap();
+    let out_rad_path = out_dir_path.join(rad_mapped_filename);
     let ofile = File::create(out_rad_path.to_str().unwrap()).unwrap();
+    let out_unmapped_path = out_dir_path.join(rad_unmapped_filename);
+    let ofile_unmapped = File::create(out_unmapped_path.to_str().unwrap()).unwrap();
     // file writer and intermediate buffer
     let mut owriter = BufWriter::with_capacity(1048576, ofile);
     let mut data = Cursor::new(vec![]);

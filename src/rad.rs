@@ -662,7 +662,7 @@ pub fn bam2rad_singlecell(
     let out_rad_path = out_dir_path.join(rad_mapped_filename);
     let ofile = File::create(out_rad_path.to_str().unwrap()).unwrap();
     let out_unmapped_path = out_dir_path.join(rad_unmapped_filename);
-    let ofile_unmapped = File::create(out_unmapped_path.to_str().unwrap()).unwrap();
+    let _ofile_unmapped = File::create(out_unmapped_path.to_str().unwrap()).unwrap();
     // file writer and intermediate buffer
     let mut owriter = BufWriter::with_capacity(1048576, ofile);
     let mut data = Cursor::new(vec![]);

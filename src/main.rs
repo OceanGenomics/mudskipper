@@ -52,6 +52,7 @@ fn main() {
         .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
         .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'the name of output rad file; Only used with --bam'").default_value("map.rad").display_order(3))
+        .arg(Arg::from_usage("-u, --rad-unmapped=<FILE> 'the name of file containing the number of unmapped reads for each barcode; Only used with --bam'").default_value("unmapped_bc_count.bin").display_order(3))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
         .display_order(3);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
@@ -116,6 +117,7 @@ fn main() {
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
         let rad_mapped: String = t.value_of("rad-mapped").unwrap().to_string();
+        let rad_unmapped: String = t.value_of("rad-unmapped").unwrap().to_string();
         //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
@@ -141,6 +143,7 @@ fn main() {
                 &bam_file_in,
                 &out_file,
                 &rad_mapped,
+                &rad_unmapped,
                 &transcripts,
                 &txp_lengths,
                 &trees,

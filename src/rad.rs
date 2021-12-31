@@ -105,12 +105,35 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
             // data.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
             // alignment position
             // data.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
+
             // array of alignment-specific tags
+            // compressed_ori_refid
             let mut tid_comressed = txp_rec.tid() as u32;
             if txp_rec.is_reverse() == false {
                 tid_comressed |= 0x80000000 as u32;
             }
             data.write_all(&tid_comressed.to_le_bytes()).unwrap();
+            // alnscore
+            // NOTE: since AS is of type integer but RAD format doesn't have signed integer, we store it in a floating point number instead
+            let mut alnscore: f32 = 0.0;
+            match txp_rec.aux(b"AS") {
+                Ok(value) => {
+                    match value {
+                        Aux::I8(v) => alnscore = v as f32,
+                        Aux::U8(v) => alnscore = v as f32,
+                        Aux::I16(v) => alnscore = v as f32,
+                        Aux::U16(v) => alnscore = v as f32,
+                        Aux::I32(v) => alnscore = v as f32,
+                        Aux::U32(v) => alnscore = v as f32,
+                        _ => println!("something else"),
+                    }
+                }
+                Err(e) => {
+                    log::error!("Could not find AS tag for a record of the read {}", String::from_utf8(txp_rec.qname().to_vec()).unwrap());
+                    panic!("Error reading AS tag: {}", e);
+                }
+            }
+            data.write_all(&alnscore.to_le_bytes()).unwrap();
             written_records += 1;
             wrote_some = true;
         }
@@ -180,13 +203,19 @@ pub fn bam2rad_bulk_se(
         data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
-        num_tags = 1u16;
+        num_tags = 2u16;
         data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
         let refid_str = "compressed_ori_refid";
-        let typeid = 3u8;
+        let mut typeid = 3u8;
         libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+
+        // alignment score
+        let alnscore_str = "alnscore";
+        typeid = 5u8;
+        libradicl::write_str_bin(&alnscore_str, &libradicl::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -321,7 +350,29 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 // data.write_all(&pos_left.to_le_bytes()).unwrap();
                 // alignment position right mate
                 // data.write_all(&pos_right.to_le_bytes()).unwrap();
+
                 // array of alignment-specific tags
+                // alnscore
+                // NOTE: since AS is of type integer but RAD format doesn't have signed integer, we store it in a floating point number instead
+                let mut alnscore: f32 = 0.0;
+                match rec1.aux(b"AS") {
+                    Ok(value) => {
+                        match value {
+                            Aux::I8(v) => alnscore = v as f32,
+                            Aux::U8(v) => alnscore = v as f32,
+                            Aux::I16(v) => alnscore = v as f32,
+                            Aux::U16(v) => alnscore = v as f32,
+                            Aux::I32(v) => alnscore = v as f32,
+                            Aux::U32(v) => alnscore = v as f32,
+                            _ => println!("something else"),
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Could not find AS tag for a record of the read {}", String::from_utf8(rec1.qname().to_vec()).unwrap());
+                        panic!("Error reading AS tag: {}", e);
+                    }
+                }
+                data.write_all(&alnscore.to_le_bytes()).unwrap();
                 wrote_some = true;
                 written_records += 1;
             } else { // only one mate is mapped
@@ -346,7 +397,29 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 data.write_all(&aln_type.to_le_bytes()).unwrap();
                 // alignment position of left/right mate
                 // data.write_all(&(mapped_rec.pos() as u32).to_le_bytes()).unwrap();
+
                 // array of alignment-specific tags
+                // alnscore
+                // NOTE: since AS is of type integer but RAD format doesn't have signed integer, we store it in a floating point number instead
+                let mut alnscore: f32 = 0.0;
+                match mapped_rec.aux(b"AS") {
+                    Ok(value) => {
+                        match value {
+                            Aux::I8(v) => alnscore = v as f32,
+                            Aux::U8(v) => alnscore = v as f32,
+                            Aux::I16(v) => alnscore = v as f32,
+                            Aux::U16(v) => alnscore = v as f32,
+                            Aux::I32(v) => alnscore = v as f32,
+                            Aux::U32(v) => alnscore = v as f32,
+                            _ => println!("something else"),
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Could not find AS tag for a record of the read {}", String::from_utf8(mapped_rec.qname().to_vec()).unwrap());
+                        panic!("Error reading AS tag: {}", e);
+                    }
+                }
+                data.write_all(&alnscore.to_le_bytes()).unwrap();
                 wrote_some = true;
                 written_records += 1;
             }
@@ -422,7 +495,7 @@ pub fn bam2rad_bulk_pe(
         data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
-        num_tags = 2u16;
+        num_tags = 3u16;
         data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
@@ -435,6 +508,12 @@ pub fn bam2rad_bulk_pe(
         let alntype_str = "alntype";
         typeid = 1u8;
         libradicl::write_str_bin(&alntype_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+        
+        // alignment score
+        let alnscore_str = "alnscore";
+        typeid = 5u8;
+        libradicl::write_str_bin(&alnscore_str, &libradicl::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -584,6 +663,7 @@ fn dump_collected_alignments_singlecell(
             // data.write_all(&(txp_rec.is_reverse() as u8).to_le_bytes()).unwrap();
             // alignment position
             // data.write_all(&(txp_rec.pos() as u32).to_le_bytes()).unwrap();
+
             // array of alignment-specific tags
             let mut tid_comressed = txp_rec.tid() as u32;
             if txp_rec.is_reverse() == false {

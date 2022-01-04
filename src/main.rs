@@ -17,7 +17,6 @@ use log;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    log::info!("Mudskipper started...");
     let version = crate_version!();
     // let default_num_threads: String = (num_cpus::get() as u32).to_string();
     let default_num_threads = String::from("1");
@@ -32,8 +31,8 @@ fn main() {
     let app_index = App::new("index")
         .version(version)
         .about("Parse the GTF and build an index to make later runs faster.")
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input GTF/GFF file'").required_unless("index").display_order(1))
-        .arg(Arg::from_usage("-d, --dir-index=<DIR> 'output index directory name'").display_order(2))
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'").required_unless("index").display_order(1))
+        .arg(Arg::from_usage("-d, --dir-index=<DIR> 'Output index directory name'").display_order(2))
         .display_order(1);
     let app_bulk = App::new("bulk")
         .version(version)
@@ -44,7 +43,7 @@ fn main() {
         .arg(Arg::from_usage("-o, --out=<FILE> 'output file name'").display_order(1))
         .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .arg(Arg::from_usage("-u, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-m, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
@@ -53,18 +52,18 @@ fn main() {
     let app_sc = App::new("sc")
         .version(version)
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
-        .arg(Arg::from_usage("-a, --alignment=<FILE> 'input SAM/BAM file'").display_order(1))
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'input GTF/GFF file'").required_unless("index").display_order(1))
-        .arg(Arg::from_usage("-i, --index=<DIR> 'index directory containing parsed GTF files'").required_unless("gtf").display_order(1))
-        .arg(Arg::from_usage("-o, --out=<FILE/DIR> 'output file name (or directory name when --rad is passed)'").display_order(1))
-        .arg(Arg::from_usage("-r, --rad 'output in RAD format instead of BAM'").display_order(100))
-        .arg(Arg::from_usage("-c, --corrected-tags 'output error-corrected cell barcode and UMI'").display_order(101))
-        .arg(Arg::from_usage("-t, --threads=<INT> 'number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
-        .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'the name of output rad file; Only used with --bam'").default_value("map.rad").display_order(3))
+        .arg(Arg::from_usage("-a, --alignment=<FILE> 'Input SAM/BAM file'").display_order(1))
+        .arg(Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'").required_unless("index").display_order(1))
+        .arg(Arg::from_usage("-i, --index=<DIR> 'Index directory containing parsed GTF files'").required_unless("gtf").display_order(1))
+        .arg(Arg::from_usage("-o, --out=<FILE/DIR> 'Output file name (or directory name when --rad is passed)'").display_order(1))
+        .arg(Arg::from_usage("-r, --rad 'Output in RAD format instead of BAM'").display_order(100))
+        .arg(Arg::from_usage("-c, --corrected-tags 'Output error-corrected cell barcode and UMI'").display_order(101))
+        .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
+        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'Name of output rad file; Only used with --rad'").default_value("map.rad").display_order(3))
+        .arg(Arg::from_usage("-u, --rad-unmapped=<FILE> 'Name of file containing the number of unmapped reads for each barcode; Only used with --rad'").default_value("unmapped_bc_count.bin").display_order(3))
         .arg(Arg::from_usage("-e, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-m, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
-        .arg(Arg::from_usage("-u, --rad-unmapped=<FILE> 'the name of file containing the number of unmapped reads for each barcode; Only used with --bam'").default_value("unmapped_bc_count.bin").display_order(3))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
         .display_order(3);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
@@ -88,6 +87,7 @@ fn main() {
         .subcommand(shuffle_app)
         .get_matches();
 
+    log::info!("Mudskipper started...");
     // convert a SAM/BAM file, in *genome coordinates*,
     // into a BAM file in *transcriptome coordinates*
     if let Some(ref t) = opts.subcommand_matches("index") {

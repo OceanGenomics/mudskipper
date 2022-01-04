@@ -1,7 +1,7 @@
 # mudskipper
 
 ## Quick start
-```bash=
+```bash
 # convert a bulk RNA-Seq genomic BAM to a transcriptomic BAM for quantification with Salmon
 mudkipper bulk --gtf annotation.gtf --alignment genomic.bam --out transcriptomic.bam
 # convert a single-cell RNA-Seq genomic SAM to a transcriptomic RAD for quantification with alevin-fry
@@ -30,12 +30,12 @@ For each such transcript, a BAM record is created that stores the proper alignme
 
 `mudskipper` is written in [Rust](https://www.rust-lang.org/) and can be built as follows:
 [**Requires:** [Rust toolchain](https://www.rust-lang.org/tools/install)]
-```bash=
+```bash
 cargo build --release
 ```
 
 This will create a binary executable at `target/release/mudskipper`. You can add this file to your environment PATH variable for convenience. This can be done temporarily using:
-```bash=
+```bash
 export PATH=`pwd`/target/release/:$PATH
 ```
 

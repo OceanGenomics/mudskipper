@@ -14,6 +14,15 @@ mudkipper bulk --index gtf_index --alignment genomic.bam --out transcriptomic.ba
 mudkipper sc --index gtf_index --alignment genomic.sam --out transcriptomic_dir
 ```
 
+## Table of Contents
+- [Quick start](#quick-start)
+- [Introduction](#introduction)
+- [Building from source](#building-from-source)
+- [Interface](#interface)
+  - [Projection of bulk RNA-Seq read alignments](#projection-of-bulk-rna-seq-read-alignments)
+  - [Projection of single-cell RNA-Seq read alignments](#projection-of-single-cell-rna-seq-read-alignments)
+  - [Build and store the GTF interval tree](#build-and-store-the-gtf-interval-tree)
+
 ## Introduction
 
 `mudskipper` is a tool for converting genomic BAM/SAM files to transcriptomic BAM/RAD files. More specifically, it projects the genomic coordinates of each alignment entry to transcriptomic coordinates based on a given transcript annotation in GTF format.

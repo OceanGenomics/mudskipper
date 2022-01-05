@@ -53,7 +53,7 @@ export PATH=`pwd`/target/release/:$PATH
 
 ### Projection of bulk RNA-Seq read alignments
 ```
-mudskipper bulk [OPTIONS] --alignment <FILE> --out <FILE> (--gtf <FILE>|--index <DIR>)
+mudskipper bulk [OPTIONS] --alignment <FILE> (--gtf <FILE>|--index <DIR>) --out <FILE>
 
 OPTIONS:
     -a, --alignment <FILE>     Input SAM/BAM file
@@ -69,7 +69,7 @@ OPTIONS:
 
 ### Projection of single-cell RNA-Seq read alignments
 ```
-mudskipper sc [OPTIONS] --alignment <FILE> --out <FILE/DIR> (--gtf <FILE>|--index <DIR>)
+mudskipper sc [OPTIONS] --alignment <FILE> (--gtf <FILE>|--index <DIR>) --out <FILE/DIR>
 
 OPTIONS:
     -a, --alignment <FILE>       Input SAM/BAM file
@@ -88,7 +88,7 @@ OPTIONS:
 
 ### Building and storing the GTF interval tree
 ```
-mudskipper index --dir-index <DIR> --gtf <FILE>
+mudskipper index --gtf <FILE> --dir-index <DIR>
 
 OPTIONS:
     -g, --gtf <FILE>         Input GTF/GFF file

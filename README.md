@@ -28,7 +28,7 @@ mudkipper sc --index gtf_index --alignment genomic.sam --out transcriptomic_dir
 
 `mudskipper` is a tool for converting genomic BAM/SAM files to transcriptomic BAM/RAD files. More specifically, it projects the genomic coordinates of each alignment entry to transcriptomic coordinates based on a given transcript annotation in GTF format.
 
-The current focus in `mudskipper` is to enable transcript quantification from genomic alignments without re-mapping short reads onto the transcriptome (e.g. using `salmon` for bulk RNA-Seq samples and `alevin-fry` for single-cell RNA-Seq samples). The motivation for developing `mudskipper` was that there are many tools that require alignment of short RNA-Seq reads against reference genome. Transcript quantification tools on the other hand, usually expect alignment of short RNA-Seq reads against the transcriptome. `mudskipper` enables users to perform transcript quantification using genomic alignments instead of starting the whole process from scratch (by avoiding mapping short RNA-Seq reads directly against the transcriptome).
+The current focus in `mudskipper` is to enable transcript quantification from genomic alignments without re-mapping short reads onto the transcriptome (e.g. using [`salmon`](https://github.com/COMBINE-lab/salmon) for bulk RNA-Seq samples and [`alevin-fry`](https://github.com/COMBINE-lab/alevin-fry/) for single-cell RNA-Seq samples). The motivation for developing `mudskipper` was that there are many tools that require alignment of short RNA-Seq reads against reference genome. Transcript quantification tools on the other hand, usually expect alignment of short RNA-Seq reads against the transcriptome. `mudskipper` enables users to perform transcript quantification using genomic alignments instead of starting the whole process from scratch (by avoiding mapping short RNA-Seq reads directly against the transcriptome).
 
 **Algorithmic details:** `mudskipper` parses the input GTF file and builds an interval tree that stores the coordinates of exons for *all* the transcripts present in the GTF file. It then processes each genomic alignment of the given input BAM/SAM file. Note that genomic alignments of RNA-Seq reads are spliced (i.e. they might have `N` in the CIGAR string). Therefore, `mudskipper` uses the generated interval tree to project each genomic alignment to all transcripts that satisfy the following conditions:
 1. Transcripts whose start and end coordinates on the genome mark a region that fully contains the alignment,
@@ -73,14 +73,14 @@ Using this argument you can specify the input alignment file. Currenlty BAM/SAM 
 > ✏️ The alignments stored in this file are potentially spliced. 
 
 ##### `-g, --gtf <FILE>`
-This argument can be used to pass the gene annotation in GTF format. In this case, the interval tree is build from the GTF file on the fly. Alternatively, `--index` argument can be used. That means `--gtf` and `--index` are mutually exclusive.
+This argument can be used to pass the gene annotation in GTF format. In this case, the interval tree is build from the GTF file on the fly. Alternatively, [`--index`](#-i---index-dir) argument can be used. That means `--gtf` and `--index` are mutually exclusive.
 > ✏️ Make sure that the GTF file corresponds to the same version of the reference genome to which short reads have been aligned. If some target sequences are missing from the GTF file, alignments to those target sequences will be dropped automatically.
 
 ##### `-i, --index <DIR>`
 This argument specifies the path to the pre-built interval tree, previously created from a GTF file (see [Building and storing the GTF interval tree](#building-and-storing-the-gtf-interval-tree) for more details about how to create such an index). This is helpful if you wish to run `mudskipper` on many BAM/SAM files.  the  Note that `--gtf` and `--index` are mutually exclusive.
 
 ##### `-o, --out <FILE>`
-The path to the output alignment file. By default, the output alignment file is in BAM format. If `--rad` is passed, then the output alignment file will be in RAD format.
+The path to the output alignment file. By default, the output alignment file is in BAM format. If [`--rad`](#-r---rad) is passed, then the output alignment file will be in RAD format.
 
 #### Optional arguments
 ##### `-r, --rad`
@@ -117,24 +117,24 @@ Using this argument you can specify the input alignment file. Currenlty BAM/SAM 
 > ✏️ The alignments stored in this file are potentially spliced. 
 
 ##### `-g, --gtf <FILE>`
-This argument can be used to pass the gene annotation in GTF format. In this case, the interval tree is build from the GTF file on the fly. Alternatively, `--index` argument can be used. That means `--gtf` and `--index` are mutually exclusive.
+This argument can be used to pass the gene annotation in GTF format. In this case, the interval tree is build from the GTF file on the fly. Alternatively, [`--index`](#-i---index-dir-1) argument can be used. That means `--gtf` and `--index` are mutually exclusive.
 > ✏️ Make sure that the GTF file corresponds to the same version of the reference genome to which short reads have been aligned. If some target sequences are missing from the GTF file, alignments to those target sequences will be dropped automatically.
 
 ##### `-i, --index <DIR>`
 This argument specifies the path to the pre-built interval tree, previously created from a GTF file (see [Building and storing the GTF interval tree](#building-and-storing-the-gtf-interval-tree) for more details about how to create such an index). This is helpful if you wish to run `mudskipper` on many BAM/SAM files.  the  Note that `--gtf` and `--index` are mutually exclusive.
 
 ##### `-o, --out <FILE/DIR>`
-The path to the output alignment file in BAM format. If `--rad` is passed, this argument specifies the output directory that contains the RAD format as well as other files required by `alevin-fry` for performing transcript quantification.
+The path to the output alignment file in BAM format. If [`--rad`](#-r---rad-1) is passed, this argument specifies the output directory that contains the RAD format as well as other files required by `alevin-fry` for performing transcript quantification.
 
 #### Optional arguments
 ##### `-r, --rad`
 Pass this argument to output alignments in RAD format instead of BAM. This argument is not set by default.
 
 ##### `-m, --rad-mapped <FILE>`
-Specifies the name of output rad file. This option is used only when `--rad` is passed. In that case, this file will be stored in the directory passed by `--out`. By default, this is set to `map.rad`.
+Specifies the name of output rad file. This option is used only when [`--rad`](#-r---rad-1) is passed. In that case, this file will be stored in the directory passed by [`--out`](#-o---out-filedir). By default, this is set to `map.rad`.
 
 ##### `-u, --rad-unmapped <FILE>`
-Specifies the name of the file containing the number of unmapped reads for each barcode. This option is used only when `--rad` is passed. In that case, this file will be stored in the directory passed by `--out`. By default, this is set to `unmapped_bc_count.bin`.
+Specifies the name of the file containing the number of unmapped reads for each barcode. This option is used only when [`--rad`](#-r---rad-1) is passed. In that case, this file will be stored in the directory passed by [`--out`](#-o---out-filedir). By default, this is set to `unmapped_bc_count.bin`.
 
 ##### `-t, --threads <INT>`
 The number of threads to use for reading and writing BAM files. By default, this is set to 1.

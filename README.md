@@ -21,7 +21,8 @@ mudkipper sc --index gtf_index --alignment genomic.sam --out transcriptomic_dir
 - [Interface](#interface)
   - [Projection of bulk RNA-Seq read alignments](#projection-of-bulk-rna-seq-read-alignments)
   - [Projection of single-cell RNA-Seq read alignments](#projection-of-single-cell-rna-seq-read-alignments)
-  - [Build and store the GTF interval tree](#build-and-store-the-gtf-interval-tree)
+  - [Building and storing the GTF interval tree](#building-and-storing-the-gtf-interval-tree)
+- [Limitations](#limitations)
 
 ## Introduction
 

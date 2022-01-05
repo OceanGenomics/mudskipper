@@ -98,7 +98,7 @@ OPTIONS:
 ```
 
 ## Limitations
-`mudskipper` is still in early stages of development with lots of room for improvements. Currently, it has the following known limitations:
+`mudskipper` is still in early stages of development with lots of room for improvements. So far, `mudskipper` has been tested only for the purpose of transcript quantification. Currently, it has the following known limitations:
 - It only reports projected alignments that are fully contained in a transcript. In other words, it currenlty does not report any overhanging alignments. [[#10](/../../issues/10)]
 - Currently, some fields and optional tags of the output BAM might not be properly updated. [[#13](/../../issues/13)]
 - For single-cell samples, it drops alignment of reads that have `N` in their barcode. [[#15](/../../issues/15)]

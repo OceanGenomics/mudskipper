@@ -56,16 +56,41 @@ export PATH=`pwd`/target/release/:$PATH
 mudskipper bulk [OPTIONS] --alignment <FILE> (--gtf <FILE>|--index <DIR>) --out <FILE>
 
 OPTIONS:
-    -a, --alignment <FILE>     Input SAM/BAM file
-    -g, --gtf <FILE>           Input GTF/GFF file
-    -i, --index <DIR>          Index directory containing parsed GTF files
-    -o, --out <FILE>           Output file name
-    -s, --max-softlen <INT>    Max allowed softclip length [default: 200]
-    -t, --threads <INT>        Number of threads for processing bam files [default: 1]
-    -r, --rad                  Output in RAD format instead of BAM
-    -h, --help                 Prints help information
-    -V, --version              Prints version information
+    -a, --alignment <FILE>      Input SAM/BAM file
+    -g, --gtf <FILE>            Input GTF/GFF file
+    -i, --index <DIR>           Index directory containing parsed GTF files
+    -o, --out <FILE>            Output file name
+    -s, --max-softclip <INT>    Max allowed softclip length [default: 50]
+    -t, --threads <INT>         Number of threads for processing bam files [default: 1]
+    -r, --rad                   Output in RAD format instead of BAM
+    -h, --help                  Prints help information
+    -V, --version               Prints version information
 ```
+
+#### Required arguments
+##### `-a, --alignment <FILE>`
+Using this argument you can specify the input alignment file. Currenlty BAM/SAM formats are supported. This BAM/SAM file should contain alignment of short RNA-Seq reads against reference genome.
+> ✏️ The alignments stored in this file are potentially spliced. 
+
+##### `-g, --gtf <FILE>`
+This argument can be used to pass the gene annotation in GTF format. In this case, the interval tree is build from the GTF file on the fly. Alternatively, `--index` argument can be used. That means `--gtf` and `--index` are mutually exclusive.
+> ✏️ Make sure that the GTF file corresponds to the same version of the reference genome to which short reads have been aligned. If some target sequences are missing from the GTF file, alignments to those target sequences will be dropped automatically.
+
+##### `-i, --index <DIR>`
+This argument specifies the path to the pre-built interval tree, previously created from a GTF file (see [Building and storing the GTF interval tree](#building-and-storing-the-gtf-interval-tree) for more details about how to create such an index). This is helpful if you wish to run `mudskipper` on many BAM/SAM files.  the  Note that `--gtf` and `--index` are mutually exclusive.
+
+##### `-o, --out <FILE>`
+The path to the output alignment file. By default, the output alignment file is in BAM format. If `--rad` is passed, then the output alignment file will be in RAD format.
+
+#### Optional arguments
+##### `-r, --rad`
+Pass this argument to output alignments in RAD format instead of BAM. This argument is not set by default.
+
+##### `-t, --threads <INT>`
+The number of threads to use for reading and writing BAM files. By default, this is set to 1.
+
+##### `-s, --max-softclip <INT>`
+Drop alignments that have more than INT soft-clipped bases. By default, this is set to 50.
 
 ### Projection of single-cell RNA-Seq read alignments
 ```
@@ -76,15 +101,49 @@ OPTIONS:
     -g, --gtf <FILE>             Input GTF/GFF file
     -i, --index <DIR>            Index directory containing parsed GTF files
     -o, --out <FILE/DIR>         Output file name (or directory name when --rad is passed)
-    -s, --max-softlen <INT>      Max allowed softclip length [default: 200]
+    -s, --max-softclip <INT>     Max allowed softclip length [default: 50]
     -t, --threads <INT>          Number of threads for processing bam files [default: 1]
+    -r, --rad                    Output in RAD format instead of BAM
     -m, --rad-mapped <FILE>      The name of output rad file; Only used with --rad [default: map.rad]
     -u, --rad-unmapped <FILE>    The name of file containing the number of unmapped reads for each barcode; Only used with --rad [default: unmapped_bc_count.bin]
-    -r, --rad                    Output in RAD format instead of BAM
     -c, --corrected-tags         Output error-corrected cell barcode and UMI
     -h, --help                   Prints help information
     -V, --version                Prints version information
 ```
+
+#### Required arguments
+##### `-a, --alignment <FILE>`
+Using this argument you can specify the input alignment file. Currenlty BAM/SAM formats are supported. This BAM/SAM file should contain alignment of short RNA-Seq reads against reference genome.
+> ✏️ The alignments stored in this file are potentially spliced. 
+
+##### `-g, --gtf <FILE>`
+This argument can be used to pass the gene annotation in GTF format. In this case, the interval tree is build from the GTF file on the fly. Alternatively, `--index` argument can be used. That means `--gtf` and `--index` are mutually exclusive.
+> ✏️ Make sure that the GTF file corresponds to the same version of the reference genome to which short reads have been aligned. If some target sequences are missing from the GTF file, alignments to those target sequences will be dropped automatically.
+
+##### `-i, --index <DIR>`
+This argument specifies the path to the pre-built interval tree, previously created from a GTF file (see [Building and storing the GTF interval tree](#building-and-storing-the-gtf-interval-tree) for more details about how to create such an index). This is helpful if you wish to run `mudskipper` on many BAM/SAM files.  the  Note that `--gtf` and `--index` are mutually exclusive.
+
+##### `-o, --out <FILE/DIR>`
+The path to the output alignment file in BAM format. If `--rad` is passed, this argument specifies the output directory that contains the RAD format as well as other files required by `alevin-fry` for performing transcript quantification.
+
+#### Optional arguments
+##### `-r, --rad`
+Pass this argument to output alignments in RAD format instead of BAM. This argument is not set by default.
+
+##### `-m, --rad-mapped <FILE>`
+Specifies the name of output rad file. This option is used only when `--rad` is passed. In that case, this file will be stored in the directory passed by `--out`. By default, this is set to `map.rad`.
+
+##### `-u, --rad-unmapped <FILE>`
+Specifies the name of the file containing the number of unmapped reads for each barcode. This option is used only when `--rad` is passed. In that case, this file will be stored in the directory passed by `--out`. By default, this is set to `unmapped_bc_count.bin`.
+
+##### `-t, --threads <INT>`
+The number of threads to use for reading and writing BAM files. By default, this is set to 1.
+
+##### `-s, --max-softclip <INT>`
+Drop alignments that have more than INT soft-clipped bases. By default, this is set to 50.
+
+##### `-c, --corrected-tags`
+By default, `mudskipper sc` expects to see `CR` and `UR` tags in the input BAM/SAM file, which store cell barcode and UMI respectively. If this argument is passed, then `CB` and `UB` tags must be present instead, which store corrected cell barcode and corrected UMI respectively.
 
 ### Building and storing the GTF interval tree
 ```
@@ -96,6 +155,16 @@ OPTIONS:
     -h, --help               Prints help information
     -V, --version            Prints version information
 ```
+
+When using `mudskipper bulk` or `mudskipper sc`, if you pass the gene annotation file, `mudskipper` builds an interval tree on the fly. This interval tree is used to query transcriptomic coordinates that overlap a given genomic region. Instead of building the interval tree on the fly, you can build the interval tree and store it for later use. This is helpful if you wish to run `mudskipper` on many BAM/SAM files.
+
+#### Required arguments
+##### `-g, --gtf <FILE>`
+Specifies the gene/transcript annotation file in GTF format.
+
+##### `-d, --dir-index <DIR>`
+The path of the directory where the interval tree files will be stored.
+> ✏️ This directory will be created if does not exist.
 
 ## Limitations
 `mudskipper` is still in early stages of development with lots of room for improvements. So far, `mudskipper` has been tested only for the purpose of transcript quantification. Currently, it has the following known limitations:

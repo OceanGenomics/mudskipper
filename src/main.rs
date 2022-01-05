@@ -35,7 +35,7 @@ fn main() {
         .arg(Arg::from_usage("-o, --out=<FILE> 'Output file name'").display_order(1))
         .arg(Arg::from_usage("-r, --rad 'Output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
         .display_order(2);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
@@ -49,7 +49,7 @@ fn main() {
         .arg(Arg::from_usage("-r, --rad 'Output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-c, --corrected-tags 'Output error-corrected cell barcode and UMI'").display_order(101))
         .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softlen=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'Name of output rad file; Only used with --rad'").default_value("map.rad").display_order(3))
         .arg(Arg::from_usage("-u, --rad-unmapped=<FILE> 'Name of file containing the number of unmapped reads for each barcode; Only used with --rad'").default_value("unmapped_bc_count.bin").display_order(3))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
@@ -82,7 +82,7 @@ fn main() {
         let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
-        let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
+        let max_softlen: usize = t.value_of("max-softclip").unwrap().parse::<usize>().unwrap();
         //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
@@ -115,7 +115,7 @@ fn main() {
         let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
-        let max_softlen: usize = t.value_of("max-softlen").unwrap().parse::<usize>().unwrap();
+        let max_softlen: usize = t.value_of("max-softclip").unwrap().parse::<usize>().unwrap();
         let rad_mapped: String = t.value_of("rad-mapped").unwrap().to_string();
         let rad_unmapped: String = t.value_of("rad-unmapped").unwrap().to_string();
         //

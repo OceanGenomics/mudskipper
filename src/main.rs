@@ -20,7 +20,7 @@ fn main() {
     let version = crate_version!();
     // let default_num_threads: String = (num_cpus::get() as u32).to_string();
     let default_num_threads = String::from("1");
-    let default_max_softlen = String::from("200");
+    let default_max_softlen = String::from("50");
     // let default_supplementary = String::from("keep");
 
     let mut sys = System::new_all();

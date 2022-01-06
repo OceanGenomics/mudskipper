@@ -168,8 +168,9 @@ The path of the directory where the interval tree files will be stored.
 
 ## Limitations
 `mudskipper` is still in early stages of development with lots of room for improvements. So far, `mudskipper` has been tested only for the purpose of transcript quantification. Currently, it has the following known limitations:
+- Chimeric alignments are not reported. That means for now a projected alignment is reported only if all its segments fall on the same target.
 - It only reports projected alignments that are fully contained in a transcript. In other words, it currenlty does not report any overhanging alignments. [[#10](/../../issues/10)]
-- Currently, some fields and optional tags of the output BAM might not be properly updated. [[#13](/../../issues/13)]
+- Some fields and optional tags of the output BAM might not be properly updated. [[#13](/../../issues/13)]
 - For single-cell samples, it drops alignment of reads that have `N` in their barcode. [[#15](/../../issues/15)]
 
 Bug reports and suggestions are warmly welcomed. 

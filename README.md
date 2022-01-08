@@ -22,6 +22,7 @@ mudkipper sc --index gtf_index --alignment genomic.sam --out transcriptomic_dir
   - [Projection of bulk RNA-Seq read alignments](#projection-of-bulk-rna-seq-read-alignments)
   - [Projection of single-cell RNA-Seq read alignments](#projection-of-single-cell-rna-seq-read-alignments)
   - [Building and storing the GTF interval tree](#building-and-storing-the-gtf-interval-tree)
+- [Use cases](#use-cases)
 - [Limitations](#limitations)
 
 ## Introduction
@@ -165,6 +166,12 @@ Specifies the gene/transcript annotation file in GTF format.
 ##### `-d, --dir-index <DIR>`
 The path of the directory where the interval tree files will be stored.
 > ✏️ This directory will be created if does not exist.
+
+## Use cases
+### Transcript quantification of bulk RNA-Seq samples from genomic alignments
+If we have a BAM/SAM file containing alignment of RNA-Seq reads from a bulk sample against the reference genome, we cannot use it for transcript quantification with most of the state-of-the-art tools. [`salmon`](https://github.com/COMBINE-lab/salmon) is one of those tools. Although `salmon` has a very fast embedded mapping module, we can still save some time and instead of re-mapping, use `mudskipper` to project genomic alignments to transcriptomic coordinates. That allows us to use `salmon` in alignment-based mode. More specifically, `mudskipper` will output transcriptomic alignments in a BAM file that can be passed to `salmon quant` via `-a` or `--alignments` input option. 
+
+### Transcript quantification of single-cell RNA-Seq samples from genomic alignments
 
 ## Limitations
 `mudskipper` is still in early stages of development with lots of room for improvements. So far, `mudskipper` has been tested only for the purpose of transcript quantification. Currently, it has the following known limitations:

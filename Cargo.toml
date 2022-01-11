@@ -6,7 +6,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# noodles = { git = "https://github.com/zaeleus/noodles.git", features = ["bam", "gff"] }
 rust-htslib = "*"
 bio = "*"
 bio-types = "*"
@@ -20,4 +19,3 @@ linecount = "*"
 num_cpus = "1.13.0"
 libradicl = "=0.4.1"
 clap = "~2.34.0"
-

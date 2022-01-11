@@ -42,7 +42,7 @@ For each such transcript, a BAM record is created that stores the proper alignme
 ## Building from source
 
 `mudskipper` is written in [Rust](https://www.rust-lang.org/) and can be built as follows:
-[**Requires:** [Rust toolchain](https://www.rust-lang.org/tools/install)]
+[**Requires:** [Rust toolchain](https://www.rust-lang.org/tools/install); minimum rustc version 1.51.0]
 ```bash
 cargo build --release
 ```

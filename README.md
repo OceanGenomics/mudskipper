@@ -29,20 +29,20 @@ mudkipper sc --index gtf_index --alignment genomic.sam --out transcriptomic_dir
 
 ## Introduction
 
-`mudskipper` is a tool for converting genomic BAM/SAM files to transcriptomic BAM/RAD files. More specifically, it projects the genomic coordinates of each alignment entry to transcriptomic coordinates based on a given transcript annotation in GTF format.
+`mudskipper` is a tool for converting genomic BAM/SAM files to transcriptomic BAM/RAD files. More specifically, it projects the genomic coordinates of each alignment entry to transcriptomic coordinates based on a given transcript annotation in GTF format, producing multiple alignment entries if the genomic alignment overlaps multiple transcripts.
 
-The current focus in `mudskipper` is to enable transcript quantification from genomic alignments without re-mapping short reads onto the transcriptome (e.g. using [`salmon`](https://github.com/COMBINE-lab/salmon) for bulk RNA-Seq samples and [`alevin-fry`](https://github.com/COMBINE-lab/alevin-fry/) for single-cell RNA-Seq samples). The motivation for developing `mudskipper` was that there are many tools that require alignment of short RNA-Seq reads against reference genome. Transcript quantification tools on the other hand, usually expect alignment of short RNA-Seq reads against the transcriptome. `mudskipper` enables users to perform transcript quantification using genomic alignments instead of starting the whole process from scratch (by avoiding mapping short RNA-Seq reads directly against the transcriptome).
+While `mudskipper` is intended as a general alignment conversion/projection tool, the current focus in `mudskipper` is to enable transcript quantification from genomic alignments without re-mapping short reads onto the transcriptome (e.g. using [`salmon`](https://github.com/COMBINE-lab/salmon) for bulk RNA-Seq samples and [`alevin-fry`](https://github.com/COMBINE-lab/alevin-fry/) for single-cell RNA-Seq samples). The motivation for developing `mudskipper` was that there are many tools that require alignment of short RNA-Seq reads against reference genome. Transcript quantification tools on the other hand, often expect alignment of short RNA-Seq reads against the transcriptome. `mudskipper` enables users to perform transcript quantification using genomic alignments instead of starting the whole process from scratch (by avoiding mapping short RNA-Seq reads directly against the transcriptome).
 
-**Algorithmic details:** `mudskipper` parses the input GTF file and builds an interval tree that stores the coordinates of exons for *all* the transcripts present in the GTF file. It then processes each genomic alignment of the given input BAM/SAM file. Note that genomic alignments of RNA-Seq reads are spliced (i.e. they might have `N` in the CIGAR string). Therefore, `mudskipper` uses the generated interval tree to project each genomic alignment to all transcripts that satisfy the following conditions:
+**Algorithmic details:** `mudskipper` parses the input GTF file and builds an interval tree (using the [coitrees](https://github.com/dcjones/coitrees) crate) that stores the coordinates of exons for *all* the transcripts present in the GTF file. It then processes each genomic alignment of the given input BAM/SAM file. Note that genomic alignments of RNA-Seq reads may be spliced (i.e. they might have `N` in the CIGAR string). Therefore, `mudskipper` uses the generated interval tree to project each genomic alignment to all transcripts that satisfy the following conditions:
 1. Transcripts whose start and end coordinates on the genome mark a region that fully contains the alignment,
 2. Transcripts whose exon coordinates match the splicing of the genomic alignment
 
-For each such transcript, a BAM record is created that stores the proper alignment to that transcript. **Note** that the first condition above means that projection to intergenic or intronic regions are not reported. It also means that `mudskipper` currently does not report support reads that align transcripts in an overhanging fashion. This requirement can be relaxed in the future to support overhanging alignments.
+For each such transcript, a BAM record is created that stores the proper alignment to that transcript. **Note** that the first condition above means that projection to intergenic or intronic regions are not currently reported. It also means that `mudskipper` currently does not report support reads that align transcripts in an overhanging fashion. This requirement can be relaxed in the future to support overhanging alignments, and potentially to allow arbitrary projection.
 
 ## Building from source
 
 `mudskipper` is written in [Rust](https://www.rust-lang.org/) and can be built as follows:
-[**Requires:** [Rust toolchain](https://www.rust-lang.org/tools/install)]
+[**Requires:** [Rust toolchain](https://www.rust-lang.org/tools/install); minimum rustc version 1.51.0]
 ```bash
 cargo build --release
 ```
@@ -159,7 +159,7 @@ OPTIONS:
     -V, --version            Prints version information
 ```
 
-When using `mudskipper bulk` or `mudskipper sc`, if you pass the gene annotation file, `mudskipper` builds an interval tree on the fly. This interval tree is used to query transcriptomic coordinates that overlap a given genomic region. Instead of building the interval tree on the fly, you can build the interval tree and store it for later use. This is helpful if you wish to run `mudskipper` on many BAM/SAM files.
+When using `mudskipper bulk` or `mudskipper sc`, if you pass the gene annotation file, `mudskipper` builds an interval tree on the fly. This interval tree is used to query transcriptomic coordinates that overlap a given genomic region. Instead of building the interval tree on the fly, you can build the interval tree and store it for later use. This is helpful if you wish to run `mudskipper` on many BAM/SAM files representing alignments to the same reference under the same annotation.
 
 #### Required arguments
 ##### `-g, --gtf <FILE>`
@@ -171,13 +171,13 @@ The path of the directory where the interval tree files will be stored.
 
 ## Use cases
 ### Transcript quantification of bulk RNA-Seq samples from genomic alignments
-If we have a BAM/SAM file containing alignment of RNA-Seq reads from a bulk sample against the reference genome, we cannot use it for transcript quantification with most of the state-of-the-art tools. [`salmon`](https://github.com/COMBINE-lab/salmon) is one of those tools. Although `salmon` has a very fast embedded mapping module, we can still save some time and instead of re-mapping, use `mudskipper bulk` command to project genomic alignments to transcriptomic coordinates. That allows us to use `salmon` in alignment-based mode. More specifically, `mudskipper` will output transcriptomic alignments in a BAM file that can be passed to `salmon quant` via `-a` or `--alignments` input option. 
+If we have a BAM/SAM file containing alignment of RNA-Seq reads from a bulk sample against the reference genome, we cannot use it for transcript quantification with many of the state-of-the-art tools like [`salmon`](https://github.com/COMBINE-lab/salmon). Although `salmon` has a very fast embedded mapping module, we can still avoid re-mapping by using the `mudskipper bulk` command to project genomic alignments to transcriptomic coordinates. That allows us to use `salmon` in alignment-based mode. More specifically, `mudskipper` will output transcriptomic alignments in a BAM file that can be passed to `salmon quant` via `-a` or `--alignments` input option. 
 
 ### Transcript quantification of single-cell RNA-Seq samples from genomic alignments
-`mudskipper` also facilitates transcript quantification of single-cell RNA-Seq samples from genomic alignments. `alevin-fry` is a tool for processing single-cell RNA-Seq samples, which takes the output of `salmon alevin` in RAD format as input. Using `mudskipper` if we have a BAM/SAM file containing alignments of a SCRNA-Seq sample against the reference genome, there is no need to run `salmon alevin` anymore. Instead we can run `mudskipper sc` command with `--rad` option to generated the desired RAD file. To process this RAD file, `alevin-fry generate-permit-list`, `alevin-fry collate` and `alevin-fry quant` commands can be used.
+`mudskipper` also facilitates transcript quantification of single-cell RNA-Seq samples from genomic alignments. [`alevin-fry`](https://github.com/COMBINE-lab/alevin-fry) is a tool for processing single-cell RNA-Seq samples, which takes the output of `salmon alevin` in RAD format as input. Using `mudskipper`, if we have a BAM/SAM file containing alignments of a scRNA-Seq sample against the reference genome, we can avoid the need to run `salmon alevin`, and can instead extract the required information — in the correct format — directly from the BAM file. To accomplish this, we run the `mudskipper sc` command with the `--rad` option to generated the desired RAD file. To process this RAD file, the normal `alevin-fry generate-permit-list`, `alevin-fry collate` and `alevin-fry quant` commands can be used.
 
 ## Limitations
-`mudskipper` is still in early stages of development with lots of room for improvements. So far, `mudskipper` has been tested only for the purpose of transcript quantification. Currently, it has the following known limitations:
+`mudskipper` is still in the early stages of development with lots of room for improvements. So far, `mudskipper` has been tested only for the purpose of transcript quantification. Currently, it has the following known limitations:
 - Chimeric alignments are not reported. That means for now a projected alignment is reported only if all its segments fall on the same target.
 - It only reports projected alignments that are fully contained in a transcript. In other words, it currenlty does not report any overhanging alignments. [[#10](/../../issues/10)]
 - Some fields and optional tags of the output BAM might not be properly updated. [[#13](/../../issues/13)]

@@ -74,7 +74,7 @@ fn main() {
         .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
         .arg(Arg::from_usage("-o, --out=<output-file> 'output BAM file'"))
         .arg(Arg::from_usage("-t, --threads 'Number of threads for the processing bam files.'").default_value(&max_num_threads))
-        .arg(Arg::from_usage("-m, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb));
+        .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb));
 
     let opts = App::new("mudskipper")
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -117,6 +117,10 @@ fn main() {
             annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
                 .expect("cannot build the tree!")
         };
+        if t.is_present("shuffle") {
+            let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
+            position::depositionify_bam(&bam_file_in, &bam_file_in, max_mem_mb * 1024 * 1024, threads_count);
+        }
         if t.is_present("rad") {
             rad::bam2rad_bulk(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         } else {
@@ -158,6 +162,10 @@ fn main() {
             required_tags = vec!["CB", "UB"];
         } else {
             required_tags = vec!["CR", "UR"];
+        }
+        if t.is_present("shuffle") {
+            let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
+            position::depositionify_bam(&bam_file_in, &bam_file_in, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {
             rad::bam2rad_singlecell(

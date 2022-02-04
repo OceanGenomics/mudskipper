@@ -540,7 +540,7 @@ pub fn bam2rad_bulk_pe(
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
-        num_tags = 3u16;
+        num_tags = 6u16;
         data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id

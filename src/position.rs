@@ -5,7 +5,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::str;
 use rust_htslib::bam;
-use rust_htslib::bam::{record::Aux, Read};
+use rust_htslib::bam::{HeaderView, record::Aux, Read};
 use log::{trace, info};
 
 pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthreads: usize) {
@@ -75,14 +75,15 @@ fn process_buckets(header: &bam::Header, output_path: &str, nbuckets: u32, nthre
         .collect();
     
     for reader in &mut readers {
-        process_bucket(reader, &mut writer)
+        process_bucket(header, reader, &mut writer)
     }
 }
 
-fn process_bucket(reader: &mut bam::Reader, writer: &mut bam::Writer) {
+fn process_bucket(header: &bam::Header, reader: &mut bam::Reader, writer: &mut bam::Writer) {
     //XXX: avoid re-hashing these records every time
     let mut records: Vec<_> = reader.records().filter_map(|r| r.ok()).collect();
-    records.sort_unstable_by_key(sort_key);
+    let header_view = HeaderView::from_header(header);
+    records.sort_unstable_by_key(|r| sort_key(&header_view, r));
     for record in records {
         writer.write(&record).unwrap();
     }
@@ -92,7 +93,7 @@ fn bucket_names(prefix: &str, nbuckets: u32) -> Vec<String> {
     (0..nbuckets).map(|i| format!("{}/bucket_{}.bam", prefix, i)).collect()
 }
 
-fn sort_key(r: &bam::Record) -> (u64, u64, u64, u64) {
+fn sort_key(header: &bam::HeaderView, r: &bam::Record) -> (u64, u64, u64, u64) {
     //We hash both the read name and the position, combine them, and return that as the sort key
     //This to eliminate problems with unusual read names (that could have some meaningful order),
     //and to ensure that multiple alignments from one read don't come out in any particular order
@@ -110,12 +111,13 @@ fn sort_key(r: &bam::Record) -> (u64, u64, u64, u64) {
         let mut _hash: u64 = 0;
         for aln_str in sa_tag.split(";") {
             if aln_str.is_empty() == false {
+                //info! { "parsing aln_str {:?}", aln_str}
                 let tag_vec: Vec<&str> = aln_str.split(",").collect();
-                let tid = tag_vec[0].parse::<i32>().unwrap();
+                let tid = header.tid(tag_vec[0].as_bytes()).unwrap();
                 let pos = tag_vec[1].parse::<i64>().unwrap();
                 let strand = tag_vec[2];
                 let mut chasher = DefaultHasher::new();
-                chasher.write_i32(cmp::min(tid, r.tid()));
+                chasher.write_i32(cmp::min(tid as i32, r.tid()));
                 chasher.write_i64(cmp::min(pos, r.pos()));
                 chasher.write(strand.as_bytes());
                 chash = chasher.finish();

@@ -22,7 +22,7 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
         output_path.to_string()
     };
     
-    info! {"Processing file {} of size {} into {} buckets", input_path, bam_bytes, buckets };    
+    info! {"Processing file {} of size {} into {} buckets", input_path, bam_bytes, buckets };
     clean_buckets(); 
     bucketify_bam(&mut bam, &header, buckets);
     process_buckets(&header, &output, buckets, nthreads);
@@ -63,18 +63,20 @@ fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32) {
 }
 
 fn process_buckets(header: &bam::Header, output_path: &str, nbuckets: u32, nthreads: usize) {
+    info! { "Gathering buckets into reordered BAM file at {:?}", output_path }
     let output_path = Path::new(output_path);
-    fs::create_dir_all(output_path.parent().unwrap()).expect("failed to create output directories");
+    fs::create_dir_all(output_path.parent().unwrap()).expect("failed to create output directory");
     if output_path.exists() {
         fs::remove_file(output_path).expect("output file exists and cannot be removed")
     }
     let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam).unwrap();
 
-    let mut readers: Vec<_> = (0..nbuckets)
-        .map(|x| threaded_bam_reader(&format!("buckets/bucket_{}.bam", x), nthreads))
+    let mut readers: Vec<_> = bucket_names("buckets", nbuckets).iter()
+        .map(|b| (b.to_string(), threaded_bam_reader(b, nthreads)))
         .collect();
     
-    for reader in &mut readers {
+    for (name, reader) in &mut readers {
+        info! { "Reading bucket {:?}", name}
         process_bucket(header, reader, &mut writer)
     }
 }
@@ -83,7 +85,7 @@ fn process_bucket(header: &bam::Header, reader: &mut bam::Reader, writer: &mut b
     //XXX: avoid re-hashing these records every time
     let mut records: Vec<_> = reader.records().filter_map(|r| r.ok()).collect();
     let header_view = HeaderView::from_header(header);
-    records.sort_unstable_by_key(|r| sort_key(&header_view, r));
+    records.sort_by_cached_key(|r| sort_key(&header_view, r));
     for record in records {
         writer.write(&record).unwrap();
     }
@@ -131,14 +133,18 @@ fn sort_key(header: &bam::HeaderView, r: &bam::Record) -> (u64, u64, u64, u64) {
     (qhasher.finish(), mhasher.finish(), chash, poshasher.finish())
 }
 
-fn threaded_bam_reader(path: &str, nthreads: usize) -> bam::Reader {
-    let mut reader = bam::Reader::from_path(path).unwrap();
-    if nthreads > 1 {
-        reader.set_threads((nthreads as usize) - 1).unwrap();
-    } else {
-        reader.set_threads(1).unwrap();
-    }
-    reader
+fn threaded_bam_reader(path: &str, _nthreads: usize) -> bam::Reader {
+    //XXX: There's some sort of terrible threading issue that's causing truncated reads
+    bam::Reader::from_path(path).unwrap()
+
+    // let mut reader = bam::Reader::from_path(path).unwrap();
+    //     So, disable threading for now
+    // if nthreads > 1 {
+    //     reader.set_threads((nthreads as usize) - 1).unwrap();
+    // } else {
+    //     reader.set_threads(1).unwrap();
+    // }
+    // reader
 }
 
 fn clean_buckets() {

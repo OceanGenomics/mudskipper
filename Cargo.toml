@@ -2,20 +2,25 @@
 name = "mudskipper"
 version = "0.1.0"
 edition = "2018"
+license-file = "LICENSE"
+description = "Convert genomic alignments to transcriptomic BAM/RAD files."
+homepage = "https://github.com/OceanGenomics/mudskipper"
+repository = "https://github.com/OceanGenomics/mudskipper"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust-htslib = { version="*", default-features = false, features=["bzip2", "lzma", "serde_feature"] }
-bio = "*"
-bio-types = "*"
-coitrees = "*"
+rust-htslib = { version="0.38.2", default-features = false, features=["bzip2", "lzma", "serde_feature"] }
+bio = "0.39.1"
+bio-types = "0.12.1"
+coitrees = "0.2.1"
 # for coitrees
-fnv = "1.0.3"
-log = "*"
-env_logger = "*"
-indicatif = "*"
-linecount = "*"
+fnv = "1.0.7"
+log = "0.4.14"
+env_logger = "0.9.0"
+indicatif = "0.16.2"
+linecount = "0.1.0"
 num_cpus = "1.13.0"
 libradicl = "=0.4.1"
 clap = "~2.34.0"

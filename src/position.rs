@@ -105,7 +105,9 @@ fn sort_key(header: &bam::HeaderView, r: &bam::Record) -> (u64, u64, u64, u64) {
     //For paired reads, hash out the lowest reference ID and position
     let mut mhasher = DefaultHasher::new();
     mhasher.write_i32(cmp::min(r.tid(), r.mtid()));
+    mhasher.write_i32(cmp::max(r.tid(), r.mtid()));
     mhasher.write_i64(cmp::min(r.pos(), r.mpos()));
+    mhasher.write_i64(cmp::max(r.pos(), r.mpos()));
 
     //For chimeric reads, again hash out the lowest reference ID and position
     let mut chash: u64 = 0;
@@ -120,7 +122,9 @@ fn sort_key(header: &bam::HeaderView, r: &bam::Record) -> (u64, u64, u64, u64) {
                 let strand = tag_vec[2];
                 let mut chasher = DefaultHasher::new();
                 chasher.write_i32(cmp::min(tid as i32, r.tid()));
+                chasher.write_i32(cmp::max(tid as i32, r.tid()));
                 chasher.write_i64(cmp::min(pos, r.pos()));
+                chasher.write_i64(cmp::max(pos, r.pos()));
                 chasher.write(strand.as_bytes());
                 chash = chasher.finish();
             }

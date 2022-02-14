@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::cmp;
 use std::hash::Hasher;
 use std::collections::hash_map::DefaultHasher;
@@ -9,7 +9,7 @@ use rust_htslib::bam::{HeaderView, record::Aux, Read};
 use log::{trace, info};
 
 pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthreads: usize) {
-    let mut bam = threaded_bam_reader(input_path, nthreads);
+    let mut bam = threaded_bam_reader(Path::new(input_path), nthreads);
     let header = bam::Header::from_template(bam.header());
 
     // Since, despite being compressed as a relatively standard GZip file, not all BAM files have
@@ -28,17 +28,15 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
     
     if buckets > 1 {
         info! {"Processing file {} of size {} into {} buckets", input_path, bam_bytes, buckets };
-        let prefix = &bucket_prefix(input_path);
-        clean_buckets(prefix);
-        bucketify_bam(&mut bam, &header, buckets, prefix);
-        process_buckets(&header, &output, buckets, nthreads, prefix);
-        clean_buckets(prefix);
+        let cwd = std::env::current_dir().unwrap();
+        let temp_path = tempfile::tempdir_in(cwd).unwrap();
+        bucketify_bam(&mut bam, &header, buckets, temp_path.path());
+        process_buckets(&header, &output, buckets, nthreads, temp_path.path());
     }
     else {
         info! { "Reordering file {} of size {} in memory", input_path, bam_bytes };
-        let mut reader = threaded_bam_reader(input_path, nthreads);
         let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam).unwrap();
-        process_bucket(&header, &mut reader, &mut writer);
+        process_bucket(&header, &mut bam, &mut writer);
     }
 
     if output != output_path {
@@ -47,7 +45,7 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
     }
 }
 
-fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32, prefix: &str) {
+fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32, prefix: &Path) {
     fs::create_dir_all(Path::new(prefix)).unwrap();
     let mut writers: Vec<_> = bucket_names(prefix, nbuckets).iter()
         .map(|p| bam::Writer::from_path(p, &header, bam::Format::Bam).unwrap())
@@ -75,7 +73,7 @@ fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32, pre
     }
 }
 
-fn process_buckets(header: &bam::Header, output_path: &str, nbuckets: u32, nthreads: usize, prefix: &str) {
+fn process_buckets(header: &bam::Header, output_path: &str, nbuckets: u32, nthreads: usize, prefix: &Path) {
     info! { "Gathering buckets into reordered BAM file at {:?}", output_path }
     let output_path = Path::new(output_path);
     fs::create_dir_all(output_path.parent().unwrap()).expect("failed to create output directory");
@@ -101,8 +99,8 @@ fn process_bucket(header: &bam::Header, reader: &mut bam::Reader, writer: &mut b
     }
 }
 
-fn bucket_names(prefix: &str, nbuckets: u32) -> Vec<String> {
-    (0..nbuckets).map(|i| format!("{}/bucket_{}.bam", prefix, i)).collect()
+fn bucket_names(prefix: &Path, nbuckets: u32) -> Vec<PathBuf> {
+    (0..nbuckets).map(|i| prefix.join(format!("bucket_{}.bam", i))).collect()
 }
 
 fn sort_key(header: &bam::HeaderView, r: &bam::Record) -> (u64, u64, u64, u64) {
@@ -147,7 +145,7 @@ fn sort_key(header: &bam::HeaderView, r: &bam::Record) -> (u64, u64, u64, u64) {
     (qhasher.finish(), mhasher.finish(), chash, poshasher.finish())
 }
 
-fn threaded_bam_reader(path: &str, _nthreads: usize) -> bam::Reader {
+fn threaded_bam_reader(path: &Path, _nthreads: usize) -> bam::Reader {
     //XXX: There's some sort of terrible threading issue that's causing truncated reads
     bam::Reader::from_path(path).unwrap()
 
@@ -159,15 +157,4 @@ fn threaded_bam_reader(path: &str, _nthreads: usize) -> bam::Reader {
     //     reader.set_threads(1).unwrap();
     // }
     // reader
-}
-
-fn bucket_prefix(file_name: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    hasher.write(file_name.as_bytes());
-    hasher.write_u32(std::process::id());
-    format!("{:x}", hasher.finish())
-}
-
-fn clean_buckets(prefix: &str) {
-	let _ = fs::remove_dir_all(Path::new(prefix)); //XXX: do something safer here
 }

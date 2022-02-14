@@ -11,8 +11,12 @@ use log::{trace, info};
 pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthreads: usize) {
     let mut bam = threaded_bam_reader(input_path, nthreads);
     let header = bam::Header::from_template(bam.header());
+
+    // Since, despite being compressed as a relatively standard GZip file, not all BAM files have
+    // enough information in the header to get the uncompressed size, so we assume that 
+    // the maximum compression ratio is 8x and bucket accordingly
     let bam_bytes = fs::metadata(&input_path).unwrap().len();
-    let buckets = ((bam_bytes / max_mem) + 1) as u32;
+    let buckets = (((bam_bytes * 8) / max_mem) + 1) as u32;
 
     let output = if input_path == output_path {
         let mut hasher = DefaultHasher::new();
@@ -22,11 +26,20 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
         output_path.to_string()
     };
     
-    info! {"Processing file {} of size {} into {} buckets", input_path, bam_bytes, buckets };
-    clean_buckets(); 
-    bucketify_bam(&mut bam, &header, buckets);
-    process_buckets(&header, &output, buckets, nthreads);
-    clean_buckets(); 
+    if buckets > 1 {
+        info! {"Processing file {} of size {} into {} buckets", input_path, bam_bytes, buckets };
+        let prefix = &bucket_prefix(input_path);
+        clean_buckets(prefix);
+        bucketify_bam(&mut bam, &header, buckets, prefix);
+        process_buckets(&header, &output, buckets, nthreads, prefix);
+        clean_buckets(prefix);
+    }
+    else {
+        info! { "Reordering file {} of size {} in memory", input_path, bam_bytes };
+        let mut reader = threaded_bam_reader(input_path, nthreads);
+        let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam).unwrap();
+        process_bucket(&header, &mut reader, &mut writer);
+    }
 
     if output != output_path {
         fs::remove_file(output_path).unwrap();
@@ -34,9 +47,9 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
     }
 }
 
-fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32) {
-    fs::create_dir_all(Path::new("buckets")).unwrap();
-    let mut writers: Vec<_> = bucket_names("buckets", nbuckets).iter()
+fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32, prefix: &str) {
+    fs::create_dir_all(Path::new(prefix)).unwrap();
+    let mut writers: Vec<_> = bucket_names(prefix, nbuckets).iter()
         .map(|p| bam::Writer::from_path(p, &header, bam::Format::Bam).unwrap())
         .collect();
     
@@ -62,22 +75,19 @@ fn bucketify_bam(bam: &mut bam::Reader, header: &bam::Header, nbuckets: u32) {
     }
 }
 
-fn process_buckets(header: &bam::Header, output_path: &str, nbuckets: u32, nthreads: usize) {
+fn process_buckets(header: &bam::Header, output_path: &str, nbuckets: u32, nthreads: usize, prefix: &str) {
     info! { "Gathering buckets into reordered BAM file at {:?}", output_path }
     let output_path = Path::new(output_path);
     fs::create_dir_all(output_path.parent().unwrap()).expect("failed to create output directory");
     if output_path.exists() {
         fs::remove_file(output_path).expect("output file exists and cannot be removed")
     }
-    let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam).unwrap();
 
-    let mut readers: Vec<_> = bucket_names("buckets", nbuckets).iter()
-        .map(|b| (b.to_string(), threaded_bam_reader(b, nthreads)))
-        .collect();
-    
-    for (name, reader) in &mut readers {
-        info! { "Reading bucket {:?}", name}
-        process_bucket(header, reader, &mut writer)
+    let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam).unwrap();
+    for bucket in bucket_names(prefix, nbuckets).iter() {
+        info! { "Reading bucket {:?}", bucket}
+        let mut reader = threaded_bam_reader(bucket, nthreads);
+        process_bucket(header, &mut reader, &mut writer)
     }
 }
 
@@ -151,6 +161,13 @@ fn threaded_bam_reader(path: &str, _nthreads: usize) -> bam::Reader {
     // reader
 }
 
-fn clean_buckets() {
-	let _ = fs::remove_dir_all(Path::new("buckets")); //XXX: do something safer here
+fn bucket_prefix(file_name: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    hasher.write(file_name.as_bytes());
+    hasher.write_u32(std::process::id());
+    format!("{:x}", hasher.finish())
+}
+
+fn clean_buckets(prefix: &str) {
+	let _ = fs::remove_dir_all(Path::new(prefix)); //XXX: do something safer here
 }

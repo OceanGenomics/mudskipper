@@ -134,6 +134,10 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
                 }
             }
             data.write_all(&alnscore.to_le_bytes()).unwrap();
+            // alnpos
+            let alnpos: u32 = txp_rec.pos() as u32;
+            data.write_all(&alnpos.to_le_bytes()).unwrap();
+
             written_records += 1;
             wrote_some = true;
         }
@@ -142,9 +146,8 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
     if written_records > 0 {
         // number of alignments
         owriter.write_all(&written_records.to_le_bytes()).unwrap();
-        // read length
-        // owriter.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap();
-        // No read-level tags for bulk
+        // read-level tags
+        owriter.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap(); // read length
         // dump records
         owriter.write_all(data.get_ref()).unwrap();
     }
@@ -199,24 +202,36 @@ pub fn bam2rad_bulk_se(
         data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
-        num_tags = 0u16; // no read-level tags for bulk
+        num_tags = 1u16; // no read-level tags for bulk
         data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
+        // read length
+        let mut tag_str = "readlen";
+        let mut tag_typeid = 2u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
         // ALIGNMENT-LEVEL tags
-        num_tags = 2u16;
+        num_tags = 3u16;
         data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
-        let refid_str = "compressed_ori_refid";
-        let mut typeid = 3u8;
-        libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+        tag_str = "compressed_ori_refid";
+        tag_typeid = 3u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment score
-        let alnscore_str = "alnscore";
-        typeid = 5u8;
-        libradicl::write_str_bin(&alnscore_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+        tag_str = "alnscore";
+        tag_typeid = 5u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
+        // reference position
+        tag_str = "alnpos";
+        tag_typeid = 3u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
         // nothing for bulk!
@@ -310,6 +325,11 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
     let mut written_records: u32 = 0;
     let mut data = Cursor::new(vec![]);
 
+    let mut pos_left: u32;
+    let mut pos_right: u32;
+    let mut len_left: u16 = 0;
+    let mut len_right: u16 = 0;
+
     let mut rec_iter = all_read_records.iter();
     while let Some(rec1) = rec_iter.next() {
         // there should be another mate
@@ -321,8 +341,6 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 assert_eq!(rec1.tid(), rec2.tid());
                 data.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
                 let mut aln_type: u8 = 0;
-                // let pos_left: u32;
-                // let pos_right: u32;
                 if rec1.is_first_in_template() == true {
                     // rec1 is left
                     if rec1.is_reverse() {
@@ -331,8 +349,10 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                     if rec2.is_reverse() {
                         aln_type = aln_type | (1 as u8);
                     }
-                    // pos_left = rec1.pos() as u32;
-                    // pos_right = rec2.pos() as u32;
+                    pos_left = rec1.pos() as u32;
+                    pos_right = rec2.pos() as u32;
+                    len_left = rec1.seq_len() as u16;
+                    len_right = rec2.seq_len() as u16;
                 } else {
                     // rec2 is left
                     if rec1.is_reverse() {
@@ -341,15 +361,13 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                     if rec2.is_reverse() {
                         aln_type = aln_type | (2 as u8);
                     }
-                    // pos_right = rec1.pos() as u32;
-                    // pos_left = rec2.pos() as u32;
+                    pos_right = rec1.pos() as u32;
+                    pos_left = rec2.pos() as u32;
+                    len_right = rec1.seq_len() as u16;
+                    len_left = rec2.seq_len() as u16;
                 }
                 // alignment type (0..7)
                 data.write_all(&aln_type.to_le_bytes()).unwrap();
-                // alignment position left mate
-                // data.write_all(&pos_left.to_le_bytes()).unwrap();
-                // alignment position right mate
-                // data.write_all(&pos_right.to_le_bytes()).unwrap();
 
                 // array of alignment-specific tags
                 // alnscore
@@ -373,14 +391,20 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                     }
                 }
                 data.write_all(&alnscore.to_le_bytes()).unwrap();
+                data.write_all(&pos_left.to_le_bytes()).unwrap();
+                data.write_all(&pos_right.to_le_bytes()).unwrap();
+                data.write_all(&(rec1.insert_size().abs() as u32).to_le_bytes()).unwrap();
                 wrote_some = true;
                 written_records += 1;
             } else { // only one mate is mapped
                 let mapped_rec : &record::Record;
+                let unmapped_rec : &record::Record;
                 if rec1.is_unmapped() {
                     mapped_rec = &rec2;
+                    unmapped_rec = &rec1;
                 } else {
                     mapped_rec = &rec1;
+                    unmapped_rec = &rec2;
                 }
                 // there is no mate
                 // alignment reference ID
@@ -389,14 +413,20 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 if mapped_rec.is_first_in_template() == true {
                     // right is unmapped
                     aln_type = if mapped_rec.is_reverse() { 5 } else { 4 };
+                    pos_left = mapped_rec.pos() as u32;
+                    pos_right = 0 as u32;
+                    len_left = mapped_rec.seq_len() as u16;
+                    len_right = unmapped_rec.seq_len() as u16;
                 } else {
                     // left is unmapped
                     aln_type = if mapped_rec.is_reverse() { 7 } else { 6 };
+                    pos_left = 0 as u32;
+                    pos_right = mapped_rec.pos() as u32;
+                    len_left = unmapped_rec.seq_len() as u16;
+                    len_right = mapped_rec.seq_len() as u16;
                 }
                 // alignment type (0..7)
                 data.write_all(&aln_type.to_le_bytes()).unwrap();
-                // alignment position of left/right mate
-                // data.write_all(&(mapped_rec.pos() as u32).to_le_bytes()).unwrap();
 
                 // array of alignment-specific tags
                 // alnscore
@@ -420,6 +450,9 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                     }
                 }
                 data.write_all(&alnscore.to_le_bytes()).unwrap();
+                data.write_all(&pos_left.to_le_bytes()).unwrap();
+                data.write_all(&pos_right.to_le_bytes()).unwrap();
+                data.write_all(&(mapped_rec.insert_size().abs() as u32).to_le_bytes()).unwrap();
                 wrote_some = true;
                 written_records += 1;
             }
@@ -432,11 +465,11 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
     if written_records > 0 {
         // number of alignments
         owriter.write_all(&written_records.to_le_bytes()).unwrap();
+        // read-level tags
         // first mate length
-        // owriter.write_all(&(first_record.seq_len() as u16).to_le_bytes()).unwrap();
+        owriter.write_all(&len_left.to_le_bytes()).unwrap();
         // second mate length
-        // owriter.write_all(&(second_record.seq_len() as u16).to_le_bytes()).unwrap();
-        // No read-level tags for bulk
+        owriter.write_all(&len_right.to_le_bytes()).unwrap();
         // dump records
         owriter.write_all(data.get_ref()).unwrap();
     }
@@ -491,30 +524,60 @@ pub fn bam2rad_bulk_pe(
         data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
-        num_tags = 0u16; // no read-level tags for bulk
+        num_tags = 2u16; // no read-level tags for bulk
         data.write_all(&num_tags.to_le_bytes()).expect("coudn't write to output file");
 
+        // read length left mate
+        let mut tag_str = "readlen_left";
+        let mut tag_typeid = 2u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
+        // read length right mate
+        tag_str = "readlen_right";
+        tag_typeid = 2u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
         // ALIGNMENT-LEVEL tags
-        num_tags = 3u16;
+        num_tags = 6u16;
         data.write_all(&num_tags.to_le_bytes()).expect("couldn't write to output file");
 
         // reference id
-        let refid_str = "refid";
-        let mut typeid = 3u8;
-        libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+        tag_str = "refid";
+        tag_typeid = 3u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment type
-        let alntype_str = "alntype";
-        typeid = 1u8;
-        libradicl::write_str_bin(&alntype_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+        tag_str = "alntype";
+        tag_typeid = 1u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
         
         // alignment score
-        let alnscore_str = "alnscore";
-        typeid = 5u8;
-        libradicl::write_str_bin(&alnscore_str, &libradicl::RadIntId::U16, &mut data);
-        data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
+        tag_str = "alnscore";
+        tag_typeid = 5u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
+        // reference position left mate
+        tag_str = "alnpos_left";
+        tag_typeid = 3u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
+        // reference position right mate
+        tag_str = "alnpos_right";
+        tag_typeid = 3u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
+
+        // fragment length estimated based on the alignment
+        tag_str = "fraglen";
+        tag_typeid = 3u8;
+        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
         // nothing for bulk!

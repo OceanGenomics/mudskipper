@@ -3,7 +3,9 @@ use crate::convert;
 
 extern crate fnv;
 
-use libradicl::decode_int_type_tag;
+use libradicl::rad_types::decode_int_type_tag;
+use libradicl::rad_types::write_str_bin;
+use libradicl::rad_types::encode_type_tag;
 use log;
 use std::error::Error;
 use std::path::Path;
@@ -18,23 +20,23 @@ use rust_htslib::{bam, bam::record, bam::record::Aux, bam::Read};
 use std::io::{BufWriter, Cursor, Seek, SeekFrom, Write};
 // use scroll::Pread;
 
-// fn read_into_u64<T: std::io::Read>(reader: &mut T, rt: &libradicl::RadIntId) -> u64 {
+// fn read_into_u64<T: std::io::Read>(reader: &mut T, rt: &libradicl::rad_types::RadIntId) -> u64 {
 //     let mut rbuf = [0u8; 8];
 //     let v: u64;
 //     match rt {
-//         libradicl::RadIntId::U8 => {
+//         libradicl::rad_types::RadIntId::U8 => {
 //             reader.read_exact(&mut rbuf[0..1]).unwrap();
 //             v = rbuf.pread::<u8>(0).unwrap() as u64;
 //         }
-//         libradicl::RadIntId::U16 => {
+//         libradicl::rad_types::RadIntId::U16 => {
 //             reader.read_exact(&mut rbuf[0..2]).unwrap();
 //             v = rbuf.pread::<u16>(0).unwrap() as u64;
 //         }
-//         libradicl::RadIntId::U32 => {
+//         libradicl::rad_types::RadIntId::U32 => {
 //             reader.read_exact(&mut rbuf[0..4]).unwrap();
 //             v = rbuf.pread::<u32>(0).unwrap() as u64;
 //         }
-//         libradicl::RadIntId::U64 => {
+//         libradicl::rad_types::RadIntId::U64 => {
 //             reader.read_exact(&mut rbuf[0..8]).unwrap();
 //             v = rbuf.pread::<u64>(0).unwrap();
 //         }
@@ -208,7 +210,7 @@ pub fn bam2rad_bulk_se(
         // read length
         let mut tag_str = "readlen";
         let mut tag_typeid = 2u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -218,19 +220,19 @@ pub fn bam2rad_bulk_se(
         // reference id
         tag_str = "compressed_ori_refid";
         tag_typeid = 3u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment score
         tag_str = "alnscore";
         tag_typeid = 5u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position
         tag_str = "alnpos";
         tag_typeid = 3u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -530,13 +532,13 @@ pub fn bam2rad_bulk_pe(
         // read length left mate
         let mut tag_str = "readlen_left";
         let mut tag_typeid = 2u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // read length right mate
         tag_str = "readlen_right";
         tag_typeid = 2u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -546,37 +548,37 @@ pub fn bam2rad_bulk_pe(
         // reference id
         tag_str = "refid";
         tag_typeid = 3u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment type
         tag_str = "alntype";
         tag_typeid = 1u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
         
         // alignment score
         tag_str = "alnscore";
         tag_typeid = 5u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position left mate
         tag_str = "alnpos_left";
         tag_typeid = 3u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position right mate
         tag_str = "alnpos_right";
         tag_typeid = 3u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // fragment length estimated based on the alignment
         tag_str = "fraglen";
         tag_typeid = 3u8;
-        libradicl::write_str_bin(&tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -748,15 +750,15 @@ fn dump_collected_alignments_singlecell(
         // bc
         if *bc_typeid == 8 {
             // write as a string
-            libradicl::write_str_bin(&bc_string, &libradicl::RadIntId::U16, owriter);
+            libradicl::rad_types::write_str_bin(&bc_string, &libradicl::rad_types::RadIntId::U16, owriter);
         } else {
             // convert to integer
             let bc_int: u64 = cb_string_to_u64(bc_string.as_bytes()).unwrap();
             match decode_int_type_tag(*bc_typeid).unwrap() {
-                libradicl::RadIntId::U32 => {
+                libradicl::rad_types::RadIntId::U32 => {
                     owriter.write_all(&(bc_int as u32).to_le_bytes()).unwrap();
                 }
-                libradicl::RadIntId::U64 => {
+                libradicl::rad_types::RadIntId::U64 => {
                     owriter.write_all(&(bc_int as u64).to_le_bytes()).unwrap();
                 }
                 _ => {} // bc_typeid can only be 3, 4, or 8
@@ -766,15 +768,15 @@ fn dump_collected_alignments_singlecell(
         // umi
         if *umi_typeid == 8 {
             // write as a string
-            libradicl::write_str_bin(&umi_string, &libradicl::RadIntId::U16, owriter);
+            libradicl::rad_types::write_str_bin(&umi_string, &libradicl::rad_types::RadIntId::U16, owriter);
         } else {
             // convert to integer
             let umi_int: u64 = cb_string_to_u64(umi_string.as_bytes()).unwrap();
             match decode_int_type_tag(*umi_typeid).unwrap() {
-                libradicl::RadIntId::U32 => {
+                libradicl::rad_types::RadIntId::U32 => {
                     owriter.write_all(&(umi_int as u32).to_le_bytes()).unwrap();
                 }
-                libradicl::RadIntId::U64 => {
+                libradicl::rad_types::RadIntId::U64 => {
                     owriter.write_all(&(umi_int as u64).to_le_bytes()).unwrap();
                 }
                 _ => {} // bc_typeid can only be 3, 4, or 8
@@ -835,7 +837,7 @@ pub fn bam2rad_singlecell(
             //     .expect("coudn't write to output file");
             // data.write_all(tname.as_bytes())
             //     .expect("coudn't write to output file");
-            libradicl::write_str_bin(tname, &libradicl::RadIntId::U16, &mut data);
+            libradicl::rad_types::write_str_bin(tname, &libradicl::rad_types::RadIntId::U16, &mut data);
         }
         // keep a pointer to header pos
         // end_header_pos = data.seek(SeekFrom::Current(0)).unwrap() - std::mem::size_of::<u64>() as u64;
@@ -857,11 +859,11 @@ pub fn bam2rad_singlecell(
         let mut umi_tag_str = "ulen";
 
         // str - type
-        libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&cb_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // str - type
-        libradicl::write_str_bin(&umi_tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&umi_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
@@ -902,24 +904,24 @@ pub fn bam2rad_singlecell(
         // type is conditional on barcode and umi length
         // this follows SalmonAlevin.cpp implementation
         bc_typeid = match bclen {
-            1..=16 => libradicl::encode_type_tag(libradicl::RadType::U32).unwrap(),
-            17..=32 => libradicl::encode_type_tag(libradicl::RadType::U64).unwrap(),
+            1..=16 => libradicl::rad_types::encode_type_tag(libradicl::rad_types::RadType::U32).unwrap(),
+            17..=32 => libradicl::rad_types::encode_type_tag(libradicl::rad_types::RadType::U64).unwrap(),
             _ => 8,
         };
 
         umi_typeid = match umilen {
-            1..=16 => libradicl::encode_type_tag(libradicl::RadType::U32).unwrap(),
-            17..=32 => libradicl::encode_type_tag(libradicl::RadType::U64).unwrap(),
+            1..=16 => libradicl::rad_types::encode_type_tag(libradicl::rad_types::RadType::U32).unwrap(),
+            17..=32 => libradicl::rad_types::encode_type_tag(libradicl::rad_types::RadType::U64).unwrap(),
             _ => 8,
         };
 
         log::debug!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
         log::debug!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
 
-        libradicl::write_str_bin(&cb_tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&cb_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&bc_typeid.to_le_bytes()).expect("coudn't write to output file");
 
-        libradicl::write_str_bin(&umi_tag_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&umi_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&umi_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -929,7 +931,7 @@ pub fn bam2rad_singlecell(
         // reference id
         let refid_str = "compressed_ori_refid";
         typeid = 3u8;
-        libradicl::write_str_bin(&refid_str, &libradicl::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(&refid_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values

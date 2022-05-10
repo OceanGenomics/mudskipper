@@ -57,12 +57,11 @@ pub fn bam2bam(
 
     let mut missed = 0i32;
     while let Some(ret_vec) = bqr.get_next_query_records() {
+	if ret_vec.len() == 0 { missed += 1; }
         for r in ret_vec.iter() {
             let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
             for txp_rec in txp_records.iter() {
-                if let Err(e) = output_writer.write(txp_rec) {
-		    missed + 1;
-		}
+                output_writer.write(txp_rec).unwrap();
             }
         }
     }

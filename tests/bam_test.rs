@@ -28,6 +28,7 @@ pub fn read_and_process(ann_file_adr: &String,
     bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200, &v)
 }
 
+/*
 #[test]
 pub fn test_bam2bam() {
     let ann_file_adr = "tests/NC_002333.2.gtf".to_string();
@@ -46,6 +47,7 @@ pub fn test_bam2bam() {
                 missed_count,
                 number_of_missed_records);
 }
+*/
 
 #[test]
 pub fn test_reverse_coordinates_paired() {

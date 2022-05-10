@@ -8,7 +8,8 @@ use annotation::ExonNode;
 extern crate bio_types;
 
 use crate::convert;
-use crate::query_bam_records::{BAMQueryRecordReader};
+use crate::query_bam_records::BAMQueryRecordReader;
+//use crate::bam::query_bam_records::{BAMQueryRecordReader};
 
 extern crate fnv;
 use fnv::FnvHashMap;

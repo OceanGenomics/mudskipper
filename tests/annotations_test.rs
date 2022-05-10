@@ -1,7 +1,7 @@
 // #![deny(warnings)]
 // #[macro_use]
 
-extern crate mudskipper;
+//extern crate mudskipper;
 use mudskipper::annotation;
 
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ pub fn test_tree() {
     let trees = annotation::build_tree(&ann_file_adr,
                                         &mut transcripts_map,
                                         &mut transcripts,
-                                        &mut tx_lengths).expect("cannot build the tree!");
+                                        &mut tx_lengths, None).expect("cannot build the tree!");
 
     let query_file_adr = "tests/NC_002333.2.gff".to_string();
     let reader = annotation::read(&query_file_adr);

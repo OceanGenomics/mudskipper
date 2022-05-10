@@ -11,8 +11,8 @@ extern crate bio_types;
 use bio_types::strand::Strand;
 
 use crate::annotation;
+use crate::query_bam_records::BAMQueryRecord;
 use annotation::ExonNode;
-use crate::query_bam_records::{BAMQueryRecord};
 
 use log;
 

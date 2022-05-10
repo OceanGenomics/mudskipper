@@ -25,7 +25,7 @@ pub fn bam2bam(
     threads_count: &usize,
     max_softlen: &usize,
     required_tags: &Vec<&str>,
-) {
+) -> i32 {
     // setup the output BAM Writer
     let mut output_header = Header::new();
     // output_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
@@ -55,14 +55,18 @@ pub fn bam2bam(
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
 
+    let mut missed = 0i32;
     while let Some(ret_vec) = bqr.get_next_query_records() {
         for r in ret_vec.iter() {
             let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
             for txp_rec in txp_records.iter() {
-                output_writer.write(txp_rec).unwrap();
+                if let Err(e) = output_writer.write(txp_rec) {
+		    missed + 1;
+		}
             }
         }
     }
+    missed
 }
 
 // NOTE: this was an attempt at re-producing this bug: https://github.com/OceanGenomics/mudskipper/issues/6

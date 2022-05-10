@@ -3,9 +3,7 @@
 
 use std::str;
 
-extern crate mudskipper;
-//use mudskipper;
-use crate::mudskipper::annotation;
+use mudskipper::annotation;
 use mudskipper::bam;
 
 use std::collections::HashMap;

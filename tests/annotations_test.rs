@@ -1,7 +1,6 @@
 // #![deny(warnings)]
 // #[macro_use]
 
-//extern crate mudskipper;
 use mudskipper::annotation;
 
 use std::collections::HashMap;

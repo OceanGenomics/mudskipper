@@ -162,7 +162,11 @@ impl BAMQueryRecordReader {
             } else { // paired-end
                 // add the primary alignments first
                 first_vec.push(self.record_list[i].to_owned());
-                second_vec.push(self.record_list[i+1].to_owned());
+                if i+1 < self.record_list.len() {
+                    second_vec.push(self.record_list[i+1].to_owned());
+                } else {
+                    second_vec.push(self.record_list[i].to_owned());
+                }
                 // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false {

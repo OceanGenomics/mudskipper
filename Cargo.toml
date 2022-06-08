@@ -24,3 +24,8 @@ linecount = "0.1.0"
 num_cpus = "1.13.0"
 libradicl = { git="https://github.com/COMBINE-lab/alevin-fry", branch="develop", version="0.4.5" }
 clap = "~2.34.0"
+
+[[test]]
+name = "regression"
+path = "regression/main.rs"
+harness = false

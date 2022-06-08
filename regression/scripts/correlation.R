@@ -7,5 +7,7 @@ quant_m = read.delim('salmon_quant_m/quant.sf')
 delete_names = setdiff(quant_a$Name, quant_m$Name)
 new_quant_a = quant_a[!quant_a$Name %in% delete_names,]
 
-result = cor.test(new_quant_a$TPM, quant_m$TPM, method = "spearman")
-print(result)
+corr = cor(new_quant_a$TPM, quant_m$TPM, method = "spearman")
+if (corr < 0.90){
+    quit(status=1)
+}

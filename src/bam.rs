@@ -59,6 +59,7 @@ pub fn bam2bam(
 	if ret_vec.len() == 0 { missed += 1; }
         for r in ret_vec.iter() {
             let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+            if txp_records.len() == 0 { missed += 1; }
             for txp_rec in txp_records.iter() {
                 output_writer.write(txp_rec).unwrap();
             }

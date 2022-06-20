@@ -26,7 +26,6 @@ pub fn read_and_process(ann_file_adr: &String,
     bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200, &v)
 }
 
-/*
 #[test]
 pub fn test_bam2bam() {
     let ann_file_adr = "tests/NC_002333.2.gtf".to_string();
@@ -35,7 +34,7 @@ pub fn test_bam2bam() {
     let bam_file_in = "tests/NC_002333.2.sam".to_string();
     let bam_file_out = "tests/NC_002333.2_toTranscriptome.bam".to_string();    
  
-    let number_of_missed_records = 33;
+    let number_of_missed_records = 35;
     let missed_count = read_and_process(&ann_file_adr, &bam_file_in, &bam_file_out);
 
     // let bam_file_truth = "tests/NC_002333.2_toTranscriptome_truth.bam".to_string();    
@@ -45,7 +44,6 @@ pub fn test_bam2bam() {
                 missed_count,
                 number_of_missed_records);
 }
-*/
 
 #[test]
 pub fn test_reverse_coordinates_paired() {

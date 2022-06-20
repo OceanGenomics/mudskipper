@@ -1,10 +1,12 @@
 extern crate clap;
-extern crate num_cpus;
 
 use clap::{crate_version, App, AppSettings, Arg, ArgGroup};
 use std::collections::HashMap;
+use std::env;
+use sysinfo::{System, SystemExt};
 
 mod annotation;
+mod position;
 mod bam;
 mod convert;
 mod query_bam_records;
@@ -20,6 +22,12 @@ fn main() {
     let default_num_threads = String::from("1");
     let default_max_softlen = String::from("50");
     // let default_supplementary = String::from("keep");
+
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    let max_num_threads: String = (sys.processors().len() as u32).to_string();
+    let max_mem_mb: String = ((sys.total_memory() as f64 * 0.75) as u64 / 1024).to_string();
+
     let app_index = App::new("index")
         .version(version)
         .about("Parse the GTF and build an index to make later runs faster.")
@@ -36,6 +44,8 @@ fn main() {
         .arg(Arg::from_usage("-r, --rad 'Output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
         .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
+        .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
         .display_order(2);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
@@ -52,9 +62,19 @@ fn main() {
         .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'Name of output rad file; Only used with --rad'").default_value("map.rad").display_order(3))
         .arg(Arg::from_usage("-u, --rad-unmapped=<FILE> 'Name of file containing the number of unmapped reads for each barcode; Only used with --rad'").default_value("unmapped_bc_count.bin").display_order(3))
+        .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
+        .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
         .display_order(3);
         // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
+
+    let shuffle_app = App::new("shuffle")
+        .version(version)
+        .about("Take an existing position-sorted BAM and output grouped reads in random order")
+        .arg(Arg::from_usage("-b, --bam=<bam-file> 'input SAM/BAM file'"))
+        .arg(Arg::from_usage("-o, --out=<output-file> 'output BAM file'"))
+        .arg(Arg::from_usage("-t, --threads 'Number of threads for the processing bam files.'").default_value(&max_num_threads))
+        .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb));
 
     let opts = App::new("mudskipper")
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -64,6 +84,7 @@ fn main() {
         .subcommand(app_index)
         .subcommand(app_bulk)
         .subcommand(app_sc)
+        .subcommand(shuffle_app)
         .get_matches();
 
     log::info!("Mudskipper started...");
@@ -96,6 +117,10 @@ fn main() {
             annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
                 .expect("cannot build the tree!")
         };
+        if t.is_present("shuffle") {
+            let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
+            position::depositionify_bam(&bam_file_in, &bam_file_in, max_mem_mb * 1024 * 1024, threads_count);
+        }
         if t.is_present("rad") {
             rad::bam2rad_bulk(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
         } else {
@@ -138,6 +163,10 @@ fn main() {
         } else {
             required_tags = vec!["CR", "UR"];
         }
+        if t.is_present("shuffle") {
+            let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
+            position::depositionify_bam(&bam_file_in, &bam_file_in, max_mem_mb * 1024 * 1024, threads_count);
+        }
         if t.is_present("rad") {
             rad::bam2rad_singlecell(
                 &bam_file_in,
@@ -163,6 +192,12 @@ fn main() {
                 &required_tags,
             );
         }
+    } else if let Some(ref t) = opts.subcommand_matches("shuffle") {
+        let bam_file_in: String = t.value_of("bam").unwrap().to_string();
+        let bam_file_out: String = t.value_of("out").unwrap().to_string();
+        let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
+        let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
+        position::depositionify_bam(&bam_file_in, &bam_file_out, max_mem_mb * 1024 * 1024, threads_count);
     }
     log::info!("Mudskipper finished.");
 }

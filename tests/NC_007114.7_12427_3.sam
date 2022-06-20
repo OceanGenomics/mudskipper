@@ -1,4 +1,3 @@
-jelbers@lnadmn367:~/git/mudskipper$ cat tests/NC_007114.7_12427_3.sam 
 @HD	VN:1.4	SO:coordinate
 @SQ	SN:NC_007114.7	LN:62628489
 @PG	ID:STAR	PN:STAR	VN:2.7.9a	CL:STAR-2.7.9a/bin/Linux_x86_64/STAR   --runThreadN 24   --genomeDir d_rerio/NC_007112.7_star_index/   --readFilesIn SRR14551647/top_10K_1.fastq   SRR14551647/top_10K_2.fastq      --outFileNamePrefix d_rerio/star_NC_007112.7_paired_quant/   --quantMode TranscriptomeSAM   

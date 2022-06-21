@@ -486,6 +486,10 @@ pub fn convert_single_end(
                 record_.set(bam_record.qname(), Some(&record_cigar), &record_seq, &record_qual);
                 record_.set_tid(*tid);
                 record_.set_pos(pos);
+                record_.set_mpos(-1);
+                record_.set_mtid(-1);
+                record_.unset_paired();
+                record_.set_insert_size(0);
 
                 // output_bam.write(&record_).unwrap();
                 converted_records.push(record_);

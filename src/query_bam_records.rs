@@ -162,7 +162,6 @@ impl BAMQueryRecordReader {
             } else {
                 // paired-end
                 // add the primary alignments first
-                //if self.record_list.len() >= 1 {
                 first_vec.push(self.record_list[i].to_owned());
                 //                }
                 if self.record_list.len() > 1 {

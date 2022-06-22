@@ -159,7 +159,7 @@ impl BAMQueryRecordReader {
                     second: second_vec,
                 });
                 i += 1;
-            } else { // paired-end
+            } else if self.record_list[i].is_paired() && self.record_list.len() % 2 == 0 { // paired-end
                 // add the primary alignments first
                 first_vec.push(self.record_list[i].to_owned());
                 second_vec.push(self.record_list[i+1].to_owned());
@@ -181,6 +181,9 @@ impl BAMQueryRecordReader {
                     second: second_vec,
                 });
                 i += 2;
+            } else {
+                log::error!("Cannot find the mate for query {}. The mate might be missing or not in the right order! If the sam/bam file is not name sorted, please consider using \"mudskipper shuffle\".", self.last_qname);
+                panic!("Invalid input sam/bam file!");
             }
         }
         record_groups

@@ -184,6 +184,7 @@ impl BAMQueryRecordReader {
                     }
                 }
                 if second_vec.len() == 0 {
+                    log::warn!("Cannot find the mate for query {}. The mate might be missing or not in the right order! If the sam/bam file is not name sorted, please consider using \"mudskipper shuffle\".", self.last_qname);
                     record_groups.push(BAMQueryRecord {
                         is_paired: false,
                         first: first_vec,

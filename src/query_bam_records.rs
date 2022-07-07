@@ -124,7 +124,7 @@ impl BAMQueryRecordReader {
         && a.cigar() == b.cigar()
     }
 
-    fn group_records(&self) -> Vec<BAMQueryRecord> {
+    fn group_records(&self) -> Result<Vec<BAMQueryRecord>, String> {
         let mut record_groups: Vec<BAMQueryRecord> = Vec::new();
         // find primary alignment of each supplementary alignment
         let mut primary_of_supp: Vec<Record> = Vec::new();
@@ -182,14 +182,128 @@ impl BAMQueryRecordReader {
                 });
                 i += 2;
             } else {
-                log::error!("Cannot find the mate for query {}. The mate might be missing or not in the right order! If the sam/bam file is not name sorted, please consider using \"mudskipper shuffle\".", self.last_qname);
-                panic!("Invalid input sam/bam file!");
+                // return the name of the query which missing its mate
+                return Err(format!("{}", self.last_qname));
+            }
+        }
+        Ok(record_groups)
+    }
+
+    fn group_records_skip(&self) -> Vec<BAMQueryRecord> {
+        let mut record_groups: Vec<BAMQueryRecord> = Vec::new();
+        // find primary alignment of each supplementary alignment
+        let mut primary_of_supp: Vec<Record> = Vec::new();
+        for supp in self.supp_list.iter() {
+            if let Ok(Aux::String(sa_tag)) = supp.aux(b"SA") {
+                primary_of_supp.push(self.get_primary_record_of_sa_tag(sa_tag))
+            }
+            else {
+                panic!("Error reading SA tag for query {}", String::from_utf8(supp.qname().to_vec()).expect("cannot find the qname!"));
+            }
+        }
+        
+        let mut supp_assigned: Vec<bool> = vec![false; self.supp_list.len()];
+        let mut i = 0;
+        while i < self.record_list.len() {
+            let mut first_vec: Vec<Record> = vec![];
+            let mut second_vec: Vec<Record> = vec![];
+            if self.record_list[i].is_paired() == false { // single-end
+                // add the primary alignment first
+                first_vec.push(self.record_list[i].to_owned());
+                // search for possible matching of a supplementary alignment with the alignment in first_vec
+                for j in 0..supp_assigned.len() {
+                    if supp_assigned[j] == false && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
+                        first_vec.push(self.supp_list[j].to_owned());
+                        supp_assigned[j] = true;
+                    }
+                }
+                record_groups.push(BAMQueryRecord {
+                    is_paired: false,
+                    first: first_vec,
+                    second: second_vec,
+                });
+                i += 1;
+            } else if self.record_list[i].is_paired() && self.record_list.len() % 2 == 0 { // paired-end
+                // add the primary alignments first
+                first_vec.push(self.record_list[i].to_owned());
+                second_vec.push(self.record_list[i+1].to_owned());
+                // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
+                for j in 0..supp_assigned.len() {
+                    if supp_assigned[j] == false {
+                        if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
+                            first_vec.push(self.supp_list[j].to_owned());
+                            supp_assigned[j] = true;
+                        } else if BAMQueryRecordReader::records_equal(&self.record_list[i+1], &primary_of_supp[j]) {
+                            second_vec.push(self.supp_list[j].to_owned());
+                            supp_assigned[j] = true;
+                        }
+                    }
+                }
+                record_groups.push(BAMQueryRecord {
+                    is_paired: true,
+                    first: first_vec,
+                    second: second_vec,
+                });
+                i += 2;
+            } else {
+                // print out warning message for skipped query
+                log::warn!("Skipping query: {}", self.last_qname);
+                break;
             }
         }
         record_groups
     }
 
-    pub fn get_next_query_records(&mut self) -> Option<Vec<BAMQueryRecord>> {
+    pub fn get_next_query_records(&mut self) -> Result<Option<Vec<BAMQueryRecord>>, String> {
+        let mut brecord = Record::new();
+        let _query_records: Vec<BAMQueryRecord>;
+        // log::debug!("in func");
+        while let Some(res) = self.bam_reader.read(&mut brecord) {
+            // log::debug!("in loop!");
+            res.expect("Failed to parse BAM record");
+            let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
+            if qname != self.last_qname { // a new query
+                // process the previous group
+                match self.group_records() {
+                    Ok(query_records) => {
+                        self.last_qname = qname;
+                        self.record_list.clear();
+                        self.supp_list.clear();
+                        // add the current record
+                        if brecord.flags() & 0x800 != 0 {
+                            self.supp_list.push(brecord.to_owned());
+                        } else {
+                            self.record_list.push(brecord.to_owned());
+                        }
+                        return Ok(Some(query_records));
+                        },
+                    Err(e) => return Err(e),
+                };
+            } else { // same query
+                if brecord.flags() & 0x800 != 0 {
+                    self.supp_list.push(brecord.to_owned());
+                } else {
+                    self.record_list.push(brecord.to_owned());
+                }
+            }
+        }
+        // process the last record
+        match self.group_records() {
+            Ok(query_records) => {
+                // reset
+                self.record_list.clear();
+                self.supp_list.clear();
+                if query_records.is_empty() {
+                    return Ok(None)
+                } else {
+                    return Ok(Some(query_records))
+                }
+            },
+            Err(e) => return Err(e),
+        };
+    }
+
+    pub fn get_next_query_records_skip(&mut self) -> Option<Vec<BAMQueryRecord>> {
         let mut brecord = Record::new();
         let query_records: Vec<BAMQueryRecord>;
         // log::debug!("in func");
@@ -199,7 +313,7 @@ impl BAMQueryRecordReader {
             let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
             if qname != self.last_qname { // a new query
                 // process the previous group
-                query_records = self.group_records();
+                query_records = self.group_records_skip();
                 // reset
                 self.last_qname = qname;
                 self.record_list.clear();
@@ -220,7 +334,7 @@ impl BAMQueryRecordReader {
             }
         }
         // process the last record
-        query_records = self.group_records();
+        query_records = self.group_records_skip();
         // reset
         self.record_list.clear();
         self.supp_list.clear();

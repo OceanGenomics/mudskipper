@@ -130,7 +130,7 @@ fn main() {
         if t.is_present("shuffle") {
             let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
             tempfile = Option::Some(NamedTempFile::new_in(Path::new(&out_file).parent().unwrap()).unwrap());
-            bamfile = tempfile.unwrap().path().to_str().unwrap().to_string();
+            bamfile = tempfile.as_ref().unwrap().path().to_str().unwrap().to_string();
             position::depositionify_bam(&bam_file_in, &bamfile, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {
@@ -179,7 +179,7 @@ fn main() {
         if t.is_present("shuffle") {
             let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
             tempfile = Option::Some(NamedTempFile::new_in(Path::new(&out_file).parent().unwrap()).unwrap());
-            bamfile = tempfile.unwrap().path().to_str().unwrap().to_string();
+            bamfile = tempfile.as_ref().unwrap().path().to_str().unwrap().to_string();
             position::depositionify_bam(&bam_file_in, &bamfile, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {

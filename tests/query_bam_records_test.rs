@@ -1,3 +1,5 @@
+use std::fs;
+
 use mudskipper::query_bam_records::BAMQueryRecordReader;
 use mudskipper::position;
 //use std::panic;
@@ -47,5 +49,6 @@ fn test_name_order() {
     //     let _next_query = bqr.get_next_query_records();
     // });
     // assert!(result.is_ok());
+    fs::remove_file(sorted_bam_filename).unwrap();
     
 }

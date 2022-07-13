@@ -12,7 +12,7 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
     let mut bam = threaded_bam_reader(Path::new(input_path), nthreads);
     let header = bam::Header::from_template(bam.header());
 
-    // Since, despite being compressed as a relatively standard GZip file, not all BAM files have
+    // Despite being compressed as a relatively standard GZip file, not all BAM files have
     // enough information in the header to get the uncompressed size, so we assume that 
     // the maximum compression ratio is 8x and bucket accordingly
     let bam_bytes = fs::metadata(&input_path).unwrap().len();
@@ -35,7 +35,7 @@ pub fn depositionify_bam(input_path: &str, output_path: &str, max_mem: u64, nthr
     }
     else {
         info! { "Reordering file {} of size {} in memory", input_path, bam_bytes };
-        let mut writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam).unwrap();
+        let mut writer = bam::Writer::from_path(&output, &header, bam::Format::Bam).unwrap();
         process_bucket(&header, &mut bam, &mut writer);
     }
 

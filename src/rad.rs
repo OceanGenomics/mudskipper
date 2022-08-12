@@ -82,14 +82,15 @@ pub fn bam2rad_bulk(
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
+    max_overhang: &usize,
 ) {
     let first_record = bam_peek(input_bam_filename);
     ////////////////////////////////////////////////// header section
     // is paired-end
     if first_record.is_paired() {
-        bam2rad_bulk_pe(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen);
+        bam2rad_bulk_pe(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen, max_overhang);
     } else {
-        bam2rad_bulk_se(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen);
+        bam2rad_bulk_se(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen, max_overhang);
     }
 }
 
@@ -165,6 +166,7 @@ pub fn bam2rad_bulk_se(
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
+    max_overhang: &usize,
 ) {
     let ofile = File::create(&output_rad_filename).unwrap();
     // file writer and intermediate buffer
@@ -280,7 +282,7 @@ pub fn bam2rad_bulk_se(
     while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
-            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
+            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, &required_tags);
             all_query_records.append(&mut txp_records);
         }
         if all_query_records.len() > 0 {
@@ -487,6 +489,7 @@ pub fn bam2rad_bulk_pe(
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
+    max_overhang: &usize,
 ) {
     let ofile = File::create(&output_rad_filename).unwrap();
     // file writer and intermediate buffer
@@ -632,7 +635,7 @@ pub fn bam2rad_bulk_pe(
     while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
-            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
+            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, &required_tags);
             all_query_records.append(&mut txp_records);
         }
         if all_query_records.len() > 0 {
@@ -800,6 +803,7 @@ pub fn bam2rad_singlecell(
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
+    max_overhang: &usize,
     corrected_tags: bool,
 ) {
     let out_dir_path = Path::new(output_dirname);
@@ -982,7 +986,7 @@ pub fn bam2rad_singlecell(
     while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
-            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
+            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, &required_tags);
             all_query_records.append(&mut txp_records);
         }
         if all_query_records.len() > 0 {

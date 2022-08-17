@@ -3,7 +3,9 @@ extern crate clap;
 use clap::{crate_version, App, AppSettings, Arg, ArgGroup};
 use std::collections::HashMap;
 use std::env;
+use std::path::Path;
 use sysinfo::{System, SystemExt};
+use tempfile::NamedTempFile;
 
 mod annotation;
 mod position;
@@ -45,6 +47,7 @@ fn main() {
         .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
         .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
         .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
+        .arg(Arg::from_usage("-p, --skip 'skip reads that do not have a mate for paired-end reads'"))
         .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
         .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
         .display_order(2);
@@ -101,6 +104,7 @@ fn main() {
             .expect("cannot build the tree!");
     } else if let Some(ref t) = opts.subcommand_matches("bulk") {
         let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
+        let input_path = Path::new(&bam_file_in);
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softclip").unwrap().parse::<usize>().unwrap();
@@ -108,6 +112,11 @@ fn main() {
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
+
+        if !input_path.exists() {
+            log::error!("BAM/SAM input {} doesn't seem to exist", bam_file_in);
+            return; // Do this check beforehand to save the user the hassle of waiting for the index to load
+        }
         let trees = if t.is_present("index"){
             let index_dir_adr: String = t.value_of("index").unwrap().to_string();
             annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths)
@@ -117,16 +126,32 @@ fn main() {
             annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
                 .expect("cannot build the tree!")
         };
+        let mut bamfile = bam_file_in.to_string();
+        let tempfile: Option<NamedTempFile>;
         if t.is_present("shuffle") {
             let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
-            position::depositionify_bam(&bam_file_in, &bam_file_in, max_mem_mb * 1024 * 1024, threads_count);
+            tempfile = Option::Some(NamedTempFile::new_in(Path::new(&out_file).parent().unwrap()).unwrap());
+            bamfile = tempfile.as_ref().unwrap().path().to_str().unwrap().to_string();
+            position::depositionify_bam(&bam_file_in, &bamfile, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {
-            rad::bam2rad_bulk(&bam_file_in, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
+            rad::bam2rad_bulk(&bamfile, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
+        } else if t.is_present("skip") {
+            let required_tags: Vec<&str> = Vec::new();
+            bam::bam2bam_skip(
+                &bamfile,
+                &out_file,
+                &transcripts,
+                &txp_lengths,
+                &trees,
+                &threads_count,
+                &max_softlen,
+                &required_tags,
+            );
         } else {
             let required_tags: Vec<&str> = Vec::new();
             bam::bam2bam(
-                &bam_file_in,
+                &bamfile,
                 &out_file,
                 &transcripts,
                 &txp_lengths,
@@ -157,19 +182,22 @@ fn main() {
                 .expect("cannot build the tree!")
         };
 
-        let required_tags: Vec<&str>;
-        if t.is_present("corrected-tags") {
-            required_tags = vec!["CB", "UB"];
+        let required_tags = if t.is_present("corrected-tags") {
+            vec!["CB", "UB"]
         } else {
-            required_tags = vec!["CR", "UR"];
-        }
+            vec!["CR", "UR"]
+        };
+        let mut bamfile = bam_file_in.to_string();
+        let tempfile: Option<NamedTempFile>;
         if t.is_present("shuffle") {
             let max_mem_mb: u64 = t.value_of("max_mem_mb").unwrap().parse::<u64>().unwrap();
-            position::depositionify_bam(&bam_file_in, &bam_file_in, max_mem_mb * 1024 * 1024, threads_count);
+            tempfile = Option::Some(NamedTempFile::new_in(Path::new(&out_file).parent().unwrap()).unwrap());
+            bamfile = tempfile.as_ref().unwrap().path().to_str().unwrap().to_string();
+            position::depositionify_bam(&bam_file_in, &bamfile, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {
             rad::bam2rad_singlecell(
-                &bam_file_in,
+                &bamfile,
                 &out_file,
                 &rad_mapped,
                 &rad_unmapped,
@@ -182,7 +210,7 @@ fn main() {
             );
         } else {
             bam::bam2bam(
-                &bam_file_in,
+                &bamfile,
                 &out_file,
                 &transcripts,
                 &txp_lengths,

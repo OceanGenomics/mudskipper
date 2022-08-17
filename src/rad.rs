@@ -4,8 +4,8 @@ use crate::convert;
 extern crate fnv;
 
 use libradicl::rad_types::decode_int_type_tag;
-use libradicl::rad_types::write_str_bin;
-use libradicl::rad_types::encode_type_tag;
+//use libradicl::rad_types::write_str_bin;
+//use libradicl::rad_types::encode_type_tag;
 use log;
 use std::error::Error;
 use std::path::Path;
@@ -277,7 +277,7 @@ pub fn bam2rad_bulk_se(
     let mut all_query_records: Vec<record::Record> = Vec::new();
     let required_tags: Vec<&str> = vec![];
 
-    while let Some(ret_vec) = bqr.get_next_query_records() {
+    while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
             let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
@@ -629,7 +629,7 @@ pub fn bam2rad_bulk_pe(
     // let mut second_record: record::Record; // = record::Record::new();
     // let mut n = 0;
 
-    while let Some(ret_vec) = bqr.get_next_query_records() {
+    while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
             let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
@@ -979,7 +979,7 @@ pub fn bam2rad_singlecell(
     let required_tags: Vec<&str> = vec![];
     // let mut n = 0;
 
-    while let Some(ret_vec) = bqr.get_next_query_records() {
+    while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
             let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);

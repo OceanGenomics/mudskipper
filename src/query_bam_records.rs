@@ -82,7 +82,7 @@ impl BAMQueryRecordReader {
                 brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
                 brecord.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
                 brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") - 1);
-                if tag_vec[2].eq("-") == true {
+                if tag_vec[2].eq("-") {
                     brecord.set_reverse();
                 } else {
                     brecord.unset_reverse();
@@ -98,14 +98,14 @@ impl BAMQueryRecordReader {
     fn get_primary_record_of_sa_tag(&self, sa_tag: &str) -> Record {
         let mut brecord = Record::new();
         for aln_str in sa_tag.split(";") {
-            if aln_str.is_empty() == false {
-                let tag_vec: Vec<&str> = aln_str.split(",").collect();
+            if !aln_str.is_empty() {
+                let tag_vec: Vec<&str> = aln_str.split(',').collect();
 
                 let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
                 brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
                 brecord.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
                 brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") - 1);
-                if tag_vec[2].eq("-") == true {
+                if tag_vec[2].eq("-") {
                     brecord.set_reverse();
                 } else {
                     brecord.unset_reverse();
@@ -141,13 +141,13 @@ impl BAMQueryRecordReader {
         while i < self.record_list.len() {
             let mut first_vec: Vec<Record> = vec![];
             let mut second_vec: Vec<Record> = vec![];
-            if self.record_list[i].is_paired() == false {
+            if !self.record_list[i].is_paired() {
                 // single-end
                 // add the primary alignment first
                 first_vec.push(self.record_list[i].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec
                 for j in 0..supp_assigned.len() {
-                    if supp_assigned[j] == false && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
+                    if !supp_assigned[j] && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
                         // println!("ADDING to first_vec");
                         first_vec.push(self.supp_list[j].to_owned());
                         supp_assigned[j] = true;
@@ -166,7 +166,7 @@ impl BAMQueryRecordReader {
                 second_vec.push(self.record_list[i + 1].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
                 for j in 0..supp_assigned.len() {
-                    if supp_assigned[j] == false {
+                    if !supp_assigned[j] {
                         if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
                             first_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
@@ -184,7 +184,7 @@ impl BAMQueryRecordReader {
                 i += 2;
             } else {
                 // return the name of the query which missing its mate
-                return Err(format!("{}", self.last_qname));
+                return Err(self.last_qname.to_string());
             }
         }
         Ok(record_groups)
@@ -210,13 +210,13 @@ impl BAMQueryRecordReader {
         while i < self.record_list.len() {
             let mut first_vec: Vec<Record> = vec![];
             let mut second_vec: Vec<Record> = vec![];
-            if self.record_list[i].is_paired() == false {
+            if !self.record_list[i].is_paired() {
                 // single-end
                 // add the primary alignment first
                 first_vec.push(self.record_list[i].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec
                 for j in 0..supp_assigned.len() {
-                    if supp_assigned[j] == false && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
+                    if !supp_assigned[j] && BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
                         first_vec.push(self.supp_list[j].to_owned());
                         supp_assigned[j] = true;
                     }
@@ -234,7 +234,7 @@ impl BAMQueryRecordReader {
                 second_vec.push(self.record_list[i + 1].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
                 for j in 0..supp_assigned.len() {
-                    if supp_assigned[j] == false {
+                    if !supp_assigned[j] {
                         if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
                             first_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
@@ -301,13 +301,13 @@ impl BAMQueryRecordReader {
                 self.record_list.clear();
                 self.supp_list.clear();
                 if query_records.is_empty() {
-                    return Ok(None);
+                    Ok(None)
                 } else {
-                    return Ok(Some(query_records));
+                    Ok(Some(query_records))
                 }
             }
-            Err(e) => return Err(e),
-        };
+            Err(e) => Err(e),
+        }
     }
 
     pub fn get_next_query_records_skip(&mut self) -> Option<Vec<BAMQueryRecord>> {

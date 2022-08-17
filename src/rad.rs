@@ -108,7 +108,7 @@ pub fn bam2rad_bulk(
     }
 }
 
-fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owriter: &mut Cursor<Vec<u8>>) -> bool {
+fn dump_collected_alignments_bulk_se(all_read_records: &[record::Record], owriter: &mut Cursor<Vec<u8>>) -> bool {
     // add stored data to the current chunk
     let mut wrote_some: bool = false;
     let mut written_records: u32 = 0;
@@ -127,7 +127,7 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
             // compressed_ori_refid
             let mut tid_comressed = txp_rec.tid() as u32;
             if !txp_rec.is_reverse() {
-                tid_comressed |= 0x80000000 as u32;
+                tid_comressed |= 0x80000000_u32;
             }
             data.write_all(&tid_comressed.to_le_bytes()).unwrap();
             // alnscore
@@ -172,7 +172,7 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
         owriter.write_all(data.get_ref()).unwrap();
     }
 
-    return wrote_some;
+    wrote_some
 }
 
 pub fn bam2rad_bulk_se(
@@ -228,7 +228,7 @@ pub fn bam2rad_bulk_se(
         // read length
         let mut tag_str = "readlen";
         let mut tag_typeid = 2u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -238,19 +238,19 @@ pub fn bam2rad_bulk_se(
         // reference id
         tag_str = "compressed_ori_refid";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment score
         tag_str = "alnscore";
         tag_typeid = 5u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position
         tag_str = "alnpos";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values

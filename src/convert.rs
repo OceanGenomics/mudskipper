@@ -1,7 +1,7 @@
+use bio::alphabets::dna::revcomp;
 use coitrees::COITree;
 use rust_htslib::bam::record;
 use std::collections::{HashMap, HashSet};
-use bio::alphabets::dna::revcomp;
 
 use rust_htslib::bam::HeaderView;
 // use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header};
@@ -13,8 +13,6 @@ use bio_types::strand::Strand;
 use crate::annotation;
 use crate::query_bam_records::BAMQueryRecord;
 use annotation::ExonNode;
-
-use log;
 
 /// Given ranges of genomic bases where a spliced alignment is mapped against, returns a map of transcripts that are covered by the projected alignments.
 /// For each transcript, the position and orientation of the alignment is also returned.
@@ -28,7 +26,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
     let mut tid_pos: HashMap<i32, (i32, Strand)> = HashMap::new(); // final (tid, pos, strand) to return
     for (i, range) in ranges.iter().enumerate() {
         let range_cov = tree.coverage(range.0, range.1);
-        let mut tid_curr: HashSet<i32> = HashSet::new(); // stores all the transcript ids that are covered by the current range 
+        let mut tid_curr: HashSet<i32> = HashSet::new(); // stores all the transcript ids that are covered by the current range
         log::debug!("range coverage: {:?}", range_cov);
         if range_cov.0 != 0 || range_cov.1 != 0 {
             tree.query(range.0, range.1, |node| {
@@ -36,42 +34,48 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                 // TODO: for now we are dropping overhanging alignments. This can be improved.
                 if node.metadata.start <= range.0 && node.metadata.end >= range.1 {
                     // add to tid_curr
-                    if  ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
+                    if ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
                     (i == 0 && range.1 == node.metadata.end) ||
                     (i == ranges.len() - 1 && range.0 == node.metadata.start) || 
-                    (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end) {
+                    (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end)
+                    {
                         log::debug!("keeping");
                         tid_curr.insert(node.metadata.tid);
                     }
                     // keep track of the alignment position and strand
-                    if i == 0 && node.metadata.strand == Strand::Forward { // first range of the spliced alignment 
-                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}", 
-                            node.metadata.tid, 
-                            node.metadata.strand, 
-                            node.metadata.start - node.metadata.tpos_start, 
-                            node.metadata.start, 
-                            node.metadata.tpos_start);
+                    if i == 0 && node.metadata.strand == Strand::Forward {
+                        // first range of the spliced alignment
+                        log::debug!(
+                            "inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}",
+                            node.metadata.tid,
+                            node.metadata.strand,
+                            node.metadata.start - node.metadata.tpos_start,
+                            node.metadata.start,
+                            node.metadata.tpos_start
+                        );
                         tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
                     } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse {
-                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1", 
-                            node.metadata.tid, 
-                            node.metadata.strand, 
-                            node.metadata.end + node.metadata.tpos_start + 1, 
-                            node.metadata.end, 
-                            node.metadata.tpos_start);
+                        log::debug!(
+                            "inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1",
+                            node.metadata.tid,
+                            node.metadata.strand,
+                            node.metadata.end + node.metadata.tpos_start + 1,
+                            node.metadata.end,
+                            node.metadata.tpos_start
+                        );
                         tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start + 1, Strand::Reverse));
                     }
                 }
             });
             log::debug!("found coverage: {:?}", range_cov);
         }
-        if i ==0 {
+        if i == 0 {
             tid_set = tid_curr;
         } else {
             tid_set = &tid_set & &tid_curr; // only transcripts that overlap ALL the ranges will be reported, hence the intersection
         }
     }
-    // 
+    //
     let mut tid_to_remove: HashSet<i32> = HashSet::new();
     for (k, _v) in &tid_pos {
         if tid_set.contains(k) == false {
@@ -115,7 +119,7 @@ pub fn find_tids_paired(
     return tid_pos;
 }
 
-/// Returns a vector of ranges in exons covered by the input alignment. 
+/// Returns a vector of ranges in exons covered by the input alignment.
 /// Each range is a tuple in format of (start, end) and both coordinates are inclusive.
 ///
 /// # Arguments
@@ -158,7 +162,7 @@ pub fn find_ranges_single(
                     curr_range = (curr_pos + 1, -1);
                     new_range = false;
                 }
-                
+
                 if cigar_char != 'I' {
                     // log::debug!("curr_pos: {}", curr_pos);
                     curr_pos = curr_pos + cigar_len as i32;
@@ -168,7 +172,7 @@ pub fn find_ranges_single(
 
                 // log::debug!("curr_pos: {}", curr_pos);
                 curr_range.1 = curr_pos;
-                
+
                 // update the new cigar
                 if new_cigar_vec.len() == 0 || cigar_char != new_cigar_vec.last().unwrap().char() {
                     new_cigar_vec.push(*cigar_item);
@@ -370,7 +374,12 @@ pub fn convert_paired_end(
                 log::debug!("tid:{} {}", tid, transcripts[*tid as usize]);
                 log::debug!(
                     "first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
-                    first_pos, second_pos, first_read_len, second_read_len, first_length, second_length
+                    first_pos,
+                    second_pos,
+                    first_read_len,
+                    second_read_len,
+                    first_length,
+                    second_length
                 );
                 log::debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
                 log::debug!("record.is_reverse():{}", bam_record2.is_reverse());
@@ -429,7 +438,8 @@ pub fn convert_single_end(
     max_softlen: &usize,
 ) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
-    if bam_record.is_unmapped() { // no need to convert, just return the unmapped record
+    if bam_record.is_unmapped() {
+        // no need to convert, just return the unmapped record
         converted_records.push(bam_record.clone());
         return converted_records;
     }
@@ -521,15 +531,27 @@ pub fn convert_query_bam_records(
     }
 
     if qrecord.is_paired() {
-        log::debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+        log::debug!(
+            "qname1: {}    qname2: {}",
+            String::from_utf8(first_mate[0].qname().to_vec()).unwrap(),
+            String::from_utf8(second_mate[0].qname().to_vec()).unwrap()
+        );
         // check for required tags
         for tag in required_tags.iter() {
             if first_mate[0].aux(tag.as_bytes()).is_err() {
-                log::error!("Could not find {} tag for first mate of read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                log::error!(
+                    "Could not find {} tag for first mate of read {}",
+                    tag,
+                    String::from_utf8(first_mate[0].qname().to_vec()).unwrap()
+                );
                 panic!("Some required tags do not exist!");
             }
             if second_mate[0].aux(tag.as_bytes()).is_err() {
-                log::error!("Could not find {} tag for second mate of read {}", tag, String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+                log::error!(
+                    "Could not find {} tag for second mate of read {}",
+                    tag,
+                    String::from_utf8(second_mate[0].qname().to_vec()).unwrap()
+                );
                 panic!("Some required tags do not exist!");
             }
         }
@@ -540,7 +562,11 @@ pub fn convert_query_bam_records(
         // check for required tags
         for tag in required_tags.iter() {
             if first_mate[0].aux(tag.as_bytes()).is_err() {
-                log::error!("Could not find {} tag for read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                log::error!(
+                    "Could not find {} tag for read {}",
+                    tag,
+                    String::from_utf8(first_mate[0].qname().to_vec()).unwrap()
+                );
                 panic!("Some required tags do not exist!");
             }
         }

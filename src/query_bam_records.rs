@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use rust_htslib::bam::{Record, record::Aux, record::CigarString, HeaderView, Read, Reader};
+use rust_htslib::bam::{record::Aux, record::CigarString, HeaderView, Read, Reader, Record};
 
 pub struct BAMQueryRecord {
     is_paired: bool,
@@ -59,7 +59,7 @@ impl BAMQueryRecordReader {
         BAMQueryRecordReader {
             bam_reader: breader,
             header: hv,
-            last_qname: last_qname,
+            last_qname,
             record_list: r_list,
             supp_list: s_list,
         }
@@ -81,7 +81,7 @@ impl BAMQueryRecordReader {
                 let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
                 brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
                 brecord.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
-                brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") -1);
+                brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") - 1);
                 if tag_vec[2].eq("-") == true {
                     brecord.set_reverse();
                 } else {
@@ -104,24 +104,21 @@ impl BAMQueryRecordReader {
                 let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
                 brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
                 brecord.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
-                brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") -1);
+                brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") - 1);
                 if tag_vec[2].eq("-") == true {
                     brecord.set_reverse();
                 } else {
                     brecord.unset_reverse();
                 }
                 brecord.set_mapq(tag_vec[4].parse::<u8>().expect("Cannot parse MAPQ for SA alignment!"));
-                return brecord
+                return brecord;
             }
         }
         brecord
     }
 
     fn records_equal(a: &Record, b: &Record) -> bool {
-        a.tid() == b.tid()
-        && a.pos() == b.pos()
-        && a.is_reverse() == b.is_reverse()
-        && a.cigar() == b.cigar()
+        a.tid() == b.tid() && a.pos() == b.pos() && a.is_reverse() == b.is_reverse() && a.cigar() == b.cigar()
     }
 
     fn group_records(&self) -> Result<Vec<BAMQueryRecord>, String> {
@@ -131,18 +128,21 @@ impl BAMQueryRecordReader {
         for supp in self.supp_list.iter() {
             if let Ok(Aux::String(sa_tag)) = supp.aux(b"SA") {
                 primary_of_supp.push(self.get_primary_record_of_sa_tag(sa_tag))
-            }
-            else {
-                panic!("Error reading SA tag for query {}", String::from_utf8(supp.qname().to_vec()).expect("cannot find the qname!"));
+            } else {
+                panic!(
+                    "Error reading SA tag for query {}",
+                    String::from_utf8(supp.qname().to_vec()).expect("cannot find the qname!")
+                );
             }
         }
-        // 
+        //
         let mut supp_assigned: Vec<bool> = vec![false; self.supp_list.len()];
         let mut i = 0;
         while i < self.record_list.len() {
             let mut first_vec: Vec<Record> = vec![];
             let mut second_vec: Vec<Record> = vec![];
-            if self.record_list[i].is_paired() == false { // single-end
+            if self.record_list[i].is_paired() == false {
+                // single-end
                 // add the primary alignment first
                 first_vec.push(self.record_list[i].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec
@@ -159,17 +159,18 @@ impl BAMQueryRecordReader {
                     second: second_vec,
                 });
                 i += 1;
-            } else if self.record_list[i].is_paired() && self.record_list.len() % 2 == 0 { // paired-end
+            } else if self.record_list[i].is_paired() && self.record_list.len() % 2 == 0 {
+                // paired-end
                 // add the primary alignments first
                 first_vec.push(self.record_list[i].to_owned());
-                second_vec.push(self.record_list[i+1].to_owned());
+                second_vec.push(self.record_list[i + 1].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false {
                         if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
                             first_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
-                        } else if BAMQueryRecordReader::records_equal(&self.record_list[i+1], &primary_of_supp[j]) {
+                        } else if BAMQueryRecordReader::records_equal(&self.record_list[i + 1], &primary_of_supp[j]) {
                             second_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
                         }
@@ -196,18 +197,21 @@ impl BAMQueryRecordReader {
         for supp in self.supp_list.iter() {
             if let Ok(Aux::String(sa_tag)) = supp.aux(b"SA") {
                 primary_of_supp.push(self.get_primary_record_of_sa_tag(sa_tag))
-            }
-            else {
-                panic!("Error reading SA tag for query {}", String::from_utf8(supp.qname().to_vec()).expect("cannot find the qname!"));
+            } else {
+                panic!(
+                    "Error reading SA tag for query {}",
+                    String::from_utf8(supp.qname().to_vec()).expect("cannot find the qname!")
+                );
             }
         }
-        
+
         let mut supp_assigned: Vec<bool> = vec![false; self.supp_list.len()];
         let mut i = 0;
         while i < self.record_list.len() {
             let mut first_vec: Vec<Record> = vec![];
             let mut second_vec: Vec<Record> = vec![];
-            if self.record_list[i].is_paired() == false { // single-end
+            if self.record_list[i].is_paired() == false {
+                // single-end
                 // add the primary alignment first
                 first_vec.push(self.record_list[i].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec
@@ -223,17 +227,18 @@ impl BAMQueryRecordReader {
                     second: second_vec,
                 });
                 i += 1;
-            } else if self.record_list[i].is_paired() && self.record_list.len() % 2 == 0 { // paired-end
+            } else if self.record_list[i].is_paired() && self.record_list.len() % 2 == 0 {
+                // paired-end
                 // add the primary alignments first
                 first_vec.push(self.record_list[i].to_owned());
-                second_vec.push(self.record_list[i+1].to_owned());
+                second_vec.push(self.record_list[i + 1].to_owned());
                 // search for possible matching of a supplementary alignment with the alignment in first_vec or second_vec
                 for j in 0..supp_assigned.len() {
                     if supp_assigned[j] == false {
                         if BAMQueryRecordReader::records_equal(&self.record_list[i], &primary_of_supp[j]) {
                             first_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
-                        } else if BAMQueryRecordReader::records_equal(&self.record_list[i+1], &primary_of_supp[j]) {
+                        } else if BAMQueryRecordReader::records_equal(&self.record_list[i + 1], &primary_of_supp[j]) {
                             second_vec.push(self.supp_list[j].to_owned());
                             supp_assigned[j] = true;
                         }
@@ -262,7 +267,8 @@ impl BAMQueryRecordReader {
             // log::debug!("in loop!");
             res.expect("Failed to parse BAM record");
             let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
-            if qname != self.last_qname { // a new query
+            if qname != self.last_qname {
+                // a new query
                 // process the previous group
                 match self.group_records() {
                     Ok(query_records) => {
@@ -276,10 +282,11 @@ impl BAMQueryRecordReader {
                             self.record_list.push(brecord.to_owned());
                         }
                         return Ok(Some(query_records));
-                        },
+                    }
                     Err(e) => return Err(e),
                 };
-            } else { // same query
+            } else {
+                // same query
                 if brecord.flags() & 0x800 != 0 {
                     self.supp_list.push(brecord.to_owned());
                 } else {
@@ -294,11 +301,11 @@ impl BAMQueryRecordReader {
                 self.record_list.clear();
                 self.supp_list.clear();
                 if query_records.is_empty() {
-                    return Ok(None)
+                    return Ok(None);
                 } else {
-                    return Ok(Some(query_records))
+                    return Ok(Some(query_records));
                 }
-            },
+            }
             Err(e) => return Err(e),
         };
     }
@@ -311,7 +318,8 @@ impl BAMQueryRecordReader {
             // log::debug!("in loop!");
             res.expect("Failed to parse BAM record");
             let qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
-            if qname != self.last_qname { // a new query
+            if qname != self.last_qname {
+                // a new query
                 // process the previous group
                 query_records = self.group_records_skip();
                 // reset
@@ -325,7 +333,8 @@ impl BAMQueryRecordReader {
                     self.record_list.push(brecord.to_owned());
                 }
                 return Some(query_records);
-            } else { // same query
+            } else {
+                // same query
                 if brecord.flags() & 0x800 != 0 {
                     self.supp_list.push(brecord.to_owned());
                 } else {

@@ -2,9 +2,9 @@ use bio::io::gff;
 use coitrees::{COITree, IntervalNode};
 use std::collections::HashMap;
 use std::error::Error;
-use std::path::Path;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 use std::time::Instant;
 
 extern crate bio_types;
@@ -15,7 +15,6 @@ use fnv::FnvHashMap;
 
 use indicatif::ProgressBar;
 use linecount::count_lines;
-use log;
 
 pub fn read(ann_file_adr: &String) -> Result<gff::Reader<File>, Box<dyn Error>> {
     let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
@@ -23,12 +22,10 @@ pub fn read(ann_file_adr: &String) -> Result<gff::Reader<File>, Box<dyn Error>> 
     log::info!("reading the {} file and building the tree.", file_type);
     let ann_type: gff::GffType = if file_type == "gtf" {
         gff::GffType::GTF2
+    } else if file_type == "gff3" || file_type == "gff" {
+        gff::GffType::GFF3
     } else {
-        if file_type == "gff3" || file_type == "gff" {
-            gff::GffType::GFF3
-        } else {
-            gff::GffType::GFF2
-        }
+        gff::GffType::GFF2
     };
 
     return Ok(gff::Reader::from_file(ann_file_adr, ann_type).expect("Error in reading annotation file."));
@@ -233,28 +230,28 @@ pub fn build_tree(
         let index_file_map = index_dir_path.join("gtf.map");
         let mut outfile = File::create(index_file_map.to_str().unwrap()).unwrap();
         for (seqname, seqid) in transcripts_map.iter() {
-            write!(outfile, "{}\t{}\n", seqname, seqid).unwrap();
+            writeln!(outfile, "{}\t{}", seqname, seqid).unwrap();
         }
 
         let index_file_name = index_dir_path.join("gtf.name");
         outfile = File::create(index_file_name.to_str().unwrap()).unwrap();
         for tname in transcripts.iter() {
-            write!(outfile, "{}\n", tname).unwrap();
+            writeln!(outfile, "{}", tname).unwrap();
         }
 
         let index_file_len = index_dir_path.join("gtf.len");
         outfile = File::create(index_file_len.to_str().unwrap()).unwrap();
         for tlen in txp_lengths.iter() {
-            write!(outfile, "{}\n", tlen).unwrap();
+            writeln!(outfile, "{}", tlen).unwrap();
         }
 
         let index_file_exon = index_dir_path.join("gtf.exon");
         outfile = File::create(index_file_exon.to_str().unwrap()).unwrap();
         for (seqname, seqname_nodes) in &nodes {
             for inode in seqname_nodes.iter() {
-                write!(
+                writeln!(
                     outfile,
-                    "{}\t{}\t{}\t{}\t{}\t{}\n",
+                    "{}\t{}\t{}\t{}\t{}\t{}",
                     seqname, inode.metadata.start, inode.metadata.end, inode.metadata.tid, inode.metadata.tpos_start, inode.metadata.strand
                 )
                 .unwrap();

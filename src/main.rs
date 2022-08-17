@@ -18,7 +18,7 @@ use env_logger::{self, Env};
 use log;
 
 fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let version = crate_version!();
     // let default_num_threads: String = (num_cpus::get() as u32).to_string();
     let default_num_threads = String::from("1");

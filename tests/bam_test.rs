@@ -23,7 +23,7 @@ pub fn read_and_process(ann_file_adr: &String,
                                         &mut txp_lengths, None).expect("cannot build the tree!");
     let threads = 0;
     let v : Vec<&str> = vec![];
-    bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200, &v)
+    bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200, &0, &v)
 }
 
 #[test]

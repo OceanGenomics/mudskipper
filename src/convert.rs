@@ -43,7 +43,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>, max_ove
         if range_cov.0 != 0 || range_cov.1 != 0 {
             tree.query(range.0, range.1, |node| {
                 log::debug!("query for {} {} => {}", range.0, range.1, node.metadata);
-                // TODO: for now we are dropping overhanging alignments. This can be improved.
+                // We are supporting overhanging alignments. The length of overhang can be defined by the user
                 if node.metadata.start - *max_overhang as i32 <= range.0 && node.metadata.end + *max_overhang as i32 >= range.1 {
                     // add to tid_curr
                     if  ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
@@ -57,17 +57,17 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>, max_ove
                     if ranges.len() == 1 { // single exon
                         left_overhang = node.metadata.start - range.0;
                         right_overhang = range.1 - node.metadata.end;
-                        // log::debug!("left overhang: {}", left_overhang);
-                        // log::debug!("right overhang: {}", right_overhang);
                         if left_overhang < 0 {left_overhang = 0}
                         if right_overhang < 0 {right_overhang = 0}
                         // log::debug!("start overhang: {}", left_overhang);
                         // log::debug!("end overhang: {}", right_overhang);
                     } else { // multiple exons
+                        // get left overhang from the first (left-most) exon
                         if i == 0 {
                             left_overhang = node.metadata.start - range.0;
                             // log::debug!("left overhang: {}", left_overhang);
-                            if left_overhang < 0 {left_overhang = 0}                      
+                            if left_overhang < 0 {left_overhang = 0}
+                        // get right overhang from the last (right-most) exon           
                         } else if i == ranges.len() -1 {
                             right_overhang = range.1 - node.metadata.end;
                             // log::debug!("right overhang: {}", right_overhang);
@@ -76,8 +76,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>, max_ove
                     }
                     // keep track of the alignment position and strand
                     if i == 0 && node.metadata.strand == Strand::Forward { // first range of the spliced alignment 
-                        let mut pos = node.metadata.start - node.metadata.tpos_start;
-                        if pos < 0 {pos = 0}
+                        let pos = node.metadata.start - node.metadata.tpos_start;
                         log::debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}, left_overhang:{}, right_overhang:{}", 
                             node.metadata.tid, 
                             node.metadata.strand, 
@@ -93,7 +92,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>, max_ove
                             right_overhang: right_overhang,
                         };
                         tid_pos.insert(node.metadata.tid, t_info);
-                    } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse { // TODO: need to fix reverse strand
+                    } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse {
                         log::debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} + tpos_start:{} + 1,left_overhang:{}, right_overhang:{}", 
                             node.metadata.tid, 
                             node.metadata.strand, 
@@ -103,7 +102,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>, max_ove
                             left_overhang,
                             right_overhang);
                         let t_info = TranscriptInfo {
-                            pos: node.metadata.end + node.metadata.tpos_start + 1, // need to add overhang info
+                            pos: node.metadata.end + node.metadata.tpos_start + 1,
                             strand: Strand::Reverse,
                             left_overhang: left_overhang,
                             right_overhang: right_overhang,
@@ -358,7 +357,7 @@ pub fn convert_paired_end(
                     first_pos = (tinfo.0.pos as i64) - bam_record1.pos() - (len1 as i64) +(tinfo.0.right_overhang as i64);
                     log::debug!(
                         "pos:{} - first_pos:{} - len1:{} + right_overhang:{} = {}",
-                        tinfo.0 .pos,
+                        tinfo.0.pos,
                         bam_record1.pos(),
                         len1,
                         tinfo.0.right_overhang,
@@ -367,7 +366,7 @@ pub fn convert_paired_end(
                     second_pos = (tinfo.1 .pos as i64) - bam_record2.pos() - (len2 as i64) + (tinfo.1.right_overhang as i64);
                     log::debug!(
                         "pos:{} - second_pos:{} - len2:{} + right_overhang:{} = {}",
-                        tinfo.1 .pos,
+                        tinfo.1.pos,
                         bam_record2.pos(),
                         len2,
                         tinfo.1.right_overhang,

@@ -80,7 +80,6 @@ pub fn bam2bam(
                 If you wish to skip the unpaired query, please consider adding the flag \"-p\".", e);
                 panic!("Invalid input sam/bam file!")
             },
-
         }
     }
     missed

@@ -26,10 +26,7 @@ pub fn test_tree() {
     let mut transcripts: Vec<String> = Vec::new();
     let mut tx_lengths: Vec<i32> = Vec::new();
 
-    let trees = annotation::build_tree(&ann_file_adr,
-                                        &mut transcripts_map,
-                                        &mut transcripts,
-                                        &mut tx_lengths, None).expect("cannot build the tree!");
+    let trees = annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut tx_lengths, None).expect("cannot build the tree!");
 
     let query_file_adr = "tests/NC_002333.2.gff".to_string();
     let reader = annotation::read(&query_file_adr);
@@ -46,7 +43,7 @@ pub fn test_tree() {
                 let count = countcov.0;
                 let cov = countcov.1;
                 if count == 0 || cov == 0 {
-                    failed_count = failed_count + 1;                   
+                    failed_count = failed_count + 1;
                 }
             }
         }

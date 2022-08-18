@@ -64,8 +64,16 @@ pub fn bam2bam(
                         missed += 1;
                     }
                     for r in ret_vec.iter() {
-                        let txp_records =
-                            convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+                        let txp_records = convert::convert_query_bam_records(
+                            r,
+                            &input_header,
+                            transcripts,
+                            txp_lengths,
+                            trees,
+                            max_softlen,
+                            max_overhang,
+                            required_tags,
+                        );
                         if txp_records.is_empty() {
                             missed += 1;
                         }
@@ -139,8 +147,16 @@ pub fn bam2bam_skip(
             missed += 1;
         }
         for r in ret_vec.iter() {
-
-            let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+            let txp_records = convert::convert_query_bam_records(
+                r,
+                &input_header,
+                transcripts,
+                txp_lengths,
+                trees,
+                max_softlen,
+                max_overhang,
+                required_tags,
+            );
             if txp_records.is_empty() {
                 missed += 1;
             }

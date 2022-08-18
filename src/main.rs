@@ -66,8 +66,11 @@ fn main() {
                 .default_value(&default_max_softlen)
                 .display_order(2),
         )
-        .arg(Arg::from_usage("-v, --max-overhang=<INT> 'Max allowed overhang length'").default_value(&default_max_overhang).display_order(2))
-
+        .arg(
+            Arg::from_usage("-v, --max-overhang=<INT> 'Max allowed overhang length'")
+                .default_value(&default_max_overhang)
+                .display_order(2),
+        )
         .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-p, --skip 'skip reads that do not have a mate for paired-end reads'"))
         .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
@@ -192,7 +195,16 @@ fn main() {
             position::depositionify_bam(&bam_file_in, &bamfile, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {
-            rad::bam2rad_bulk(&bamfile, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen, &max_overhang);
+            rad::bam2rad_bulk(
+                &bamfile,
+                &out_file,
+                &transcripts,
+                &txp_lengths,
+                &trees,
+                &threads_count,
+                &max_softlen,
+                &max_overhang,
+            );
         } else if t.is_present("skip") {
             let required_tags: Vec<&str> = Vec::new();
             bam::bam2bam_skip(

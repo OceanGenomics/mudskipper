@@ -73,6 +73,7 @@ fn bam_peek(bam_path: &String) -> record::Record {
     rec
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn bam2rad_bulk(
     input_bam_filename: &String,
     output_rad_filename: &String,
@@ -178,6 +179,7 @@ fn dump_collected_alignments_bulk_se(all_read_records: &[record::Record], owrite
     wrote_some
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn bam2rad_bulk_se(
     input_bam_filename: &String,
     output_rad_filename: &String,
@@ -302,7 +304,16 @@ pub fn bam2rad_bulk_se(
     while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
-            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, &required_tags);
+            let mut txp_records = convert::convert_query_bam_records(
+                r,
+                &input_header,
+                transcripts,
+                txp_lengths,
+                trees,
+                max_softlen,
+                max_overhang,
+                &required_tags,
+            );
             all_query_records.append(&mut txp_records);
         }
         if !all_query_records.is_empty() {
@@ -508,6 +519,7 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &[record::Record], owrite
     wrote_some
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn bam2rad_bulk_pe(
     input_bam_filename: &String,
     output_rad_filename: &String,
@@ -662,7 +674,16 @@ pub fn bam2rad_bulk_pe(
     while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
-            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, &required_tags);
+            let mut txp_records = convert::convert_query_bam_records(
+                r,
+                &input_header,
+                transcripts,
+                txp_lengths,
+                trees,
+                max_softlen,
+                max_overhang,
+                &required_tags,
+            );
             all_query_records.append(&mut txp_records);
         }
         if !all_query_records.is_empty() {
@@ -1021,7 +1042,16 @@ pub fn bam2rad_singlecell(
     while let Ok(Some(ret_vec)) = bqr.get_next_query_records() {
         all_query_records.clear();
         for r in ret_vec.iter() {
-            let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, &required_tags);
+            let mut txp_records = convert::convert_query_bam_records(
+                r,
+                &input_header,
+                transcripts,
+                txp_lengths,
+                trees,
+                max_softlen,
+                max_overhang,
+                &required_tags,
+            );
             all_query_records.append(&mut txp_records);
         }
         if !all_query_records.is_empty() {

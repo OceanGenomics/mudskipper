@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use bio_types::strand::Strand;
-use mudskipper::{convert::{convert_cigar_overhang, TranscriptInfo}, annotation, bam};
-use rust_htslib::bam::record::{CigarString, Cigar};
+use mudskipper::{
+    annotation, bam,
+    convert::{convert_cigar_overhang, TranscriptInfo},
+};
+use rust_htslib::bam::record::{Cigar, CigarString};
 use rust_htslib::bam::{Read, Reader};
 
 #[test]
@@ -25,7 +28,7 @@ fn test_overhang_cigar() {
     let cigar8 = CigarString(vec![Cigar::SoftClip(3), Cigar::Match(97)]);
     // 97M3S
     let cigar9 = CigarString(vec![Cigar::Match(97), Cigar::SoftClip(3)]);
-    
+
     let tinfo = TranscriptInfo {
         pos: 1,
         strand: Strand::Forward,
@@ -54,26 +57,24 @@ fn test_overhang_cigar() {
     assert_eq!(format!("{}", converted_cigar9), "10S80M10S");
 }
 
-pub fn read_and_process_overhang(index_dir_adr: &String, bam_file_in: &String,bam_file_out: &String) {
+pub fn read_and_process_overhang(index_dir_adr: &String, bam_file_in: &String, bam_file_out: &String) {
     let mut transcripts_map: HashMap<String, i32> = HashMap::new();
     let mut transcripts: Vec<String> = Vec::new();
     let mut txp_lengths: Vec<i32> = Vec::new();
-    let trees = annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths)
-            .expect("cannot load the tree!");
-    
+    let trees = annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot load the tree!");
+
     let threads = 0;
-    let v : Vec<&str> = vec![];
+    let v: Vec<&str> = vec![];
     bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200, &15, &v);
 }
 
 #[test]
 // overhang on one end (either start or end)
 fn test_single_exon() {
-    
     let index_dir_adr: String = "tests/gencode_v35_index".to_string();
     let sam_file_in = "tests/single_exon.sam".to_string();
     let bam_file_out = "tests/single_exon_toTranscriptome.bam".to_string();
-    
+
     read_and_process_overhang(&index_dir_adr, &sam_file_in, &bam_file_out);
 
     let mut output_bam = Reader::from_path(&bam_file_out).unwrap();
@@ -94,12 +95,12 @@ fn test_single_exon() {
             "ENST00000612610.4" => {
                 assert_eq!(record.pos(), pos1, "Pos1 is wrong! {} {}", record.pos(), pos1);
                 assert_eq!(record.cigar().to_string(), cigar1);
-            },    
+            }
             "ENST00000624081.1" => {
                 assert_eq!(record.pos(), pos2, "Pos2 is wrong! {} {}", record.pos(), pos2);
                 assert_eq!(record.cigar().to_string(), cigar2);
-            },
-            _ => continue
+            }
+            _ => continue,
         }
     }
 }
@@ -107,11 +108,10 @@ fn test_single_exon() {
 #[test]
 // overhang on both ends
 fn test_single_exon2() {
-    
     let index_dir_adr: String = "tests/gencode_v35_index".to_string();
     let sam_file_in = "tests/single_exon2.sam".to_string();
     let bam_file_out = "tests/single_exon2_toTranscriptome.bam".to_string();
-    
+
     read_and_process_overhang(&index_dir_adr, &sam_file_in, &bam_file_out);
 
     let mut output_bam = Reader::from_path(&bam_file_out).unwrap();
@@ -128,23 +128,22 @@ fn test_single_exon2() {
         let record = rec.unwrap();
         let tname_vec = header_view.tid2name(record.tid() as u32).to_vec();
         let tname = std::str::from_utf8(&tname_vec).unwrap();
-        match tname {  
+        match tname {
             "ENST00000624081.1" => {
                 assert_eq!(record.pos(), pos1, "Pos1 is wrong! {} {}", record.pos(), pos1);
                 assert_eq!(record.cigar().to_string(), cigar1);
-            },
-            _ => continue
+            }
+            _ => continue,
         }
     }
 }
 
 #[test]
 fn test_multi_exons() {
-    
     let index_dir_adr: String = "tests/gencode_v35_index".to_string();
     let sam_file_in = "tests/multi_exons.sam".to_string();
     let bam_file_out = "tests/multi_exons_toTranscriptome.bam".to_string();
-    
+
     read_and_process_overhang(&index_dir_adr, &sam_file_in, &bam_file_out);
 
     let mut output_bam = Reader::from_path(&bam_file_out).unwrap();
@@ -160,23 +159,23 @@ fn test_multi_exons() {
     let cigar3 = "583M10S";
 
     for rec in bam_records {
-        let record = rec.unwrap(); 
+        let record = rec.unwrap();
         let qname = std::str::from_utf8(&record.qname()).unwrap();
 
-        match qname {  
+        match qname {
             "chr21_3exon_10to593to10_ENST00000612610.4" => {
                 assert_eq!(record.pos(), pos1, "Pos1 is wrong! {} {}", record.pos(), pos1);
                 assert_eq!(record.cigar().to_string(), cigar1);
-            },
+            }
             "chr21_3exon_10to583_ENST00000612610.4" => {
                 assert_eq!(record.pos(), pos2, "Pos2 is wrong! {} {}", record.pos(), pos2);
                 assert_eq!(record.cigar().to_string(), cigar2);
-            },
+            }
             "chr21_3exon_583to10_ENST00000612610.4" => {
                 assert_eq!(record.pos(), pos3, "Pos3 is wrong! {} {}", record.pos(), pos3);
                 assert_eq!(record.cigar().to_string(), cigar3);
-            },
-            _ => continue
+            }
+            _ => continue,
         }
     }
 }
@@ -184,11 +183,10 @@ fn test_multi_exons() {
 #[test]
 // overhang for paired end reads
 fn test_paired_reads() {
-    
     let index_dir_adr: String = "tests/gencode_v35_index".to_string();
     let sam_file_in = "tests/paired.sam".to_string();
     let bam_file_out = "tests/paired_toTranscriptome.bam".to_string();
-    
+
     read_and_process_overhang(&index_dir_adr, &sam_file_in, &bam_file_out);
 
     let mut output_bam = Reader::from_path(&bam_file_out).unwrap();
@@ -200,7 +198,7 @@ fn test_paired_reads() {
         let record = rec.unwrap();
         let tname_vec = header_view.tid2name(record.tid() as u32).to_vec();
         let tname = std::str::from_utf8(&tname_vec).unwrap();
-        match tname {  
+        match tname {
             "ENST00000620481.4" => {
                 if record.flags() == 355 {
                     assert_eq!(record.pos(), 0);
@@ -208,8 +206,8 @@ fn test_paired_reads() {
                 } else {
                     assert_eq!(record.pos(), 110);
                     assert_eq!(record.cigar().to_string(), "91M9S");
-                }   
-            },
+                }
+            }
             "ENST00000612610.4" => {
                 if record.flags() == 355 {
                     assert_eq!(record.pos(), 0);
@@ -217,9 +215,9 @@ fn test_paired_reads() {
                 } else {
                     assert_eq!(record.pos(), 110);
                     assert_eq!(record.cigar().to_string(), "91M9S");
-                }   
-            },
-            _ => continue
+                }
+            }
+            _ => continue,
         }
     }
 }

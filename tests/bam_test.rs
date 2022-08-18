@@ -10,19 +10,13 @@ use std::collections::HashMap;
 
 use rust_htslib::bam::{Read, Reader};
 
-
-pub fn read_and_process(ann_file_adr: &String,
-                        bam_file_in: &String,
-                        bam_file_out: &String) -> i32 {
+pub fn read_and_process(ann_file_adr: &String, bam_file_in: &String, bam_file_out: &String) -> i32 {
     let mut transcripts_map: HashMap<String, i32> = HashMap::new();
     let mut transcripts: Vec<String> = Vec::new();
     let mut txp_lengths: Vec<i32> = Vec::new();
-    let trees = annotation::build_tree(ann_file_adr, 
-                                        &mut transcripts_map,
-                                        &mut transcripts,
-                                        &mut txp_lengths, None).expect("cannot build the tree!");
+    let trees = annotation::build_tree(ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None).expect("cannot build the tree!");
     let threads = 0;
-    let v : Vec<&str> = vec![];
+    let v: Vec<&str> = vec![];
     bam::bam2bam(bam_file_in, bam_file_out, &transcripts, &txp_lengths, &trees, &threads, &200, &0, &v)
 }
 
@@ -32,17 +26,18 @@ pub fn test_bam2bam() {
     // let bam_file_in = "tests/NC_007112.7.sam".to_string();
     // let bam_file_out = "tests/NC_007112.7.converted.sam".to_string();
     let bam_file_in = "tests/NC_002333.2.sam".to_string();
-    let bam_file_out = "tests/NC_002333.2_toTranscriptome.bam".to_string();    
- 
+    let bam_file_out = "tests/NC_002333.2_toTranscriptome.bam".to_string();
+
     let number_of_missed_records = 35;
     let missed_count = read_and_process(&ann_file_adr, &bam_file_in, &bam_file_out);
 
-    // let bam_file_truth = "tests/NC_002333.2_toTranscriptome_truth.bam".to_string();    
+    // let bam_file_truth = "tests/NC_002333.2_toTranscriptome_truth.bam".to_string();
     // assert!(compare_bam_files(&bam_file_truth, &bam_file_out), "Some bam records are not converted appropriately.");
-    assert_eq!(missed_count, number_of_missed_records, 
-                "no transcript for {} alignment records! the correct number is {}.", 
-                missed_count,
-                number_of_missed_records);
+    assert_eq!(
+        missed_count, number_of_missed_records,
+        "no transcript for {} alignment records! the correct number is {}.",
+        missed_count, number_of_missed_records
+    );
 }
 
 #[test]
@@ -54,7 +49,6 @@ pub fn test_reverse_coordinates_paired() {
     let missed_count = read_and_process(&ann_file_adr, &bam_file_in, &bam_file_out);
     assert_eq!(missed_count, 0, "no transcripts found!");
 
-
     let mut output_bam = Reader::from_path(bam_file_out).unwrap();
     let bam_records = output_bam.records();
 
@@ -65,16 +59,14 @@ pub fn test_reverse_coordinates_paired() {
     for rec in bam_records {
         let record = rec.unwrap();
         if first {
-            assert_eq!(record.is_paired(), true,  "The alignment record should have been paired!");
+            assert_eq!(record.is_paired(), true, "The alignment record should have been paired!");
             assert_eq!(record.pos(), forward_pos, "Forward pos is wrong! {} {}", record.pos(), forward_pos);
             first = false;
         } else {
             assert_eq!(record.pos(), reverse_pos, "Reverse pos is wrong! {} {}", record.pos(), reverse_pos);
         }
-
     }
 }
-
 
 #[test]
 pub fn test_reverse_coordinates_single() {
@@ -101,7 +93,7 @@ pub fn test_reverse_coordinates_single() {
         match tname {
             "XM_005159965.4" => assert_eq!(record.pos(), pos1, "Pos1 is wrong! {} {}", record.pos(), pos1),
             "NM_131356.1" => assert_eq!(record.pos(), pos2, "Pos2 is wrong! {} {}", record.pos(), pos2),
-            _ => assert!(true, "Target not found!")
+            _ => assert!(true, "Target not found!"),
         }
     }
 }
@@ -124,13 +116,23 @@ pub fn test_insert_size1() {
     for rec in bam_records {
         let record = rec.unwrap();
         if first {
-            assert_eq!(record.is_paired(), true,  "The alignment record should have been paired!");
-            assert_eq!(record.insert_size(), insert_size, 
-                        "Insert size is wrong! {} {}", record.insert_size(), insert_size);
+            assert_eq!(record.is_paired(), true, "The alignment record should have been paired!");
+            assert_eq!(
+                record.insert_size(),
+                insert_size,
+                "Insert size is wrong! {} {}",
+                record.insert_size(),
+                insert_size
+            );
             first = false;
         } else {
-            assert_eq!(record.insert_size(), -insert_size, 
-                        "Insert size is wrong! {} {}", record.insert_size(), -insert_size);
+            assert_eq!(
+                record.insert_size(),
+                -insert_size,
+                "Insert size is wrong! {} {}",
+                record.insert_size(),
+                -insert_size
+            );
         }
     }
 }
@@ -154,13 +156,23 @@ pub fn test_insert_size2() {
     for rec in bam_records {
         let record = rec.unwrap();
         if first {
-            assert_eq!(record.is_paired(), true,  "The alignment record should have been paired!");
-            assert_eq!(record.insert_size(), insert_size, 
-                        "Insert size is wrong! {} {}", record.insert_size(), insert_size);
+            assert_eq!(record.is_paired(), true, "The alignment record should have been paired!");
+            assert_eq!(
+                record.insert_size(),
+                insert_size,
+                "Insert size is wrong! {} {}",
+                record.insert_size(),
+                insert_size
+            );
             first = false;
         } else {
-            assert_eq!(record.insert_size(), -insert_size, 
-                        "Insert size is wrong! {} {}", record.insert_size(), -insert_size);
+            assert_eq!(
+                record.insert_size(),
+                -insert_size,
+                "Insert size is wrong! {} {}",
+                record.insert_size(),
+                -insert_size
+            );
         }
     }
 }
@@ -184,13 +196,23 @@ pub fn test_insert_size3() {
     for rec in bam_records {
         let record = rec.unwrap();
         if first {
-            assert_eq!(record.is_paired(), true,  "The alignment record should have been paired!");
-            assert_eq!(record.insert_size(), insert_size, 
-                        "Insert size is wrong! {} {}", record.insert_size(), insert_size);
+            assert_eq!(record.is_paired(), true, "The alignment record should have been paired!");
+            assert_eq!(
+                record.insert_size(),
+                insert_size,
+                "Insert size is wrong! {} {}",
+                record.insert_size(),
+                insert_size
+            );
             first = false;
         } else {
-            assert_eq!(record.insert_size(), -insert_size, 
-                        "Insert size is wrong! {} {}", record.insert_size(), -insert_size);
+            assert_eq!(
+                record.insert_size(),
+                -insert_size,
+                "Insert size is wrong! {} {}",
+                record.insert_size(),
+                -insert_size
+            );
         }
     }
 }

@@ -1,6 +1,7 @@
 use bio::alphabets::dna::revcomp;
 use coitrees::COITree;
 use rust_htslib::bam::record;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use rust_htslib::bam::HeaderView;
@@ -16,9 +17,9 @@ use annotation::ExonNode;
 
 #[derive(Clone, Copy)]
 pub struct TranscriptInfo {
-    pub pos: i32, // left-most position
-    pub strand: Strand,  // forward or reverse
-    pub left_overhang: i32, // left-most overhang
+    pub pos: i32,            // left-most position
+    pub strand: Strand,      // forward or reverse
+    pub left_overhang: i32,  // left-most overhang
     pub right_overhang: i32, // right-most overhang
 }
 
@@ -47,76 +48,90 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>, max_ove
                     // add to tid_curr
                     if ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
                     (i == 0 && range.1 == node.metadata.end) ||
-                    (i == ranges.len() - 1 && range.0 == node.metadata.start) || 
+                    (i == ranges.len() - 1 && range.0 == node.metadata.start) ||
                     (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end)
                     {
                         log::debug!("keeping");
                         tid_curr.insert(node.metadata.tid);
                     }
                     // keep track of the overhang bases
-                    if ranges.len() == 1 { // single exon
+                    if ranges.len() == 1 {
+                        // single exon
                         left_overhang = node.metadata.start - range.0;
                         right_overhang = range.1 - node.metadata.end;
-                        if left_overhang < 0 {left_overhang = 0}
-                        if right_overhang < 0 {right_overhang = 0}
+                        if left_overhang < 0 {
+                            left_overhang = 0
+                        }
+                        if right_overhang < 0 {
+                            right_overhang = 0
+                        }
                         // log::debug!("start overhang: {}", left_overhang);
                         // log::debug!("end overhang: {}", right_overhang);
-                    } else { // multiple exons
+                    } else {
+                        // multiple exons
                         // get left overhang from the first (left-most) exon
                         if i == 0 {
                             left_overhang = node.metadata.start - range.0;
                             // log::debug!("left overhang: {}", left_overhang);
-                            if left_overhang < 0 {left_overhang = 0}
-                        // get right overhang from the last (right-most) exon           
-                        } else if i == ranges.len() -1 {
+                            if left_overhang < 0 {
+                                left_overhang = 0
+                            }
+                        // get right overhang from the last (right-most) exon
+                        } else if i == ranges.len() - 1 {
                             right_overhang = range.1 - node.metadata.end;
                             // log::debug!("right overhang: {}", right_overhang);
-                            if right_overhang < 0 {right_overhang = 0}                           
+                            if right_overhang < 0 {
+                                right_overhang = 0
+                            }
                         }
                     }
                     // keep track of the alignment position and strand
 
-                    if i == 0 && node.metadata.strand == Strand::Forward { // first range of the spliced alignment 
+                    if i == 0 && node.metadata.strand == Strand::Forward {
+                        // first range of the spliced alignment
                         let pos = node.metadata.start - node.metadata.tpos_start;
-                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}, left_overhang:{}, right_overhang:{}", 
-                            node.metadata.tid, 
-                            node.metadata.strand, 
-                            pos, 
-                            node.metadata.start, 
+                        log::debug!(
+                            "inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}, left_overhang:{}, right_overhang:{}",
+                            node.metadata.tid,
+                            node.metadata.strand,
+                            pos,
+                            node.metadata.start,
                             node.metadata.tpos_start,
                             left_overhang,
-                            right_overhang);
+                            right_overhang
+                        );
                         let t_info = TranscriptInfo {
-                            pos: pos,
+                            pos,
                             strand: Strand::Forward,
-                            left_overhang: left_overhang,
-                            right_overhang: right_overhang,
+                            left_overhang,
+                            right_overhang,
                         };
                         tid_pos.insert(node.metadata.tid, t_info);
                     } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse {
-                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} + tpos_start:{} + 1,left_overhang:{}, right_overhang:{}", 
-                            node.metadata.tid, 
-                            node.metadata.strand, 
-                            node.metadata.end + node.metadata.tpos_start + 1, 
-                            node.metadata.end, 
+                        log::debug!(
+                            "inserting => tid:{}, strand:{}, pos:{} = end:{} + tpos_start:{} + 1,left_overhang:{}, right_overhang:{}",
+                            node.metadata.tid,
+                            node.metadata.strand,
+                            node.metadata.end + node.metadata.tpos_start + 1,
+                            node.metadata.end,
                             node.metadata.tpos_start,
                             left_overhang,
-                            right_overhang);
+                            right_overhang
+                        );
                         let t_info = TranscriptInfo {
                             pos: node.metadata.end + node.metadata.tpos_start + 1,
                             strand: Strand::Reverse,
-                            left_overhang: left_overhang,
-                            right_overhang: right_overhang,
+                            left_overhang,
+                            right_overhang,
                         };
                         tid_pos.insert(node.metadata.tid, t_info);
                     }
                     // update the right overhang for multi-exon alignment at the last exon
-                    if i == ranges.len() -1 && i != 0 && right_overhang != 0 {
+                    if i == ranges.len() - 1 && i != 0 && right_overhang != 0 {
                         for (_k, v) in tid_pos.iter_mut() {
                             v.right_overhang = right_overhang;
                             log::debug!("Updated right_overhang: {}", v.right_overhang);
                         }
-
                     }
                 }
             });
@@ -164,10 +179,10 @@ pub fn find_tids_paired(
     log::debug!("read1: {} {}", read_pos1, cigar1);
     let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1, long_softclip, max_softlen);
 
-    let tids1 = find_tid(tree, &ranges1);
+    let tids1 = find_tid(tree, &ranges1, max_overhang);
     log::debug!("read2: {} {}", read_pos2, cigar2);
     let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2, long_softclip, max_softlen);
-    let tids2 = find_tid(tree, &ranges2);
+    let tids2 = find_tid(tree, &ranges2, max_overhang);
 
     for (tid, pos1) in tids1.iter() {
         if tids2.contains_key(tid) {
@@ -277,6 +292,7 @@ pub fn find_ranges_single(
     ranges
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn convert_paired_end(
     bam_record1: &record::Record,
     bam_record2: &record::Record,
@@ -293,14 +309,14 @@ pub fn convert_paired_end(
         converted_records.push(bam_record2.clone());
         return converted_records;
     } else if bam_record1.is_unmapped() && !bam_record2.is_unmapped() {
-        let converted_se = convert_single_end(bam_record2, &header_view, transcripts, trees, max_softlen, max_overhang);
+        let converted_se = convert_single_end(bam_record2, header_view, transcripts, trees, max_softlen, max_overhang);
         for txp_rec in converted_se.iter() {
             converted_records.push(bam_record1.clone());
             converted_records.push(txp_rec.clone());
         }
         return converted_records;
     } else if !bam_record1.is_unmapped() && bam_record2.is_unmapped() {
-        let converted_se = convert_single_end(bam_record1, &header_view, transcripts, trees, max_softlen, max_overhang);
+        let converted_se = convert_single_end(bam_record1, header_view, transcripts, trees, max_softlen, max_overhang);
         for txp_rec in converted_se.iter() {
             converted_records.push(txp_rec.clone());
             converted_records.push(bam_record2.clone());
@@ -327,7 +343,7 @@ pub fn convert_paired_end(
             &mut len2,
             &mut long_softclip,
             max_softlen,
-            &max_overhang,
+            max_overhang,
         );
         if long_softclip {
             log::debug!("The softclip length is too long!");
@@ -338,7 +354,6 @@ pub fn convert_paired_end(
 
         if !tids.is_empty() {
             for (tid, tinfo) in tids.iter() {
-
                 let mut first_record_ = bam_record1.clone();
                 let mut first_record_cigar = cigar1_new.clone();
                 let mut first_record_seq = bam_record1.seq().as_bytes();
@@ -352,9 +367,21 @@ pub fn convert_paired_end(
                 let mut second_pos = 0;
                 if tinfo.0.strand == Strand::Forward {
                     first_pos = bam_record1.pos() - (tinfo.0.pos as i64) + (tinfo.0.left_overhang as i64);
-                    log::debug!("first_pos:{} - pos:{} + left_overhang:{} = {}", bam_record1.pos(), tinfo.0.pos, tinfo.0.left_overhang, first_pos);
+                    log::debug!(
+                        "first_pos:{} - pos:{} + left_overhang:{} = {}",
+                        bam_record1.pos(),
+                        tinfo.0.pos,
+                        tinfo.0.left_overhang,
+                        first_pos
+                    );
                     second_pos = bam_record2.pos() - (tinfo.1.pos as i64) + (tinfo.1.left_overhang as i64);
-                    log::debug!("second_pos:{} - pos:{} + left_overhang:{} = {}", bam_record2.pos(), tinfo.1.pos, tinfo.0.left_overhang, second_pos);
+                    log::debug!(
+                        "second_pos:{} - pos:{} + left_overhang:{} = {}",
+                        bam_record2.pos(),
+                        tinfo.1.pos,
+                        tinfo.0.left_overhang,
+                        second_pos
+                    );
                     // change the CIGAR string for overhang bases if exist
                     if tinfo.0.left_overhang != 0 || tinfo.0.right_overhang != 0 {
                         first_record_cigar = convert_cigar_overhang(&first_record_cigar, &tinfo.0);
@@ -363,7 +390,7 @@ pub fn convert_paired_end(
                         second_record_cigar = convert_cigar_overhang(&second_record_cigar, &tinfo.1);
                     }
                 } else if tinfo.0.strand == Strand::Reverse {
-                    first_pos = (tinfo.0.pos as i64) - bam_record1.pos() - (len1 as i64) +(tinfo.0.right_overhang as i64);
+                    first_pos = (tinfo.0.pos as i64) - bam_record1.pos() - (len1 as i64) + (tinfo.0.right_overhang as i64);
                     log::debug!(
                         "pos:{} - first_pos:{} - len1:{} + right_overhang:{} = {}",
                         tinfo.0.pos,
@@ -372,7 +399,7 @@ pub fn convert_paired_end(
                         tinfo.0.right_overhang,
                         first_pos
                     );
-                    second_pos = (tinfo.1 .pos as i64) - bam_record2.pos() - (len2 as i64) + (tinfo.1.right_overhang as i64);
+                    second_pos = (tinfo.1.pos as i64) - bam_record2.pos() - (len2 as i64) + (tinfo.1.right_overhang as i64);
                     log::debug!(
                         "pos:{} - second_pos:{} - len2:{} + right_overhang:{} = {}",
                         tinfo.1.pos,
@@ -538,7 +565,7 @@ pub fn convert_single_end(
     );
     let genome_tname = String::from_utf8(header_view.tid2name(bam_record.tid() as u32).to_vec()).expect("cannot find the tname!");
     if let Some(tree) = trees.get(&genome_tname) {
-        let tids = find_tid(tree, &ranges, &max_overhang);
+        let tids = find_tid(tree, &ranges, max_overhang);
         if long_softclip {
             log::debug!("The softclip length is too long!");
             return converted_records;
@@ -555,14 +582,27 @@ pub fn convert_single_end(
                 let mut pos = 0;
                 if tinfo.strand == Strand::Forward {
                     pos = bam_record.pos() - (tinfo.pos as i64) + (tinfo.left_overhang as i64);
-                    log::debug!("bam_pos:{} - pos:{} + left_overhang:{} = {}", bam_record.pos(), tinfo.pos, tinfo.left_overhang, pos);
+                    log::debug!(
+                        "bam_pos:{} - pos:{} + left_overhang:{} = {}",
+                        bam_record.pos(),
+                        tinfo.pos,
+                        tinfo.left_overhang,
+                        pos
+                    );
                     // change the CIGAR string for overhang bases if exist
                     if tinfo.left_overhang != 0 || tinfo.right_overhang != 0 {
                         record_cigar = convert_cigar_overhang(&record_cigar, tinfo);
                     }
                 } else if tinfo.strand == Strand::Reverse {
                     pos = (tinfo.pos as i64) - bam_record.pos() - ref_len as i64 + (tinfo.right_overhang as i64);
-                    log::debug!("pos:{} - bam_pos:{} - len1:{} + right_overhang:{} = {}", tinfo.pos, bam_record.pos(), ref_len, tinfo.right_overhang, pos);
+                    log::debug!(
+                        "pos:{} - bam_pos:{} - len1:{} + right_overhang:{} = {}",
+                        tinfo.pos,
+                        bam_record.pos(),
+                        ref_len,
+                        tinfo.right_overhang,
+                        pos
+                    );
                     if bam_record.is_reverse() {
                         record_.unset_reverse();
                     } else {
@@ -601,17 +641,14 @@ pub fn convert_single_end(
 }
 
 // change the CIGAR string to include overhang information (change to S)
-pub fn convert_cigar_overhang(
-    input_cigar: &record::CigarString,
-    tinfo: &TranscriptInfo,
-) -> record::CigarString {
-    // create an empty vector for cigar string 
+pub fn convert_cigar_overhang(input_cigar: &record::CigarString, tinfo: &TranscriptInfo) -> record::CigarString {
+    // create an empty vector for cigar string
     let mut new_cigar_overhang: Vec<record::Cigar> = Vec::<record::Cigar>::new();
 
     // get the number of left and right overhang
     let left_overhang = tinfo.left_overhang as u32;
     let right_overhang = tinfo.right_overhang as u32;
-     
+
     // if left overhang exist
     if left_overhang != 0 {
         // add left overhang
@@ -619,16 +656,18 @@ pub fn convert_cigar_overhang(
         // add the rest cigar item minus the left overhang bases
         let mut left_sum_len = 0; // record the sum of the length for the cigar item starting from the left
         let mut clipped = false; // record whether the left overhang is covered by the sum or not ()
-        // iterate through the cigar string by each cigar item
+                                 // iterate through the cigar string by each cigar item
         for cigar_item in input_cigar.iter() {
             let cigar_char = cigar_item.char();
             let cigar_len = cigar_item.len();
-            
+
             if left_sum_len + cigar_len <= left_overhang {
                 // since "D" doesn't consume query
-                if cigar_char != 'D' {left_sum_len += cigar_len;}
+                if cigar_char != 'D' {
+                    left_sum_len += cigar_len;
+                }
                 continue;
-            } else if left_sum_len + cigar_len > left_overhang && clipped == false {
+            } else if left_sum_len + cigar_len > left_overhang && !clipped {
                 if cigar_char == 'D' {
                     continue;
                 } else {
@@ -642,8 +681,9 @@ pub fn convert_cigar_overhang(
                     }
                     left_sum_len += cigar_len;
                     clipped = true;
-                }  
-            } else { // push the rest of the cigar item after left overhang
+                }
+            } else {
+                // push the rest of the cigar item after left overhang
                 new_cigar_overhang.push(*cigar_item);
             }
         }
@@ -653,56 +693,61 @@ pub fn convert_cigar_overhang(
         }
     }
 
-    // if right overhang exist 
+    // if right overhang exist
     if right_overhang != 0 {
         let mut right_sum_len = 0; // record the sum of the length for the cigar item starting from the right
-        // reverse iterate the Cigar vector
+                                   // reverse iterate the Cigar vector
         for i in (0..new_cigar_overhang.len()).rev() {
             // get the cigar item, character and length
             let cigar_item = new_cigar_overhang[i];
             let cigar_char = cigar_item.char();
             let cigar_len = cigar_item.len();
             // remove the cigar item covered by overhang
-            if right_sum_len + cigar_len < right_overhang {
-                if cigar_char != 'D' {right_sum_len += cigar_len;}
-                new_cigar_overhang.pop();
-                continue;
-            } else if right_sum_len + cigar_len == right_overhang {
-                if cigar_char == 'D' {
-                    new_cigar_overhang.pop();
-                    continue;
-                } else {
-                    new_cigar_overhang.pop();
-                    // add right overhang
-                    new_cigar_overhang.push(record::Cigar::SoftClip(right_overhang));
-                    break;
-                }
-            } else if right_sum_len + cigar_len > right_overhang {
-                if cigar_char == 'D' {
-                    new_cigar_overhang.pop();
-                    continue;
-                } else {
-                    new_cigar_overhang.pop();
-                    let new_cigar_len = cigar_len - (right_overhang - right_sum_len);
-                    match cigar_char {
-                        'M' => new_cigar_overhang.push(record::Cigar::Match(new_cigar_len)),
-                        '=' => new_cigar_overhang.push(record::Cigar::Equal(new_cigar_len)),
-                        'X' => new_cigar_overhang.push(record::Cigar::Diff(new_cigar_len)),
-                        'I' => new_cigar_overhang.push(record::Cigar::Ins(new_cigar_len)),
-                        _ => log::warn!("Unexpected cigar item: {}", new_cigar_len),
+            match (right_sum_len + cigar_len).cmp(&right_overhang) {
+                Ordering::Less => {
+                    if cigar_char != 'D' {
+                        right_sum_len += cigar_len;
                     }
-                    // add right overhang
-                    new_cigar_overhang.push(record::Cigar::SoftClip(right_overhang));
-                    break;
-                } 
+                    new_cigar_overhang.pop();
+                    continue;
+                }
+                Ordering::Equal => {
+                    if cigar_char == 'D' {
+                        new_cigar_overhang.pop();
+                        continue;
+                    } else {
+                        new_cigar_overhang.pop();
+                        // add right overhang
+                        new_cigar_overhang.push(record::Cigar::SoftClip(right_overhang));
+                        break;
+                    }
+                }
+                Ordering::Greater => {
+                    if cigar_char == 'D' {
+                        new_cigar_overhang.pop();
+                        continue;
+                    } else {
+                        new_cigar_overhang.pop();
+                        let new_cigar_len = cigar_len - (right_overhang - right_sum_len);
+                        match cigar_char {
+                            'M' => new_cigar_overhang.push(record::Cigar::Match(new_cigar_len)),
+                            '=' => new_cigar_overhang.push(record::Cigar::Equal(new_cigar_len)),
+                            'X' => new_cigar_overhang.push(record::Cigar::Diff(new_cigar_len)),
+                            'I' => new_cigar_overhang.push(record::Cigar::Ins(new_cigar_len)),
+                            _ => log::warn!("Unexpected cigar item: {}", new_cigar_len),
+                        }
+                        // add right overhang
+                        new_cigar_overhang.push(record::Cigar::SoftClip(right_overhang));
+                        break;
+                    }
+                }
             }
         }
     }
-    
-    let record_cigar = record::CigarString(new_cigar_overhang);
-    return record_cigar;
+    record::CigarString(new_cigar_overhang)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn convert_query_bam_records(
     qrecord: &BAMQueryRecord,
     header_view: &HeaderView,
@@ -748,7 +793,16 @@ pub fn convert_query_bam_records(
                 panic!("Some required tags do not exist!");
             }
         }
-        let mut txp_records = convert_paired_end(&first_mate[0], &second_mate[0], header_view, transcripts, txp_lengths, trees, max_softlen, max_overhang);
+        let mut txp_records = convert_paired_end(
+            &first_mate[0],
+            &second_mate[0],
+            header_view,
+            transcripts,
+            txp_lengths,
+            trees,
+            max_softlen,
+            max_overhang,
+        );
         converted_records.append(&mut txp_records);
     } else {
         log::debug!("qname: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap());

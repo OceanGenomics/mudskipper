@@ -13,28 +13,25 @@ use crate::query_bam_records::BAMQueryRecordReader;
 extern crate fnv;
 use fnv::FnvHashMap;
 
-use log;
-
+#[allow(clippy::too_many_arguments)]
 pub fn bam2bam(
     input_bam_filename: &String,
     output_bam_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
     max_overhang: &usize,
-    required_tags: &Vec<&str>,
+    required_tags: &[&str],
 ) -> i32 {
     // setup the output BAM Writer
     let mut output_header = Header::new();
     // output_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
     log::info!("Number of reference sequences: {}", transcripts.len());
-    let mut counter = 0;
-    for tname in transcripts.iter() {
+    for (counter, tname) in transcripts.iter().enumerate() {
         let tlen = txp_lengths[counter];
         output_header.push_record(header::HeaderRecord::new(b"SQ").push_tag(b"SN", &tname).push_tag(b"LN", &tlen));
-        counter += 1;
     }
     let mut output_writer = Writer::from_path(output_bam_filename, &output_header, Format::Bam).unwrap();
 
@@ -45,12 +42,14 @@ pub fn bam2bam(
         log::info!("thread count: {} for reading", threads_count_half);
         log::info!("thread count: {} for writing", threads_count_half);
         reader_threads = Some(threads_count_half);
-        output_writer.set_threads(threads_count_half).expect("Failed to set number of BAM writing threads.");
+        output_writer
+            .set_threads(threads_count_half)
+            .expect("Failed to set number of BAM writing threads.");
     } else {
         reader_threads = None;
         log::info!("thread count: {}", threads_count);
     }
-    
+
     // setup the input BAM Reader
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
@@ -59,53 +58,58 @@ pub fn bam2bam(
 
     loop {
         match bqr.get_next_query_records() {
-            Ok(ret_vec) => {
-                match ret_vec {
-                    Some(ret_vec) => {
-                        if ret_vec.len() == 0 { missed += 1; }
-                        for r in ret_vec.iter() {
-                            let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, required_tags);
-                            if txp_records.len() == 0 { missed += 1; }
-                            for txp_rec in txp_records.iter() {
-                                output_writer.write(txp_rec).unwrap();
-                            }
+            Ok(ret_vec) => match ret_vec {
+                Some(ret_vec) => {
+                    if ret_vec.is_empty() {
+                        missed += 1;
+                    }
+                    for r in ret_vec.iter() {
+                        let txp_records =
+                            convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+                        if txp_records.is_empty() {
+                            missed += 1;
                         }
-                    },
-                    None => break,
+                        for txp_rec in txp_records.iter() {
+                            output_writer.write(txp_rec).unwrap();
+                        }
+                    }
                 }
-            }
-            Err(e) => {
-                log::error!("Cannot find the mate for query {}. The mate might be missing or not in the right order! \
-                If the sam/bam file is not name sorted, please consider using \"mudskipper shuffle\" or adding the flag \"-l\". \
-                If you wish to skip the unpaired query, please consider adding the flag \"-p\".", e);
-                panic!("Invalid input sam/bam file!")
+                None => break,
             },
+            Err(e) => {
+                log::error!(
+                    "Cannot find the mate for query {}. The mate might be missing or not in the right order! \
+                If the sam/bam file is not name sorted, please consider using \"mudskipper shuffle\" or adding the flag \"-l\". \
+                If you wish to skip the unpaired query, please consider adding the flag \"-p\".",
+                    e
+                );
+                panic!("Invalid input sam/bam file!")
+            }
         }
     }
     missed
 }
 
 // skip the unpaired query for paired-end reads
+#[allow(clippy::too_many_arguments)]
 pub fn bam2bam_skip(
     input_bam_filename: &String,
     output_bam_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
     max_overhang: &usize,
-    required_tags: &Vec<&str>,
+    required_tags: &[&str],
 ) -> i32 {
     // setup the output BAM Writer
     let mut output_header = Header::new();
     // output_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
     log::info!("Number of reference sequences: {}", transcripts.len());
-    let mut counter = 0;
-    for tname in transcripts.iter() {
+    for (counter, tname) in transcripts.iter().enumerate() {
         let tlen = txp_lengths[counter];
         output_header.push_record(header::HeaderRecord::new(b"SQ").push_tag(b"SN", &tname).push_tag(b"LN", &tlen));
-        counter += 1;
     }
     let mut output_writer = Writer::from_path(output_bam_filename, &output_header, Format::Bam).unwrap();
 
@@ -116,12 +120,14 @@ pub fn bam2bam_skip(
         log::info!("thread count: {} for reading", threads_count_half);
         log::info!("thread count: {} for writing", threads_count_half);
         reader_threads = Some(threads_count_half);
-        output_writer.set_threads(threads_count_half).expect("Failed to set number of BAM writing threads.");
+        output_writer
+            .set_threads(threads_count_half)
+            .expect("Failed to set number of BAM writing threads.");
     } else {
         reader_threads = None;
         log::info!("thread count: {}", threads_count);
     }
-    
+
     // setup the input BAM Reader
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
@@ -129,10 +135,16 @@ pub fn bam2bam_skip(
     let mut missed = 0i32;
 
     while let Some(ret_vec) = bqr.get_next_query_records_skip() {
-        if ret_vec.len() == 0 { missed += 1; }
+        if ret_vec.is_empty() {
+            missed += 1;
+        }
         for r in ret_vec.iter() {
-            let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, max_overhang, required_tags);
-            if txp_records.len() == 0 { missed += 1; }
+
+            let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+            if txp_records.is_empty() {
+                missed += 1;
+            }
+
             for txp_rec in txp_records.iter() {
                 output_writer.write(txp_rec).unwrap();
             }

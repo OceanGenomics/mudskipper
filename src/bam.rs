@@ -13,25 +13,24 @@ use crate::query_bam_records::BAMQueryRecordReader;
 extern crate fnv;
 use fnv::FnvHashMap;
 
+#[allow(clippy::too_many_arguments)]
 pub fn bam2bam(
     input_bam_filename: &String,
     output_bam_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
-    required_tags: &Vec<&str>,
+    required_tags: &[&str],
 ) -> i32 {
     // setup the output BAM Writer
     let mut output_header = Header::new();
     // output_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
     log::info!("Number of reference sequences: {}", transcripts.len());
-    let mut counter = 0;
-    for tname in transcripts.iter() {
+    for (counter, tname) in transcripts.iter().enumerate() {
         let tlen = txp_lengths[counter];
         output_header.push_record(header::HeaderRecord::new(b"SQ").push_tag(b"SN", &tname).push_tag(b"LN", &tlen));
-        counter += 1;
     }
     let mut output_writer = Writer::from_path(output_bam_filename, &output_header, Format::Bam).unwrap();
 
@@ -91,25 +90,24 @@ pub fn bam2bam(
 }
 
 // skip the unpaired query for paired-end reads
+#[allow(clippy::too_many_arguments)]
 pub fn bam2bam_skip(
     input_bam_filename: &String,
     output_bam_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
-    required_tags: &Vec<&str>,
+    required_tags: &[&str],
 ) -> i32 {
     // setup the output BAM Writer
     let mut output_header = Header::new();
     // output_header.push_record(header::HeaderRecord::new(b"HD").push_tag(b"VN", &"1.4"));
     log::info!("Number of reference sequences: {}", transcripts.len());
-    let mut counter = 0;
-    for tname in transcripts.iter() {
+    for (counter, tname) in transcripts.iter().enumerate() {
         let tlen = txp_lengths[counter];
         output_header.push_record(header::HeaderRecord::new(b"SQ").push_tag(b"SN", &tname).push_tag(b"LN", &tlen));
-        counter += 1;
     }
     let mut output_writer = Writer::from_path(output_bam_filename, &output_header, Format::Bam).unwrap();
 

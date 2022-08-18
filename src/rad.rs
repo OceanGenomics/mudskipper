@@ -76,8 +76,8 @@ fn bam_peek(bam_path: &String) -> record::Record {
 pub fn bam2rad_bulk(
     input_bam_filename: &String,
     output_rad_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -178,8 +178,8 @@ fn dump_collected_alignments_bulk_se(all_read_records: &[record::Record], owrite
 pub fn bam2rad_bulk_se(
     input_bam_filename: &String,
     output_rad_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -507,8 +507,8 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &[record::Record], owrite
 pub fn bam2rad_bulk_pe(
     input_bam_filename: &String,
     output_rad_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -822,13 +822,14 @@ fn dump_collected_alignments_singlecell(
     wrote_some
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn bam2rad_singlecell(
     input_bam_filename: &String,
     output_dirname: &String,
     rad_mapped_filename: &String,
     rad_unmapped_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,

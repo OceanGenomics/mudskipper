@@ -73,10 +73,10 @@ impl BAMQueryRecordReader {
     #[allow(dead_code)]
     fn get_records_from_sa_tag(&self, sa_tag: &str) -> Vec<Record> {
         let mut sa_records: Vec<Record> = Vec::new();
-        for aln_str in sa_tag.split(";") {
-            if aln_str.is_empty() == false {
+        for aln_str in sa_tag.split(';') {
+            if !aln_str.is_empty() {
                 let mut brecord = Record::new();
-                let tag_vec: Vec<&str> = aln_str.split(",").collect();
+                let tag_vec: Vec<&str> = aln_str.split(',').collect();
 
                 let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
                 brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
@@ -97,7 +97,7 @@ impl BAMQueryRecordReader {
     // By convention, the first alignment in the SA tag refers to the primary alignment
     fn get_primary_record_of_sa_tag(&self, sa_tag: &str) -> Record {
         let mut brecord = Record::new();
-        for aln_str in sa_tag.split(";") {
+        for aln_str in sa_tag.split(';') {
             if !aln_str.is_empty() {
                 let tag_vec: Vec<&str> = aln_str.split(',').collect();
 

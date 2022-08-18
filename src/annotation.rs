@@ -2,9 +2,9 @@ use bio::io::gff;
 use coitrees::{COITree, IntervalNode};
 use std::collections::HashMap;
 use std::error::Error;
-use std::path::Path;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 use std::time::Instant;
 
 extern crate bio_types;
@@ -15,23 +15,20 @@ use fnv::FnvHashMap;
 
 use indicatif::ProgressBar;
 use linecount::count_lines;
-use log;
 
 pub fn read(ann_file_adr: &String) -> Result<gff::Reader<File>, Box<dyn Error>> {
-    let ann_file_adr_split: Vec<&str> = ann_file_adr.split(".").collect();
+    let ann_file_adr_split: Vec<&str> = ann_file_adr.split('.').collect();
     let file_type: &str = ann_file_adr_split.last().copied().unwrap_or("default string");
     log::info!("reading the {} file and building the tree.", file_type);
     let ann_type: gff::GffType = if file_type == "gtf" {
         gff::GffType::GTF2
+    } else if file_type == "gff3" || file_type == "gff" {
+        gff::GffType::GFF3
     } else {
-        if file_type == "gff3" || file_type == "gff" {
-            gff::GffType::GFF3
-        } else {
-            gff::GffType::GFF2
-        }
+        gff::GffType::GFF2
     };
 
-    return Ok(gff::Reader::from_file(ann_file_adr, ann_type).expect("Error in reading annotation file."));
+    Ok(gff::Reader::from_file(ann_file_adr, ann_type).expect("Error in reading annotation file."))
 }
 
 pub struct ExonNode {
@@ -61,7 +58,7 @@ impl Clone for ExonNode {
             tpos_start: self.tpos_start,
             strand: self.strand,
         };
-        return new_exon;
+        new_exon
     }
 }
 
@@ -79,7 +76,7 @@ pub fn load_tree(
     let mut ireader = BufReader::new(ifile);
     for line in ireader.lines() {
         let line_str = line.unwrap();
-        let cols: Vec<&str> = line_str.trim().split("\t").collect();
+        let cols: Vec<&str> = line_str.trim().split('\t').collect();
         transcripts_map.insert(cols[0].to_string(), cols[1].parse::<i32>().unwrap());
     }
     file_path = index_dir_path.join("gtf.name");
@@ -103,7 +100,7 @@ pub fn load_tree(
     let mut node_vec: Vec<IntervalNode<ExonNode, u32>> = Vec::new();
     for line in ireader.lines() {
         let line_str = line.unwrap();
-        let cols: Vec<&str> = line_str.trim().split("\t").collect();
+        let cols: Vec<&str> = line_str.trim().split('\t').collect();
         let seq_name = cols[0];
         let exon_start: i32 = cols[1].parse().unwrap();
         let exon_end: i32 = cols[2].parse().unwrap();
@@ -120,7 +117,7 @@ pub fn load_tree(
 
         if seq_name != last_name {
             // add exisiting vector to the tree and initiate a new one
-            if node_vec.len() > 0 {
+            if !node_vec.is_empty() {
                 trees.insert(last_name, COITree::new(node_vec.clone()));
             }
             //
@@ -133,10 +130,10 @@ pub fn load_tree(
         }
     }
     // add last vector to the tree
-    if node_vec.len() > 0 {
+    if !node_vec.is_empty() {
         trees.insert(last_name, COITree::new(node_vec.clone()));
     }
-    return Ok(trees);
+    Ok(trees)
 }
 
 pub fn build_tree(
@@ -158,7 +155,7 @@ pub fn build_tree(
     let pb = ProgressBar::new(gtf_records_count as u64);
     for record in reader.expect("Error reading file.").records() {
         pb.inc(1);
-        let rec = record.ok().expect("Error reading record.");
+        let rec = record.expect("Error reading record.");
         let features = rec.attributes();
         let tname_key: String = "transcript_id".to_string();
         if rec.feature_type() == "exon" && features.contains_key(&tname_key) {
@@ -182,13 +179,13 @@ pub fn build_tree(
             let features = rec.attributes();
             let tname = &features[&tname_key];
             if features.contains_key(&tname_key) {
-                if !transcripts_map.contains_key(&tname.to_string()) {
+                if !transcripts_map.contains_key(tname) {
                     transcripts_map.insert(tname.to_string(), tid);
                     transcripts.push(tname.to_string());
                     txp_lengths.push(exon_len);
                     tid += 1;
                 } else {
-                    let _tid = transcripts_map[&tname.to_string()] as usize;
+                    let _tid = transcripts_map[tname] as usize;
                     txp_lengths[_tid] += exon_len;
                 }
             } else {
@@ -196,7 +193,7 @@ pub fn build_tree(
             let exon: ExonNode = ExonNode {
                 start: exon_start,
                 end: exon_end,
-                tid: transcripts_map[&tname.to_string()],
+                tid: transcripts_map[tname],
                 tpos_start: tpos,
                 strand: exon_strand,
             };
@@ -233,28 +230,28 @@ pub fn build_tree(
         let index_file_map = index_dir_path.join("gtf.map");
         let mut outfile = File::create(index_file_map.to_str().unwrap()).unwrap();
         for (seqname, seqid) in transcripts_map.iter() {
-            write!(outfile, "{}\t{}\n", seqname, seqid).unwrap();
+            writeln!(outfile, "{}\t{}", seqname, seqid).unwrap();
         }
 
         let index_file_name = index_dir_path.join("gtf.name");
         outfile = File::create(index_file_name.to_str().unwrap()).unwrap();
         for tname in transcripts.iter() {
-            write!(outfile, "{}\n", tname).unwrap();
+            writeln!(outfile, "{}", tname).unwrap();
         }
 
         let index_file_len = index_dir_path.join("gtf.len");
         outfile = File::create(index_file_len.to_str().unwrap()).unwrap();
         for tlen in txp_lengths.iter() {
-            write!(outfile, "{}\n", tlen).unwrap();
+            writeln!(outfile, "{}", tlen).unwrap();
         }
 
         let index_file_exon = index_dir_path.join("gtf.exon");
         outfile = File::create(index_file_exon.to_str().unwrap()).unwrap();
         for (seqname, seqname_nodes) in &nodes {
             for inode in seqname_nodes.iter() {
-                write!(
+                writeln!(
                     outfile,
-                    "{}\t{}\t{}\t{}\t{}\t{}\n",
+                    "{}\t{}\t{}\t{}\t{}\t{}",
                     seqname, inode.metadata.start, inode.metadata.end, inode.metadata.tid, inode.metadata.tpos_start, inode.metadata.strand
                 )
                 .unwrap();
@@ -263,5 +260,5 @@ pub fn build_tree(
         log::info!("Done with saving the GTF index");
     }
 
-    return Ok(trees);
+    Ok(trees)
 }

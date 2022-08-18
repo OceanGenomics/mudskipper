@@ -8,14 +8,13 @@ use sysinfo::{System, SystemExt};
 use tempfile::NamedTempFile;
 
 mod annotation;
-mod position;
 mod bam;
 mod convert;
+mod position;
 mod query_bam_records;
 mod rad;
 
 use env_logger::{self, Env};
-use log;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -33,43 +32,99 @@ fn main() {
     let app_index = App::new("index")
         .version(version)
         .about("Parse the GTF and build an index to make later runs faster.")
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'").required_unless("index").display_order(1))
+        .arg(
+            Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'")
+                .required_unless("index")
+                .display_order(1),
+        )
         .arg(Arg::from_usage("-d, --dir-index=<DIR> 'Output index directory name'").display_order(2))
         .display_order(1);
     let app_bulk = App::new("bulk")
         .version(version)
         .about("Convert alignment of bulk RNA-Seq reads against genome to alignment against transcriptome.")
         .arg(Arg::from_usage("-a, --alignment=<FILE> 'Input SAM/BAM file'").display_order(1))
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'").required_unless("index").display_order(1))
-        .arg(Arg::from_usage("-i, --index=<DIR> 'Index directory containing parsed GTF files'").required_unless("gtf").display_order(1))
+        .arg(
+            Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'")
+                .required_unless("index")
+                .display_order(1),
+        )
+        .arg(
+            Arg::from_usage("-i, --index=<DIR> 'Index directory containing parsed GTF files'")
+                .required_unless("gtf")
+                .display_order(1),
+        )
         .arg(Arg::from_usage("-o, --out=<FILE> 'Output file name'").display_order(1))
         .arg(Arg::from_usage("-r, --rad 'Output in RAD format instead of BAM'").display_order(100))
-        .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
+        .arg(
+            Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'")
+                .default_value(&default_num_threads)
+                .display_order(2),
+        )
+        .arg(
+            Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'")
+                .default_value(&default_max_softlen)
+                .display_order(2),
+        )
         .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-p, --skip 'skip reads that do not have a mate for paired-end reads'"))
         .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
-        .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
+        .group(
+            ArgGroup::with_name("gtf_index_group")
+                .args(&["gtf", "index"])
+                .multiple(false)
+                .required(true),
+        )
         .display_order(2);
-        // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
+    // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
     let app_sc = App::new("sc")
         .version(version)
         .about("Convert alignment of single-cell RNA-Seq reads against genome to alignment against transcriptome.")
         .arg(Arg::from_usage("-a, --alignment=<FILE> 'Input SAM/BAM file'").display_order(1))
-        .arg(Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'").required_unless("index").display_order(1))
-        .arg(Arg::from_usage("-i, --index=<DIR> 'Index directory containing parsed GTF files'").required_unless("gtf").display_order(1))
+        .arg(
+            Arg::from_usage("-g, --gtf=<FILE> 'Input GTF/GFF file'")
+                .required_unless("index")
+                .display_order(1),
+        )
+        .arg(
+            Arg::from_usage("-i, --index=<DIR> 'Index directory containing parsed GTF files'")
+                .required_unless("gtf")
+                .display_order(1),
+        )
         .arg(Arg::from_usage("-o, --out=<FILE/DIR> 'Output file name (or directory name when --rad is passed)'").display_order(1))
         .arg(Arg::from_usage("-r, --rad 'Output in RAD format instead of BAM'").display_order(100))
         .arg(Arg::from_usage("-c, --corrected-tags 'Output error-corrected cell barcode and UMI'").display_order(101))
-        .arg(Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'").default_value(&default_num_threads).display_order(2))
-        .arg(Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'").default_value(&default_max_softlen).display_order(2))
-        .arg(Arg::from_usage("-m, --rad-mapped=<FILE> 'Name of output rad file; Only used with --rad'").default_value("map.rad").display_order(3))
-        .arg(Arg::from_usage("-u, --rad-unmapped=<FILE> 'Name of file containing the number of unmapped reads for each barcode; Only used with --rad'").default_value("unmapped_bc_count.bin").display_order(3))
+        .arg(
+            Arg::from_usage("-t, --threads=<INT> 'Number of threads for processing bam files'")
+                .default_value(&default_num_threads)
+                .display_order(2),
+        )
+        .arg(
+            Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'")
+                .default_value(&default_max_softlen)
+                .display_order(2),
+        )
+        .arg(
+            Arg::from_usage("-m, --rad-mapped=<FILE> 'Name of output rad file; Only used with --rad'")
+                .default_value("map.rad")
+                .display_order(3),
+        )
+        .arg(
+            Arg::from_usage(
+                "-u, --rad-unmapped=<FILE> 'Name of file containing the number of unmapped reads for each barcode; Only used with --rad'",
+            )
+            .default_value("unmapped_bc_count.bin")
+            .display_order(3),
+        )
         .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
         .arg(Arg::from_usage("-x, --max_mem_mb 'Maximum memory allocation when repositioning files.'").default_value(&max_mem_mb))
-        .group(ArgGroup::with_name("gtf_index_group").args(&["gtf", "index"]).multiple(false).required(true))
+        .group(
+            ArgGroup::with_name("gtf_index_group")
+                .args(&["gtf", "index"])
+                .multiple(false)
+                .required(true),
+        )
         .display_order(3);
-        // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
+    // .arg(Arg::from_usage("--supplementary 'instruction for handling supplementary alignments; one of {keep, keepPrimary, drop}'").default_value(&default_supplementary))
 
     let shuffle_app = App::new("shuffle")
         .version(version)
@@ -93,16 +148,16 @@ fn main() {
     log::info!("Mudskipper started...");
     // convert a SAM/BAM file, in *genome coordinates*,
     // into a BAM file in *transcriptome coordinates*
-    if let Some(ref t) = opts.subcommand_matches("index") {
+    if let Some(t) = opts.subcommand_matches("index") {
         let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
         let index_dir: String = t.value_of("dir-index").unwrap().to_string();
-        // 
+        //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
         let mut txp_lengths: Vec<i32> = Vec::new();
         annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, Some(index_dir))
             .expect("cannot build the tree!");
-    } else if let Some(ref t) = opts.subcommand_matches("bulk") {
+    } else if let Some(t) = opts.subcommand_matches("bulk") {
         let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let input_path = Path::new(&bam_file_in);
         let out_file: String = t.value_of("out").unwrap().to_string();
@@ -117,14 +172,12 @@ fn main() {
             log::error!("BAM/SAM input {} doesn't seem to exist", bam_file_in);
             return; // Do this check beforehand to save the user the hassle of waiting for the index to load
         }
-        let trees = if t.is_present("index"){
+        let trees = if t.is_present("index") {
             let index_dir_adr: String = t.value_of("index").unwrap().to_string();
-            annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths)
-                .expect("cannot load the tree!")
+            annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot load the tree!")
         } else {
             let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
-            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
-                .expect("cannot build the tree!")
+            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None).expect("cannot build the tree!")
         };
         let mut bamfile = bam_file_in.to_string();
         let tempfile: Option<NamedTempFile>;
@@ -161,7 +214,7 @@ fn main() {
                 &required_tags,
             );
         }
-    } else if let Some(ref t) = opts.subcommand_matches("sc") {
+    } else if let Some(t) = opts.subcommand_matches("sc") {
         let bam_file_in: String = t.value_of("alignment").unwrap().to_string();
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
@@ -174,12 +227,10 @@ fn main() {
         let mut txp_lengths: Vec<i32> = Vec::new();
         let trees = if t.is_present("index") {
             let index_dir_adr: String = t.value_of("index").unwrap().to_string();
-            annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths)
-                .expect("cannot load the tree!")
+            annotation::load_tree(&index_dir_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths).expect("cannot load the tree!")
         } else {
             let ann_file_adr: String = t.value_of("gtf").unwrap().to_string();
-            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None)
-                .expect("cannot build the tree!")
+            annotation::build_tree(&ann_file_adr, &mut transcripts_map, &mut transcripts, &mut txp_lengths, None).expect("cannot build the tree!")
         };
 
         let required_tags = if t.is_present("corrected-tags") {
@@ -220,7 +271,7 @@ fn main() {
                 &required_tags,
             );
         }
-    } else if let Some(ref t) = opts.subcommand_matches("shuffle") {
+    } else if let Some(t) = opts.subcommand_matches("shuffle") {
         let bam_file_in: String = t.value_of("bam").unwrap().to_string();
         let bam_file_out: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();

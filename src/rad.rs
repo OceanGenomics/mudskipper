@@ -6,13 +6,12 @@ extern crate fnv;
 use libradicl::rad_types::decode_int_type_tag;
 //use libradicl::rad_types::write_str_bin;
 //use libradicl::rad_types::encode_type_tag;
-use log;
 use std::error::Error;
-use std::path::Path;
 use std::fs::{self, File};
+use std::path::Path;
 
+use crate::query_bam_records::BAMQueryRecordReader;
 use annotation::ExonNode;
-use crate::query_bam_records::{BAMQueryRecordReader};
 
 use coitrees::COITree;
 use fnv::FnvHashMap;
@@ -77,8 +76,8 @@ fn bam_peek(bam_path: &String) -> record::Record {
 pub fn bam2rad_bulk(
     input_bam_filename: &String,
     output_rad_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -87,13 +86,29 @@ pub fn bam2rad_bulk(
     ////////////////////////////////////////////////// header section
     // is paired-end
     if first_record.is_paired() {
-        bam2rad_bulk_pe(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen);
+        bam2rad_bulk_pe(
+            input_bam_filename,
+            output_rad_filename,
+            transcripts,
+            txp_lengths,
+            trees,
+            threads_count,
+            max_softlen,
+        );
     } else {
-        bam2rad_bulk_se(input_bam_filename, output_rad_filename, transcripts, txp_lengths, trees, threads_count, max_softlen);
+        bam2rad_bulk_se(
+            input_bam_filename,
+            output_rad_filename,
+            transcripts,
+            txp_lengths,
+            trees,
+            threads_count,
+            max_softlen,
+        );
     }
 }
 
-fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owriter: &mut Cursor<Vec<u8>>) -> bool {
+fn dump_collected_alignments_bulk_se(all_read_records: &[record::Record], owriter: &mut Cursor<Vec<u8>>) -> bool {
     // add stored data to the current chunk
     let mut wrote_some: bool = false;
     let mut written_records: u32 = 0;
@@ -111,27 +126,28 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
             // array of alignment-specific tags
             // compressed_ori_refid
             let mut tid_comressed = txp_rec.tid() as u32;
-            if txp_rec.is_reverse() == false {
-                tid_comressed |= 0x80000000 as u32;
+            if !txp_rec.is_reverse() {
+                tid_comressed |= 0x80000000_u32;
             }
             data.write_all(&tid_comressed.to_le_bytes()).unwrap();
             // alnscore
             // NOTE: since AS is of type integer but RAD format doesn't have signed integer, we store it in a floating point number instead
             let mut alnscore: f32 = 0.0;
             match txp_rec.aux(b"AS") {
-                Ok(value) => {
-                    match value {
-                        Aux::I8(v) => alnscore = v as f32,
-                        Aux::U8(v) => alnscore = v as f32,
-                        Aux::I16(v) => alnscore = v as f32,
-                        Aux::U16(v) => alnscore = v as f32,
-                        Aux::I32(v) => alnscore = v as f32,
-                        Aux::U32(v) => alnscore = v as f32,
-                        _ => println!("something else"),
-                    }
-                }
+                Ok(value) => match value {
+                    Aux::I8(v) => alnscore = v as f32,
+                    Aux::U8(v) => alnscore = v as f32,
+                    Aux::I16(v) => alnscore = v as f32,
+                    Aux::U16(v) => alnscore = v as f32,
+                    Aux::I32(v) => alnscore = v as f32,
+                    Aux::U32(v) => alnscore = v as f32,
+                    _ => println!("something else"),
+                },
                 Err(e) => {
-                    log::error!("Could not find AS tag for a record of the read {}", String::from_utf8(txp_rec.qname().to_vec()).unwrap());
+                    log::error!(
+                        "Could not find AS tag for a record of the read {}",
+                        String::from_utf8(txp_rec.qname().to_vec()).unwrap()
+                    );
                     panic!("Error reading AS tag: {}", e);
                 }
             }
@@ -149,19 +165,21 @@ fn dump_collected_alignments_bulk_se(all_read_records: &Vec<record::Record>, owr
         // number of alignments
         owriter.write_all(&written_records.to_le_bytes()).unwrap();
         // read-level tags
-        owriter.write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes()).unwrap(); // read length
-        // dump records
+        owriter
+            .write_all(&(all_read_records.first().unwrap().seq_len() as u16).to_le_bytes())
+            .unwrap(); // read length
+                       // dump records
         owriter.write_all(data.get_ref()).unwrap();
     }
 
-    return wrote_some;
+    wrote_some
 }
 
 pub fn bam2rad_bulk_se(
     input_bam_filename: &String,
     output_rad_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -210,7 +228,7 @@ pub fn bam2rad_bulk_se(
         // read length
         let mut tag_str = "readlen";
         let mut tag_typeid = 2u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -220,19 +238,19 @@ pub fn bam2rad_bulk_se(
         // reference id
         tag_str = "compressed_ori_refid";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment score
         tag_str = "alnscore";
         tag_typeid = 5u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position
         tag_str = "alnpos";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -259,7 +277,7 @@ pub fn bam2rad_bulk_se(
         reader_threads = None;
         log::info!("thread count: {}", threads_count);
     }
-    
+
     // setup the input BAM Reader
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
@@ -283,9 +301,9 @@ pub fn bam2rad_bulk_se(
             let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
             all_query_records.append(&mut txp_records);
         }
-        if all_query_records.len() > 0 {
+        if !all_query_records.is_empty() {
             let write_success = dump_collected_alignments_bulk_se(&all_query_records, &mut data);
-            if write_success == true {
+            if write_success {
                 chunk_reads += 1;
             }
         }
@@ -318,10 +336,12 @@ pub fn bam2rad_bulk_se(
     // update the number of chunks in the header
     owriter.flush().expect("File buffer could not be flushed");
     owriter.seek(SeekFrom::Start(end_header_pos)).expect("couldn't seek in output file");
-    owriter.write_all(&total_num_chunks.to_le_bytes()).expect("couldn't write to output file.");
+    owriter
+        .write_all(&total_num_chunks.to_le_bytes())
+        .expect("couldn't write to output file.");
 }
 
-fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owriter: &mut Cursor<Vec<u8>>) -> bool {
+fn dump_collected_alignments_bulk_pe(all_read_records: &[record::Record], owriter: &mut Cursor<Vec<u8>>) -> bool {
     // add stored data to the current chunk
     let mut wrote_some: bool = false;
     let mut written_records: u32 = 0;
@@ -336,20 +356,22 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
     while let Some(rec1) = rec_iter.next() {
         // there should be another mate
         if let Some(rec2) = rec_iter.next() {
-            if rec1.is_unmapped() && rec2.is_unmapped() { // both mates are unmapped; no need to store anything in RAD format
+            if rec1.is_unmapped() && rec2.is_unmapped() {
+                // both mates are unmapped; no need to store anything in RAD format
                 continue;
-            } else if !rec1.is_unmapped() && !rec2.is_unmapped() { // both mates are mapped
+            } else if !rec1.is_unmapped() && !rec2.is_unmapped() {
+                // both mates are mapped
                 // alignment reference ID
                 assert_eq!(rec1.tid(), rec2.tid());
                 data.write_all(&(rec1.tid() as u32).to_le_bytes()).unwrap();
                 let mut aln_type: u8 = 0;
-                if rec1.is_first_in_template() == true {
+                if rec1.is_first_in_template() {
                     // rec1 is left
                     if rec1.is_reverse() {
-                        aln_type = aln_type | (2 as u8);
+                        aln_type |= 2u8;
                     }
                     if rec2.is_reverse() {
-                        aln_type = aln_type | (1 as u8);
+                        aln_type |= 1u8;
                     }
                     pos_left = rec1.pos() as u32;
                     pos_right = rec2.pos() as u32;
@@ -358,10 +380,10 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 } else {
                     // rec2 is left
                     if rec1.is_reverse() {
-                        aln_type = aln_type | (1 as u8);
+                        aln_type |= 1u8;
                     }
                     if rec2.is_reverse() {
-                        aln_type = aln_type | (2 as u8);
+                        aln_type |= 2u8;
                     }
                     pos_right = rec1.pos() as u32;
                     pos_left = rec2.pos() as u32;
@@ -376,53 +398,55 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 // NOTE: since AS is of type integer but RAD format doesn't have signed integer, we store it in a floating point number instead
                 let mut alnscore: f32 = 0.0;
                 match rec1.aux(b"AS") {
-                    Ok(value) => {
-                        match value {
-                            Aux::I8(v) => alnscore = v as f32,
-                            Aux::U8(v) => alnscore = v as f32,
-                            Aux::I16(v) => alnscore = v as f32,
-                            Aux::U16(v) => alnscore = v as f32,
-                            Aux::I32(v) => alnscore = v as f32,
-                            Aux::U32(v) => alnscore = v as f32,
-                            _ => println!("something else"),
-                        }
-                    }
+                    Ok(value) => match value {
+                        Aux::I8(v) => alnscore = v as f32,
+                        Aux::U8(v) => alnscore = v as f32,
+                        Aux::I16(v) => alnscore = v as f32,
+                        Aux::U16(v) => alnscore = v as f32,
+                        Aux::I32(v) => alnscore = v as f32,
+                        Aux::U32(v) => alnscore = v as f32,
+                        _ => println!("something else"),
+                    },
                     Err(e) => {
-                        log::error!("Could not find AS tag for a record of the read {}", String::from_utf8(rec1.qname().to_vec()).unwrap());
+                        log::error!(
+                            "Could not find AS tag for a record of the read {}",
+                            String::from_utf8(rec1.qname().to_vec()).unwrap()
+                        );
                         panic!("Error reading AS tag: {}", e);
                     }
                 }
                 data.write_all(&alnscore.to_le_bytes()).unwrap();
                 data.write_all(&pos_left.to_le_bytes()).unwrap();
                 data.write_all(&pos_right.to_le_bytes()).unwrap();
-                data.write_all(&(rec1.insert_size().abs() as u32).to_le_bytes()).unwrap();
+                data.write_all(&(rec1.insert_size().unsigned_abs()).to_le_bytes()).unwrap();
                 wrote_some = true;
                 written_records += 1;
-            } else { // only one mate is mapped
-                let mapped_rec : &record::Record;
-                let unmapped_rec : &record::Record;
+            } else {
+                // only one mate is mapped
+                let mapped_rec: &record::Record;
+                let unmapped_rec: &record::Record;
                 if rec1.is_unmapped() {
-                    mapped_rec = &rec2;
-                    unmapped_rec = &rec1;
+                    mapped_rec = rec2;
+                    unmapped_rec = rec1;
                 } else {
-                    mapped_rec = &rec1;
-                    unmapped_rec = &rec2;
+                    mapped_rec = rec1;
+                    unmapped_rec = rec2;
                 }
                 // there is no mate
                 // alignment reference ID
                 data.write_all(&(mapped_rec.tid() as u32).to_le_bytes()).unwrap();
                 let aln_type: u8;
-                if mapped_rec.is_first_in_template() == true {
+                if mapped_rec.is_first_in_template() {
                     // right is unmapped
                     aln_type = if mapped_rec.is_reverse() { 5 } else { 4 };
                     pos_left = mapped_rec.pos() as u32;
-                    pos_right = 0 as u32;
+                    pos_right = 0u32;
                     len_left = mapped_rec.seq_len() as u16;
                     len_right = unmapped_rec.seq_len() as u16;
                 } else {
                     // left is unmapped
                     aln_type = if mapped_rec.is_reverse() { 7 } else { 6 };
-                    pos_left = 0 as u32;
+                    pos_left = 0u32;
                     pos_right = mapped_rec.pos() as u32;
                     len_left = unmapped_rec.seq_len() as u16;
                     len_right = mapped_rec.seq_len() as u16;
@@ -435,26 +459,27 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
                 // NOTE: since AS is of type integer but RAD format doesn't have signed integer, we store it in a floating point number instead
                 let mut alnscore: f32 = 0.0;
                 match mapped_rec.aux(b"AS") {
-                    Ok(value) => {
-                        match value {
-                            Aux::I8(v) => alnscore = v as f32,
-                            Aux::U8(v) => alnscore = v as f32,
-                            Aux::I16(v) => alnscore = v as f32,
-                            Aux::U16(v) => alnscore = v as f32,
-                            Aux::I32(v) => alnscore = v as f32,
-                            Aux::U32(v) => alnscore = v as f32,
-                            _ => println!("something else"),
-                        }
-                    }
+                    Ok(value) => match value {
+                        Aux::I8(v) => alnscore = v as f32,
+                        Aux::U8(v) => alnscore = v as f32,
+                        Aux::I16(v) => alnscore = v as f32,
+                        Aux::U16(v) => alnscore = v as f32,
+                        Aux::I32(v) => alnscore = v as f32,
+                        Aux::U32(v) => alnscore = v as f32,
+                        _ => println!("something else"),
+                    },
                     Err(e) => {
-                        log::error!("Could not find AS tag for a record of the read {}", String::from_utf8(mapped_rec.qname().to_vec()).unwrap());
+                        log::error!(
+                            "Could not find AS tag for a record of the read {}",
+                            String::from_utf8(mapped_rec.qname().to_vec()).unwrap()
+                        );
                         panic!("Error reading AS tag: {}", e);
                     }
                 }
                 data.write_all(&alnscore.to_le_bytes()).unwrap();
                 data.write_all(&pos_left.to_le_bytes()).unwrap();
                 data.write_all(&pos_right.to_le_bytes()).unwrap();
-                data.write_all(&(mapped_rec.insert_size().abs() as u32).to_le_bytes()).unwrap();
+                data.write_all(&(mapped_rec.insert_size().unsigned_abs()).to_le_bytes()).unwrap();
                 wrote_some = true;
                 written_records += 1;
             }
@@ -476,14 +501,14 @@ fn dump_collected_alignments_bulk_pe(all_read_records: &Vec<record::Record>, owr
         owriter.write_all(data.get_ref()).unwrap();
     }
 
-    return wrote_some;
+    wrote_some
 }
 
 pub fn bam2rad_bulk_pe(
     input_bam_filename: &String,
     output_rad_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -532,13 +557,13 @@ pub fn bam2rad_bulk_pe(
         // read length left mate
         let mut tag_str = "readlen_left";
         let mut tag_typeid = 2u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // read length right mate
         tag_str = "readlen_right";
         tag_typeid = 2u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -548,37 +573,37 @@ pub fn bam2rad_bulk_pe(
         // reference id
         tag_str = "refid";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // alignment type
         tag_str = "alntype";
         tag_typeid = 1u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
-        
+
         // alignment score
         tag_str = "alnscore";
         tag_typeid = 5u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position left mate
         tag_str = "alnpos_left";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // reference position right mate
         tag_str = "alnpos_right";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // fragment length estimated based on the alignment
         tag_str = "fraglen";
         tag_typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&tag_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -605,7 +630,7 @@ pub fn bam2rad_bulk_pe(
         reader_threads = None;
         log::info!("thread count: {}", threads_count);
     }
-    
+
     // setup the input BAM Reader
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
@@ -635,9 +660,9 @@ pub fn bam2rad_bulk_pe(
             let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
             all_query_records.append(&mut txp_records);
         }
-        if all_query_records.len() > 0 {
+        if !all_query_records.is_empty() {
             let write_success = dump_collected_alignments_bulk_pe(&all_query_records, &mut data);
-            if write_success == true {
+            if write_success {
                 chunk_reads += 1;
             }
         }
@@ -670,11 +695,13 @@ pub fn bam2rad_bulk_pe(
     // update the number of chunks in the header
     owriter.flush().expect("File buffer could not be flushed");
     owriter.seek(SeekFrom::Start(end_header_pos)).expect("couldn't seek in output file");
-    owriter.write_all(&total_num_chunks.to_le_bytes()).expect("couldn't write to output file.");
+    owriter
+        .write_all(&total_num_chunks.to_le_bytes())
+        .expect("couldn't write to output file.");
 }
 
 fn dump_collected_alignments_singlecell(
-    all_read_records: &Vec<record::Record>,
+    all_read_records: &[record::Record],
     bc_typeid: &u8,
     umi_typeid: &u8,
     corrected_tags: bool,
@@ -714,8 +741,13 @@ fn dump_collected_alignments_singlecell(
         }
     }
 
-    log::debug!("qname:{} bc:{} umi:{}", String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(), bc_string, umi_string);
-    if (*bc_typeid != 8 && bc_string.contains('N') == true) || (*umi_typeid != 8 && umi_string.contains('N') == true) {
+    log::debug!(
+        "qname:{} bc:{} umi:{}",
+        String::from_utf8(all_read_records.first().unwrap().qname().to_vec()).unwrap(),
+        bc_string,
+        umi_string
+    );
+    if (*bc_typeid != 8 && bc_string.contains('N')) || (*umi_typeid != 8 && umi_string.contains('N')) {
         log::debug!("barcode or UMI has N");
         return false;
     }
@@ -731,8 +763,8 @@ fn dump_collected_alignments_singlecell(
 
             // array of alignment-specific tags
             let mut tid_comressed = txp_rec.tid() as u32;
-            if txp_rec.is_reverse() == false {
-                tid_comressed |= 0x80000000 as u32;
+            if !txp_rec.is_reverse() {
+                tid_comressed |= 0x80000000_u32;
             }
             data.write_all(&tid_comressed.to_le_bytes()).unwrap();
             written_records += 1;
@@ -787,16 +819,17 @@ fn dump_collected_alignments_singlecell(
         owriter.write_all(data.get_ref()).unwrap();
     }
 
-    return wrote_some;
+    wrote_some
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn bam2rad_singlecell(
     input_bam_filename: &String,
     output_dirname: &String,
     rad_mapped_filename: &String,
     rad_unmapped_filename: &String,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
@@ -859,11 +892,11 @@ pub fn bam2rad_singlecell(
         let mut umi_tag_str = "ulen";
 
         // str - type
-        libradicl::rad_types::write_str_bin(&cb_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(cb_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // str - type
-        libradicl::rad_types::write_str_bin(&umi_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(umi_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // READ-LEVEL tags
@@ -918,10 +951,10 @@ pub fn bam2rad_singlecell(
         log::debug!("CB LEN : {}, CB TYPE : {}", bclen, bc_typeid);
         log::debug!("UMI LEN : {}, UMI TYPE : {}", umilen, umi_typeid);
 
-        libradicl::rad_types::write_str_bin(&cb_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(cb_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&bc_typeid.to_le_bytes()).expect("coudn't write to output file");
 
-        libradicl::rad_types::write_str_bin(&umi_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(umi_tag_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&umi_typeid.to_le_bytes()).expect("coudn't write to output file");
 
         // ALIGNMENT-LEVEL tags
@@ -931,7 +964,7 @@ pub fn bam2rad_singlecell(
         // reference id
         let refid_str = "compressed_ori_refid";
         typeid = 3u8;
-        libradicl::rad_types::write_str_bin(&refid_str, &libradicl::rad_types::RadIntId::U16, &mut data);
+        libradicl::rad_types::write_str_bin(refid_str, &libradicl::rad_types::RadIntId::U16, &mut data);
         data.write_all(&typeid.to_le_bytes()).expect("coudn't write to output file");
 
         ///////////////////////////////////////// file-level tag values
@@ -959,7 +992,7 @@ pub fn bam2rad_singlecell(
         reader_threads = None;
         log::info!("thread count: {}", threads_count);
     }
-    
+
     // setup the input BAM Reader
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
@@ -985,9 +1018,9 @@ pub fn bam2rad_singlecell(
             let mut txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, &required_tags);
             all_query_records.append(&mut txp_records);
         }
-        if all_query_records.len() > 0 {
+        if !all_query_records.is_empty() {
             let write_success = dump_collected_alignments_singlecell(&all_query_records, &bc_typeid, &umi_typeid, corrected_tags, &mut data);
-            if write_success == true {
+            if write_success {
                 chunk_reads += 1;
             }
         }
@@ -1021,5 +1054,7 @@ pub fn bam2rad_singlecell(
     // update the number of chunks in the header
     owriter.flush().expect("File buffer could not be flushed");
     owriter.seek(SeekFrom::Start(end_header_pos)).expect("couldn't seek in output file");
-    owriter.write_all(&total_num_chunks.to_le_bytes()).expect("couldn't write to output file.");
+    owriter
+        .write_all(&total_num_chunks.to_le_bytes())
+        .expect("couldn't write to output file.");
 }

@@ -1,7 +1,7 @@
+use bio::alphabets::dna::revcomp;
 use coitrees::COITree;
 use rust_htslib::bam::record;
 use std::collections::{HashMap, HashSet};
-use bio::alphabets::dna::revcomp;
 
 use rust_htslib::bam::HeaderView;
 // use rust_htslib::bam::{Format, Header, Read, Reader, Writer, header};
@@ -13,8 +13,6 @@ use bio_types::strand::Strand;
 use crate::annotation;
 use crate::query_bam_records::BAMQueryRecord;
 use annotation::ExonNode;
-
-use log;
 
 /// Given ranges of genomic bases where a spliced alignment is mapped against, returns a map of transcripts that are covered by the projected alignments.
 /// For each transcript, the position and orientation of the alignment is also returned.
@@ -28,7 +26,7 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
     let mut tid_pos: HashMap<i32, (i32, Strand)> = HashMap::new(); // final (tid, pos, strand) to return
     for (i, range) in ranges.iter().enumerate() {
         let range_cov = tree.coverage(range.0, range.1);
-        let mut tid_curr: HashSet<i32> = HashSet::new(); // stores all the transcript ids that are covered by the current range 
+        let mut tid_curr: HashSet<i32> = HashSet::new(); // stores all the transcript ids that are covered by the current range
         log::debug!("range coverage: {:?}", range_cov);
         if range_cov.0 != 0 || range_cov.1 != 0 {
             tree.query(range.0, range.1, |node| {
@@ -36,57 +34,65 @@ pub fn find_tid(tree: &COITree<ExonNode, u32>, ranges: &Vec<(i32, i32)>) -> Hash
                 // TODO: for now we are dropping overhanging alignments. This can be improved.
                 if node.metadata.start <= range.0 && node.metadata.end >= range.1 {
                     // add to tid_curr
-                    if  ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
+                    if ranges.len() == 1 || // if there is only a single range, so no need to check splicing boundaries. Otherwise, obey splicing!
                     (i == 0 && range.1 == node.metadata.end) ||
                     (i == ranges.len() - 1 && range.0 == node.metadata.start) || 
-                    (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end) {
+                    (i > 0 && i < ranges.len() - 1 && range.0 == node.metadata.start && range.1 == node.metadata.end)
+                    {
                         log::debug!("keeping");
                         tid_curr.insert(node.metadata.tid);
                     }
                     // keep track of the alignment position and strand
-                    if i == 0 && node.metadata.strand == Strand::Forward { // first range of the spliced alignment 
-                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}", 
-                            node.metadata.tid, 
-                            node.metadata.strand, 
-                            node.metadata.start - node.metadata.tpos_start, 
-                            node.metadata.start, 
-                            node.metadata.tpos_start);
+                    if i == 0 && node.metadata.strand == Strand::Forward {
+                        // first range of the spliced alignment
+                        log::debug!(
+                            "inserting => tid:{}, strand:{}, pos:{} = start:{} - tpos_start:{}",
+                            node.metadata.tid,
+                            node.metadata.strand,
+                            node.metadata.start - node.metadata.tpos_start,
+                            node.metadata.start,
+                            node.metadata.tpos_start
+                        );
                         tid_pos.insert(node.metadata.tid, (node.metadata.start - node.metadata.tpos_start, Strand::Forward));
                     } else if i == ranges.len() - 1 && node.metadata.strand == Strand::Reverse {
-                        log::debug!("inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1", 
-                            node.metadata.tid, 
-                            node.metadata.strand, 
-                            node.metadata.end + node.metadata.tpos_start + 1, 
-                            node.metadata.end, 
-                            node.metadata.tpos_start);
+                        log::debug!(
+                            "inserting => tid:{}, strand:{}, pos:{} = end:{} - tpos_start:{} + 1",
+                            node.metadata.tid,
+                            node.metadata.strand,
+                            node.metadata.end + node.metadata.tpos_start + 1,
+                            node.metadata.end,
+                            node.metadata.tpos_start
+                        );
                         tid_pos.insert(node.metadata.tid, (node.metadata.end + node.metadata.tpos_start + 1, Strand::Reverse));
                     }
                 }
             });
             log::debug!("found coverage: {:?}", range_cov);
         }
-        if i ==0 {
+        if i == 0 {
             tid_set = tid_curr;
         } else {
             tid_set = &tid_set & &tid_curr; // only transcripts that overlap ALL the ranges will be reported, hence the intersection
         }
     }
-    // 
+    //
     let mut tid_to_remove: HashSet<i32> = HashSet::new();
-    for (k, _v) in &tid_pos {
-        if tid_set.contains(k) == false {
+    for k in tid_pos.keys() {
+        if !tid_set.contains(k) {
             tid_to_remove.insert(*k);
         }
     }
     for tid in tid_to_remove {
         tid_pos.remove(&tid);
     }
-    for (k, _v) in &tid_pos {
+    for k in tid_pos.keys() {
         log::debug!("overlapping tid: {}", k);
     }
-    return tid_pos;
+    tid_pos
 }
 
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn find_tids_paired(
     tree: &COITree<ExonNode, u32>,
     read_pos1: &i32,
@@ -103,19 +109,19 @@ pub fn find_tids_paired(
     let mut tid_pos: HashMap<i32, ((i32, Strand), (i32, Strand))> = HashMap::new();
     log::debug!("read1: {} {}", read_pos1, cigar1);
     let ranges1 = find_ranges_single(read_pos1, cigar1, new_cigar1, len1, long_softclip, max_softlen);
-    let tids1 = find_tid(&tree, &ranges1);
+    let tids1 = find_tid(tree, &ranges1);
     log::debug!("read2: {} {}", read_pos2, cigar2);
     let ranges2 = find_ranges_single(read_pos2, cigar2, new_cigar2, len2, long_softclip, max_softlen);
-    let tids2 = find_tid(&tree, &ranges2);
+    let tids2 = find_tid(tree, &ranges2);
     for (tid, pos1) in tids1.iter() {
         if tids2.contains_key(tid) {
             tid_pos.insert(*tid, (*pos1, tids2[tid]));
         }
     }
-    return tid_pos;
+    tid_pos
 }
 
-/// Returns a vector of ranges in exons covered by the input alignment. 
+/// Returns a vector of ranges in exons covered by the input alignment.
 /// Each range is a tuple in format of (start, end) and both coordinates are inclusive.
 ///
 /// # Arguments
@@ -158,19 +164,19 @@ pub fn find_ranges_single(
                     curr_range = (curr_pos + 1, -1);
                     new_range = false;
                 }
-                
+
                 if cigar_char != 'I' {
                     // log::debug!("curr_pos: {}", curr_pos);
-                    curr_pos = curr_pos + cigar_len as i32;
+                    curr_pos += cigar_len as i32;
                     // log::debug!("ref_len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
-                    *ref_len = *ref_len + cigar_len as i32;
+                    *ref_len += cigar_len as i32;
                 }
 
                 // log::debug!("curr_pos: {}", curr_pos);
                 curr_range.1 = curr_pos;
-                
+
                 // update the new cigar
-                if new_cigar_vec.len() == 0 || cigar_char != new_cigar_vec.last().unwrap().char() {
+                if new_cigar_vec.is_empty() || cigar_char != new_cigar_vec.last().unwrap().char() {
                     new_cigar_vec.push(*cigar_item);
                 } else {
                     let new_cigar_len = cigar_len + new_cigar_vec.last().unwrap().len();
@@ -191,10 +197,10 @@ pub fn find_ranges_single(
                 new_range = true;
                 ranges.push(curr_range);
                 log::debug!("RANGE {} {}", curr_range.0, curr_range.1);
-                curr_pos = curr_pos + cigar_len as i32;
+                curr_pos += cigar_len as i32;
                 // log::debug!("curr_pos: {}", curr_pos);
                 // log::debug!("len:{} + cigar_len:{} = {}", *ref_len, cigar_len, *ref_len + cigar_len as i32);
-                *ref_len = *ref_len + cigar_len as i32;
+                *ref_len += cigar_len as i32;
             }
             // Soft clipped bases don't consume reference bases
             'S' => {
@@ -211,15 +217,15 @@ pub fn find_ranges_single(
     log::debug!("RANGE {} {}", curr_range.0, curr_range.1);
     log::debug!("REF_LEN {}", *ref_len);
     *new_cigar = record::CigarString(new_cigar_vec);
-    return ranges;
+    ranges
 }
 
 pub fn convert_paired_end(
     bam_record1: &record::Record,
     bam_record2: &record::Record,
     header_view: &HeaderView,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     max_softlen: &usize,
 ) -> Vec<record::Record> {
@@ -229,14 +235,14 @@ pub fn convert_paired_end(
         converted_records.push(bam_record2.clone());
         return converted_records;
     } else if bam_record1.is_unmapped() && !bam_record2.is_unmapped() {
-        let converted_se = convert_single_end(bam_record2, &header_view, transcripts, trees, max_softlen);
+        let converted_se = convert_single_end(bam_record2, header_view, transcripts, trees, max_softlen);
         for txp_rec in converted_se.iter() {
             converted_records.push(bam_record1.clone());
             converted_records.push(txp_rec.clone());
         }
         return converted_records;
     } else if !bam_record1.is_unmapped() && bam_record2.is_unmapped() {
-        let converted_se = convert_single_end(bam_record1, &header_view, transcripts, trees, max_softlen);
+        let converted_se = convert_single_end(bam_record1, header_view, transcripts, trees, max_softlen);
         for txp_rec in converted_se.iter() {
             converted_records.push(txp_rec.clone());
             converted_records.push(bam_record2.clone());
@@ -252,7 +258,7 @@ pub fn convert_paired_end(
     let genome_tname = String::from_utf8(header_view.tid2name(bam_record2.tid() as u32).to_vec()).expect("cannot find the tname!");
     if let Some(tree) = trees.get(&genome_tname) {
         let tids = find_tids_paired(
-            &tree,
+            tree,
             &(bam_record1.pos() as i32),
             &bam_record1.cigar(),
             &mut cigar1_new,
@@ -262,7 +268,7 @@ pub fn convert_paired_end(
             &mut cigar2_new,
             &mut len2,
             &mut long_softclip,
-            &max_softlen,
+            max_softlen,
         );
         if long_softclip {
             log::debug!("The softclip length is too long!");
@@ -270,7 +276,7 @@ pub fn convert_paired_end(
         }
         log::debug!("{}: {}", bam_record1.cigar(), bam_record1.cigar().len());
         log::debug!("{}: {}", bam_record2.cigar(), bam_record2.cigar().len());
-        if tids.len() > 0 {
+        if !tids.is_empty() {
             for (tid, pos_strand) in tids.iter() {
                 let mut first_record_ = bam_record1.clone();
                 let mut first_record_cigar = cigar1_new.clone();
@@ -370,7 +376,12 @@ pub fn convert_paired_end(
                 log::debug!("tid:{} {}", tid, transcripts[*tid as usize]);
                 log::debug!(
                     "first_pos:{} second_pos:{} len1:{} len2:{} first_length:{} second_length:{}",
-                    first_pos, second_pos, first_read_len, second_read_len, first_length, second_length
+                    first_pos,
+                    second_pos,
+                    first_read_len,
+                    second_read_len,
+                    first_length,
+                    second_length
                 );
                 log::debug!("bam_record1.is_reverse():{}", bam_record1.is_reverse());
                 log::debug!("record.is_reverse():{}", bam_record2.is_reverse());
@@ -418,18 +429,19 @@ pub fn convert_paired_end(
         // log for unannotated splicing junction
         log::debug!("unannotated splicing junction observed!")
     }
-    return converted_records;
+    converted_records
 }
 
 pub fn convert_single_end(
     bam_record: &record::Record,
     header_view: &HeaderView,
-    transcripts: &Vec<String>,
+    transcripts: &[String],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     max_softlen: &usize,
 ) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
-    if bam_record.is_unmapped() { // no need to convert, just return the unmapped record
+    if bam_record.is_unmapped() {
+        // no need to convert, just return the unmapped record
         converted_records.push(bam_record.clone());
         return converted_records;
     }
@@ -444,16 +456,16 @@ pub fn convert_single_end(
         &mut cigar_new,
         &mut ref_len,
         &mut long_softclip,
-        &max_softlen,
+        max_softlen,
     );
     let genome_tname = String::from_utf8(header_view.tid2name(bam_record.tid() as u32).to_vec()).expect("cannot find the tname!");
     if let Some(tree) = trees.get(&genome_tname) {
-        let tids = find_tid(&tree, &ranges);
+        let tids = find_tid(tree, &ranges);
         if long_softclip {
             log::debug!("The softclip length is too long!");
             return converted_records;
         }
-        if tids.len() > 0 {
+        if !tids.is_empty() {
             for (tid, pos_strand) in tids.iter() {
                 log::debug!("tid:{} {}", tid, transcripts[*tid as usize]);
 
@@ -498,17 +510,17 @@ pub fn convert_single_end(
         // log for unannotated splicing junction
         log::debug!("unannotated splicing junction observed!")
     }
-    return converted_records;
+    converted_records
 }
 
 pub fn convert_query_bam_records(
     qrecord: &BAMQueryRecord,
     header_view: &HeaderView,
-    transcripts: &Vec<String>,
-    txp_lengths: &Vec<i32>,
+    transcripts: &[String],
+    txp_lengths: &[i32],
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     max_softlen: &usize,
-    required_tags: &Vec<&str>,
+    required_tags: &[&str],
 ) -> Vec<record::Record> {
     let mut converted_records: Vec<record::Record> = Vec::new();
     let first_mate = qrecord.get_first();
@@ -521,15 +533,27 @@ pub fn convert_query_bam_records(
     }
 
     if qrecord.is_paired() {
-        log::debug!("qname1: {}    qname2: {}", String::from_utf8(first_mate[0].qname().to_vec()).unwrap(), String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+        log::debug!(
+            "qname1: {}    qname2: {}",
+            String::from_utf8(first_mate[0].qname().to_vec()).unwrap(),
+            String::from_utf8(second_mate[0].qname().to_vec()).unwrap()
+        );
         // check for required tags
         for tag in required_tags.iter() {
             if first_mate[0].aux(tag.as_bytes()).is_err() {
-                log::error!("Could not find {} tag for first mate of read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                log::error!(
+                    "Could not find {} tag for first mate of read {}",
+                    tag,
+                    String::from_utf8(first_mate[0].qname().to_vec()).unwrap()
+                );
                 panic!("Some required tags do not exist!");
             }
             if second_mate[0].aux(tag.as_bytes()).is_err() {
-                log::error!("Could not find {} tag for second mate of read {}", tag, String::from_utf8(second_mate[0].qname().to_vec()).unwrap());
+                log::error!(
+                    "Could not find {} tag for second mate of read {}",
+                    tag,
+                    String::from_utf8(second_mate[0].qname().to_vec()).unwrap()
+                );
                 panic!("Some required tags do not exist!");
             }
         }
@@ -540,12 +564,16 @@ pub fn convert_query_bam_records(
         // check for required tags
         for tag in required_tags.iter() {
             if first_mate[0].aux(tag.as_bytes()).is_err() {
-                log::error!("Could not find {} tag for read {}", tag, String::from_utf8(first_mate[0].qname().to_vec()).unwrap());
+                log::error!(
+                    "Could not find {} tag for read {}",
+                    tag,
+                    String::from_utf8(first_mate[0].qname().to_vec()).unwrap()
+                );
                 panic!("Some required tags do not exist!");
             }
         }
         let mut txp_records = convert_single_end(&first_mate[0], header_view, transcripts, trees, max_softlen);
         converted_records.append(&mut txp_records);
     }
-    return converted_records;
+    converted_records
 }

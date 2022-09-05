@@ -13,7 +13,7 @@ readme = "README.md"
 [dependencies]
 rust-htslib = { version="0.39.5", default-features = false, features=["bzip2", "lzma", "serde_feature"] }
 bio = "0.39.1"
-bio-types = "0.12.1"
+bio-types = "0.13.0"
 coitrees = "0.2.1"
 # for coitrees
 fnv = "1.0.7"

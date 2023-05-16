@@ -23,6 +23,7 @@ fn main() {
     let default_num_threads = String::from("1");
     let default_max_softlen = String::from("50");
     // let default_supplementary = String::from("keep");
+    let default_max_overhang = String::from("0");
 
     let mut sys = System::new_all();
     sys.refresh_all();
@@ -63,6 +64,11 @@ fn main() {
         .arg(
             Arg::from_usage("-s, --max-softclip=<INT> 'Max allowed softclip length'")
                 .default_value(&default_max_softlen)
+                .display_order(2),
+        )
+        .arg(
+            Arg::from_usage("-v, --max-overhang=<INT> 'Max allowed overhang length'")
+                .default_value(&default_max_overhang)
                 .display_order(2),
         )
         .arg(Arg::from_usage("-l, --shuffle 'shuffle reads to be grouped but not position-sorted'"))
@@ -163,6 +169,7 @@ fn main() {
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softclip").unwrap().parse::<usize>().unwrap();
+        let max_overhang: usize = t.value_of("max-overhang").unwrap().parse::<usize>().unwrap();
         //
         let mut transcripts_map: HashMap<String, i32> = HashMap::new();
         let mut transcripts: Vec<String> = Vec::new();
@@ -188,7 +195,16 @@ fn main() {
             position::depositionify_bam(&bam_file_in, &bamfile, max_mem_mb * 1024 * 1024, threads_count);
         }
         if t.is_present("rad") {
-            rad::bam2rad_bulk(&bamfile, &out_file, &transcripts, &txp_lengths, &trees, &threads_count, &max_softlen);
+            rad::bam2rad_bulk(
+                &bamfile,
+                &out_file,
+                &transcripts,
+                &txp_lengths,
+                &trees,
+                &threads_count,
+                &max_softlen,
+                &max_overhang,
+            );
         } else if t.is_present("skip") {
             let required_tags: Vec<&str> = Vec::new();
             bam::bam2bam_skip(
@@ -199,6 +215,7 @@ fn main() {
                 &trees,
                 &threads_count,
                 &max_softlen,
+                &max_overhang,
                 &required_tags,
             );
         } else {
@@ -211,6 +228,7 @@ fn main() {
                 &trees,
                 &threads_count,
                 &max_softlen,
+                &max_overhang,
                 &required_tags,
             );
         }
@@ -219,6 +237,7 @@ fn main() {
         let out_file: String = t.value_of("out").unwrap().to_string();
         let threads_count: usize = t.value_of("threads").unwrap().parse::<usize>().unwrap();
         let max_softlen: usize = t.value_of("max-softclip").unwrap().parse::<usize>().unwrap();
+        let max_overhang: usize = t.value_of("max-overhang").unwrap().parse::<usize>().unwrap();
         let rad_mapped: String = t.value_of("rad-mapped").unwrap().to_string();
         let rad_unmapped: String = t.value_of("rad-unmapped").unwrap().to_string();
         //
@@ -257,6 +276,7 @@ fn main() {
                 &trees,
                 &threads_count,
                 &max_softlen,
+                &max_overhang,
                 t.is_present("corrected-tags"),
             );
         } else {
@@ -268,6 +288,7 @@ fn main() {
                 &trees,
                 &threads_count,
                 &max_softlen,
+                &max_overhang,
                 &required_tags,
             );
         }

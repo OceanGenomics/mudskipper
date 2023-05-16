@@ -22,6 +22,7 @@ pub fn bam2bam(
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
+    max_overhang: &usize,
     required_tags: &[&str],
 ) -> i32 {
     // setup the output BAM Writer
@@ -63,8 +64,16 @@ pub fn bam2bam(
                         missed += 1;
                     }
                     for r in ret_vec.iter() {
-                        let txp_records =
-                            convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+                        let txp_records = convert::convert_query_bam_records(
+                            r,
+                            &input_header,
+                            transcripts,
+                            txp_lengths,
+                            trees,
+                            max_softlen,
+                            max_overhang,
+                            required_tags,
+                        );
                         if txp_records.is_empty() {
                             missed += 1;
                         }
@@ -99,6 +108,7 @@ pub fn bam2bam_skip(
     trees: &FnvHashMap<String, COITree<ExonNode, u32>>,
     threads_count: &usize,
     max_softlen: &usize,
+    max_overhang: &usize,
     required_tags: &[&str],
 ) -> i32 {
     // setup the output BAM Writer
@@ -137,10 +147,20 @@ pub fn bam2bam_skip(
             missed += 1;
         }
         for r in ret_vec.iter() {
-            let txp_records = convert::convert_query_bam_records(r, &input_header, transcripts, txp_lengths, trees, max_softlen, required_tags);
+            let txp_records = convert::convert_query_bam_records(
+                r,
+                &input_header,
+                transcripts,
+                txp_lengths,
+                trees,
+                max_softlen,
+                max_overhang,
+                required_tags,
+            );
             if txp_records.is_empty() {
                 missed += 1;
             }
+
             for txp_rec in txp_records.iter() {
                 output_writer.write(txp_rec).unwrap();
             }

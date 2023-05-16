@@ -1,7 +1,7 @@
 use std::fs;
 
-use mudskipper::query_bam_records::BAMQueryRecordReader;
 use mudskipper::position;
+use mudskipper::query_bam_records::BAMQueryRecordReader;
 
 #[test]
 fn test_missing_mate() {
@@ -22,7 +22,7 @@ fn test_missing_mate() {
 fn test_name_order() {
     // setup the input BAM file
     let input_bam_filename = "tests/not_name_sorted.sam".to_string();
-    // setup the BAM query record reader 
+    // setup the BAM query record reader
     let mut bqr = BAMQueryRecordReader::new(&input_bam_filename, Some(1));
     assert_eq!(bqr.get_next_query_records().is_err(), true);
 

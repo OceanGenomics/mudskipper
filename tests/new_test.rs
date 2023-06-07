@@ -2,13 +2,7 @@ use std::fs;
 
 use mudskipper::position;
 
-fn handle_file(file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // Implement your logic to handle the file here
-    // For example, you can open the file and perform some operations on it
 
-    // Return Ok(()) if the file handling was successful
-    Ok(())
-}
 
 #[test]
 fn test_valid_input_data() {

@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use rust_htslib::bam::{record::Aux, record::CigarString, HeaderView, Read, Reader, Record};
+use rust_htslib::bam::{record::Aux, record::CigarString, HeaderView, Read, Reader, Record, ext::BamRecordExtensions};
 
 pub struct BAMQueryRecord {
     is_paired: bool,
@@ -31,7 +31,7 @@ pub struct BAMQueryRecordReader {
 }
 
 impl BAMQueryRecordReader {
-    /// This function creates a new BAMQueryRecordReader object by reading a BAM file and initializing its fields.
+    /// Create a new BAMQueryRecordReader that wraps htslib Reader for incremental reading of a BAM / SAM file
     ///
     /// # Arguments
     ///
@@ -40,61 +40,52 @@ impl BAMQueryRecordReader {
     ///
     /// # Panics
     ///
-    /// Panics if no non-supplementary records are found in the BAM file.
+    /// Panics if file isn't in BAM / SAM format or if no non-supplementary records are found in the BAM file.
     ///
     /// # Examples
     ///
     /// ```
-    /// use my_crate::BAMQueryRecordReader;
+    /// use query_bam_records::BAMQueryRecordReader;
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// ```
     pub fn new(bam_filename: &String, thread_num: Option<usize>) -> BAMQueryRecordReader {
-
-        // Create a Reader object and open the BAM file specified by bam_filename.
-        let mut breader = Reader::from_path(bam_filename).unwrap();
-
-        // Set the number of reader threads if thread_num is provided.
-        match thread_num {
-            Some(th) => breader.set_threads(th).expect("Failed to set number of BAM reader threads."),
-            None => (),
+       let mut hts_reader = Reader::from_path(bam_filename).unwrap();
+        if let Some(n_threads) = thread_num {
+            hts_reader.set_threads(n_threads).expect(&format!("Failed to set number of threads to {}", n_threads))
         }
+        let header = hts_reader.header().to_owned();
 
-        // Get a copy of the BAM file's header.
-        let hv = breader.header().to_owned();
-
-        // init record_list by finding the first non-supplementary record
+        // Check to make sure we have a valid BAM / SAM file that contains at least one non-supplementary record
+        // by iterating through the records until we find a "representative" record.
         let mut last_qname = String::from("");
-        let mut r_list: Vec<Record> = Vec::new();
-        let mut s_list: Vec<Record> = Vec::new();
-        let mut brecord = Record::new();
+        let mut representative_reads: Vec<Record> = Vec::new();
+        let mut supplementary_reads: Vec<Record> = Vec::new();
+        let mut record = Record::new();
 
-        // Read records from the BAM file and populate the record lists.
-        while let Some(res) = breader.read(&mut brecord) {
+        while let Some(res) = hts_reader.read(&mut record) {
             res.expect("Failed to parse BAM record");
-            last_qname = String::from_utf8(brecord.qname().to_vec()).unwrap();
+            last_qname = String::from_utf8(record.qname().to_vec()).unwrap();
 
-            // Check if the record is a supplementary record or not.
-            if brecord.flags() & 0x800 != 0 {
-                s_list.push(brecord.to_owned()); // Add supplementary record to s_list.
+            // Save records and break when you find the first non-supplementary record
+            if record.flags() & 0x800 != 0 {
+                supplementary_reads.push(record.to_owned());
             } else {
-                r_list.push(brecord.to_owned()); // Add non-supplementary record to r_list.
-                break; // break as soon as the first record has been seen
+                representative_reads.push(record.to_owned());
+                break;
             }
         }
 
-        // Check if any non-supplementary records were found.
-        if r_list.is_empty() {
+        if representative_reads.is_empty() {
             panic!("Could not find any non-supplementary records in the BAM file!");
         }
 
-        // Create a new BAMQueryRecordReader object and initialize its fields.
         BAMQueryRecordReader {
-            bam_reader: breader,
-            header: hv,
+            bam_reader: hts_reader,
+            header,
             last_qname,
-            record_list: r_list,
-            supp_list: s_list,
+            record_list: representative_reads,
+            supp_list: supplementary_reads,
         }
     }
     /// Returns a reference to the header of the BAM file.
@@ -632,4 +623,3 @@ impl BAMQueryRecordReader {
         }
     }
 }
-

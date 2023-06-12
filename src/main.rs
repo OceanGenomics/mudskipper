@@ -26,7 +26,6 @@ fn main() {
     let default_max_overhang = String::from("0");
 
     let mut sys = System::new();
-    sys.refresh_all();
     sys.refresh_cpu();
     sys.refresh_memory();
     let max_num_threads: String = (sys.processors().len() as u32).to_string();

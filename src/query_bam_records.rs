@@ -31,7 +31,7 @@ pub struct BAMQueryRecordReader {
 }
 
 impl BAMQueryRecordReader {
-    // #1
+  
     /// Create a new BAMQueryRecordReader that wraps htslib Reader for incremental reading of a BAM / SAM file
     ///
     /// # Arguments
@@ -94,7 +94,6 @@ impl BAMQueryRecordReader {
         &self.header
     }
 
-    // #2
     /// Create a new Record object populating it with specific properties of sa_tag (chemeric alignment)
     ///
     /// # Arguments
@@ -149,8 +148,6 @@ impl BAMQueryRecordReader {
         }
         sa_records
     }
-
-    // #3
 
     /// Extracting the necessary information from the sa_tag string and creating a
     /// Record object to represent the primary alignment record.
@@ -209,7 +206,7 @@ impl BAMQueryRecordReader {
         }
         brecord
     }
-    // #4
+
     /// Groups the alignment records into query records based on their primary and supplementary alignments for Data organization and Optimization.
     ///
     /// # Returns
@@ -320,10 +317,8 @@ impl BAMQueryRecordReader {
         }
         Ok(record_groups)
     }
-    // #5
+
     /// Groups the alignment records into query records based on their alignment type and matching supplementary alignments, while also handling skipped queries.
-    ///
-    /// This function takes a list of alignment records and groups them into query records, considering both single-end and paired-end alignments. Each query record consists of one or two alignment records representing the primary alignment(s) and any corresponding supplementary alignments. The grouping is based on equality of the target ID (tid), position (pos), reverse flag, and CIGAR string between the alignments.
     ///
     /// # Returns
     ///
@@ -419,8 +414,6 @@ impl BAMQueryRecordReader {
         }
         record_groups
     }
-
-    /// # 6
 
     /// Retrieves the next set of query records from the BAM reader and handle's the retrieval and grouping of BAM (Binary Alignment Map) records based on their query names.
     ///

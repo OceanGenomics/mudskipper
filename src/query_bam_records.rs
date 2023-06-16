@@ -1,14 +1,16 @@
 use std::convert::TryFrom;
 
-use rust_htslib::bam::{record::Aux, record::CigarString, HeaderView, Read, Reader, Record, ext::BamRecordExtensions};
+use rust_htslib::bam::{record::Aux, record::CigarString, HeaderView, Read, Reader, Record};
 
 pub struct BAMQueryRecord {
     is_paired: bool,
     first: Vec<Record>,
+    //XXX: Maybe this should be Option<...> instead of keeping an empty vector around for single ended reads
     second: Vec<Record>,
 }
 
 impl BAMQueryRecord {
+    //XXX: Not sure why we can't access the fields directly instead of going through these
     pub fn is_paired(&self) -> bool {
         self.is_paired
     }
@@ -31,7 +33,7 @@ pub struct BAMQueryRecordReader {
 }
 
 impl BAMQueryRecordReader {
-  
+
     /// Create a new BAMQueryRecordReader that wraps htslib Reader for incremental reading of a BAM / SAM file
     ///
     /// # Arguments
@@ -94,7 +96,7 @@ impl BAMQueryRecordReader {
         &self.header
     }
 
-    /// Create a new Record object populating it with specific properties of sa_tag (chemeric alignment)
+    /// Create a new Record instance populating it with specific properties of sa_tag (chimeric alignment)
     ///
     /// # Arguments
     ///
@@ -102,33 +104,32 @@ impl BAMQueryRecordReader {
     ///
     /// # Returns
     ///
-    /// A vector containing the parsed `Record` objects representing the chimeric alignments.
+    /// A vector containing the parsed `Record` instances representing the chimeric alignments.
     ///
     /// # Examples
     ///
     /// ```
-    /// use my_crate::BAMQueryRecordReader;
+    /// use query_bam_records::BAMQueryRecordReader;
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let sa_tag = "1,100,+,10M2D30M,40,60;2,200,-,40M2I20M,35,50;";
     /// let records = reader.get_records_from_sa_tag(sa_tag);
     /// ```
 
+    //XXX: Why is this not used? Can we delete it?
     #[allow(dead_code)]
     fn get_records_from_sa_tag(&self, sa_tag: &str) -> Vec<Record> {
-
-
         let mut sa_records: Vec<Record> = Vec::new();
         for aln_str in sa_tag.split(';') {
             if !aln_str.is_empty() {
                 let mut brecord = Record::new();
                 let tag_vec: Vec<&str> = aln_str.split(',').collect();
 
-                // Parse the fourth value as a byte sequence to create a CigarString object
+                // Parse the fourth value as a byte sequence to create a CigarString instance
                 // If parsing fails, panic with an error message
                 let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
 
-                // Relevant properties of the Record object (brecord) are set correctly based on the information extracted from the SA tag substrings.
+                // Relevant properties of the Record instance (brecord) are set correctly based on the information extracted from the SA tag substrings.
                 // If an error occurs it was cause the program to panic
                 brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
                 brecord.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
@@ -149,8 +150,7 @@ impl BAMQueryRecordReader {
         sa_records
     }
 
-    /// Extracting the necessary information from the sa_tag string and creating a
-    /// Record object to represent the primary alignment record.
+    /// Parse the first supplementary alignment of an SA tag into a `Record` instance
     ///
     /// # Arguments
     ///
@@ -158,7 +158,7 @@ impl BAMQueryRecordReader {
     ///
     /// # Returns
     ///
-    /// The primary alignment `Record` object.
+    /// A `Record` instance representing the first supplementary alignment, or an empty `Record`, if no alignment information is present
     ///
     /// # Panics
     ///
@@ -167,56 +167,52 @@ impl BAMQueryRecordReader {
     /// # Examples
     ///
     /// ```
-    /// use my_crate::BAMQueryRecordReader;
+    /// use query_bam_record::BAMQueryRecordReader;
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let sa_tag = "1,100,+,10M2D30M,40,60;2,200,-,40M2I20M,35,50;";
     /// let primary_record = reader.get_primary_record_of_sa_tag(sa_tag);
     /// ```
 
+    //XXX: According to the BAM spec, SA alignments are in arbitrary order, so I'm not sure why Ehsan calls this the "primary record"
     fn get_primary_record_of_sa_tag(&self, sa_tag: &str) -> Record {
+        let mut record = Record::new();
+        if let Some(aln_str) = sa_tag.split(';').filter(|s| !s.is_empty()).next() {
+            let tag_vec: Vec<&str> = aln_str.split(',').collect();
 
-        let mut brecord = Record::new();
-        for aln_str in sa_tag.split(';') {
-            if !aln_str.is_empty() {
+            // Parse the fourth value as a byte sequence to create a CigarString instance
+            // If parsing fails, panic with an error message
+            let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
 
-                let tag_vec: Vec<&str> = aln_str.split(',').collect();
+            // Relevant properties of the Record instance (record) are set correctly based on the information extracted from the SA tag substrings.
+            // If an error occurs it will cause the program to panic.
+            record.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
+            record.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
+            record.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") - 1);
 
-                // Parse the fourth value as a byte sequence to create a CigarString object
-                // If parsing fails, panic with an error message
-                let cigar: CigarString = CigarString::try_from(tag_vec[3].as_bytes()).expect("Unable to parse cigar string.");
-
-                // Relevant properties of the Record object (brecord) are set correctly based on the information extracted from the SA tag substrings.
-                // If an error occurs it will cause the program to panic.
-                brecord.set("".as_bytes(), Some(&cigar), "".as_bytes(), "".as_bytes());
-                brecord.set_tid(self.header.tid(tag_vec[0].as_bytes()).expect("Cannot find tid for SA alignment!") as i32);
-                brecord.set_pos(tag_vec[1].parse::<i64>().expect("Cannot parse position for SA alignment!") - 1);
-
-                // Determines the orientation of the alignment (forward or reverse strand).
-                if tag_vec[2].eq("-") {
-                    brecord.set_reverse();
-                } else {
-                    brecord.unset_reverse();
-                }
-
-                // Set the mapping quality, If an error occurs it will cause the program to panic.
-                brecord.set_mapq(tag_vec[4].parse::<u8>().expect("Cannot parse MAPQ for SA alignment!"));
-                return brecord;
+            // Determines the orientation of the alignment (forward or reverse strand).
+            if tag_vec[2].eq("-") {
+                record.set_reverse();
+            } else {
+                record.unset_reverse();
             }
+
+            // Set the mapping quality, If an error occurs it will cause the program to panic.
+            record.set_mapq(tag_vec[4].parse::<u8>().expect("Cannot parse MAPQ for SA alignment!"));
         }
-        brecord
+        record
     }
 
     /// Groups the alignment records into query records based on their primary and supplementary alignments for Data organization and Optimization.
     ///
     /// # Returns
     ///
-    /// A `Result` containing a vector of `BAMQueryRecord` objects if successful, or an error message as a `String` if there is an issue with pairing the alignments.
+    /// A `Result` containing a vector of `BAMQueryRecord` instances if successful, or an error message as a `String` if there is an issue with pairing the alignments.
     ///
     /// # Example
     ///
     /// ```
-    /// use my_crate::{BAMQueryRecordReader, BAMQueryRecord};
+    /// use query_bam_records::{BAMQueryRecordReader, BAMQueryRecord};
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let record_groups = reader.group_records();
@@ -232,10 +228,6 @@ impl BAMQueryRecordReader {
     ///     }
     /// }
     /// ```
-
-    fn records_equal(a: &Record, b: &Record) -> bool {
-        a.tid() == b.tid() && a.pos() == b.pos() && a.is_reverse() == b.is_reverse() && a.cigar() == b.cigar()
-    }
 
     fn group_records(&self) -> Result<Vec<BAMQueryRecord>, String> {
         let mut record_groups: Vec<BAMQueryRecord> = Vec::new();
@@ -318,11 +310,16 @@ impl BAMQueryRecordReader {
         Ok(record_groups)
     }
 
+    fn records_equal(a: &Record, b: &Record) -> bool {
+        a.tid() == b.tid() && a.pos() == b.pos() && a.is_reverse() == b.is_reverse() && a.cigar() == b.cigar()
+    }
+
+
     /// Groups the alignment records into query records based on their alignment type and matching supplementary alignments, while also handling skipped queries.
     ///
     /// # Returns
     ///
-    /// A vector of `BAMQueryRecord` objects representing the grouped query records.
+    /// A vector of `BAMQueryRecord` instances representing the grouped query records.
     ///
     /// # Examples
     ///

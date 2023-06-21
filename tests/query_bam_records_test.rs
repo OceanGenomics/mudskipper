@@ -5,6 +5,7 @@ use mudskipper::query_bam_records::BAMQueryRecordReader;
 
 #[test]
 fn test_missing_mate() {
+    println!("Current working directory: {}", std::env::current_dir().unwrap().display());
     // setup the input BAM file
     let input_bam_filename1 = "tests/missing_mate.sam".to_string();
     let input_bam_filename2 = "tests/missing_mate2.sam".to_string();

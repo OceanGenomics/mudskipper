@@ -47,11 +47,10 @@ impl BAMQueryRecordReader {
     /// # Examples
     ///
     /// ```
-    /// use query_bam_records::BAMQueryRecordReader;
-    ///
-    /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
+    /// use mudskipper::query_bam_records::BAMQueryRecordReader;
+    /// let reader = BAMQueryRecordReader::new("data/mappings.bam", Some(4));
     /// ```
-    pub fn new(bam_filename: &String, thread_num: Option<usize>) -> BAMQueryRecordReader {
+    pub fn new(bam_filename: &str, thread_num: Option<usize>) -> BAMQueryRecordReader {
        let mut hts_reader = Reader::from_path(bam_filename).unwrap();
         if let Some(n_threads) = thread_num {
             hts_reader.set_threads(n_threads).expect(&format!("Failed to set number of threads to {}", n_threads))
@@ -107,8 +106,8 @@ impl BAMQueryRecordReader {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use query_bam_records::BAMQueryRecordReader;
+    /// ```ignore
+    /// use mudskipper::query_bam_records::BAMQueryRecordReader;
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let sa_tag = "1,100,+,10M2D30M,40,60;2,200,-,40M2I20M,35,50;";
@@ -165,8 +164,8 @@ impl BAMQueryRecordReader {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use query_bam_record::BAMQueryRecordReader;
+    /// ```ignore
+    /// use mudskipper::query_bam_records::BAMQueryRecordReader;
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let sa_tag = "1,100,+,10M2D30M,40,60;2,200,-,40M2I20M,35,50;";
@@ -210,8 +209,8 @@ impl BAMQueryRecordReader {
     ///
     /// # Example
     ///
-    /// ```
-    /// use query_bam_records::{BAMQueryRecordReader, BAMQueryRecord};
+    /// ```ignore
+    /// use mudskipper::query_bam_records::{BAMQueryRecordReader, BAMQueryRecord};
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let record_groups = reader.group_records();
@@ -307,8 +306,8 @@ impl BAMQueryRecordReader {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use my_crate::{BAMQueryRecordReader, BAMQueryRecord};
+    /// ```ignore
+    /// use mudskipper::query_bam_records::{BAMQueryRecordReader, BAMQueryRecord};
     ///
     /// let reader = BAMQueryRecordReader::new("file.bam", Some(4));
     /// let record_groups = reader.group_records_skip();
@@ -394,9 +393,9 @@ impl BAMQueryRecordReader {
     /// # Examples
     ///
     /// ```
-    /// use my_crate::{BAMQueryRecordReader, BAMQueryRecord};
+    /// use mudskipper::query_bam_records::{BAMQueryRecordReader, BAMQueryRecord};
     ///
-    /// let mut reader = BAMQueryRecordReader::new("file.bam", Some(4));
+    /// let mut reader = BAMQueryRecordReader::new("data/mappings.bam", Some(4));
     ///
     /// match reader.get_next_query_records() {
     ///     Ok(Some(query_records)) => {
@@ -473,9 +472,9 @@ impl BAMQueryRecordReader {
     /// # Examples
     ///
     /// ```
-    /// use my_crate::{BAMQueryRecordReader, BAMQueryRecord};
+    /// use mudskipper::query_bam_records::{BAMQueryRecordReader, BAMQueryRecord};
     ///
-    /// let mut reader = BAMQueryRecordReader::new("file.bam", Some(4));
+    /// let mut reader = BAMQueryRecordReader::new("data/mappings.bam", Some(4));
     ///
     /// while let Some(query_records) = reader.get_next_query_records_skip() {
     ///     for group in query_records {

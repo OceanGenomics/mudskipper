@@ -95,6 +95,7 @@ pub fn bam2bam(
             }
         }
     }
+    println!("missed records: {:?}", missed);
     missed
 }
 
@@ -166,7 +167,6 @@ pub fn bam2bam_skip(
             }
         }
     }
-    println!("missed records: {:?}", missed);
     missed
 }
 

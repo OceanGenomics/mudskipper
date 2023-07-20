@@ -166,6 +166,7 @@ pub fn bam2bam_skip(
             }
         }
     }
+    println!("missed records: {:?}", missed);
     missed
 }
 

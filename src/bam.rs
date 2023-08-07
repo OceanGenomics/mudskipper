@@ -3,7 +3,7 @@ use coitrees::COITree;
 use rust_htslib::bam::{header, Format, Header, Writer};
 
 use crate::annotation;
-use annotation::ExonNode;
+use annotation::ExonNode;   
 
 extern crate bio_types;
 
@@ -12,7 +12,29 @@ use crate::query_bam_records::BAMQueryRecordReader;
 
 extern crate fnv;
 use fnv::FnvHashMap;
-
+/// Process BAM files and generate a new BAM file.
+///
+/// This function takes input parameters including filenames, transcript information,
+/// alignment trees, thread counts, and various configuration settings, and generates
+/// a new BAM file with processed records. It returns the count of records that could
+/// not be processed successfully.
+///
+/// # Parameters
+///
+/// - `input_bam_filename`: Path to the input BAM file.
+/// - `output_bam_filename`: Path to the output BAM file to be generated.
+/// - `transcripts`: List of transcript names.
+/// - `txp_lengths`: List of transcript lengths.
+/// - `trees`: Mapping of transcript names to COITrees.
+/// - `threads_count`: Number of threads to use.
+/// - `max_softlen`: Maximum soft clipping length.
+/// - `max_overhang`: Maximum overhang length.
+/// - `required_tags`: List of required tags.
+///
+/// # Returns
+///
+/// Returns the count of missed records during processing.
+///
 #[allow(clippy::too_many_arguments)]
 pub fn bam2bam(
     input_bam_filename: &String,
@@ -34,7 +56,6 @@ pub fn bam2bam(
         output_header.push_record(header::HeaderRecord::new(b"SQ").push_tag(b"SN", &tname).push_tag(b"LN", &tlen));
     }
     let mut output_writer = Writer::from_path(output_bam_filename, &output_header, Format::Bam).unwrap();
-
     let reader_threads: Option<usize>;
     if *threads_count >= 2 {
         let threads_count_half = threads_count / 2;
@@ -50,7 +71,7 @@ pub fn bam2bam(
         log::info!("thread count: {}", threads_count);
     }
 
-    // setup the input BAM Reader
+    // setup the input BAM Readers
     let mut bqr = BAMQueryRecordReader::new(input_bam_filename, reader_threads);
     let input_header = bqr.get_header().to_owned();
 
@@ -99,7 +120,26 @@ pub fn bam2bam(
     missed
 }
 
-// skip the unpaired query for paired-end reads
+/// This function performs BAM to BAM processing with skipping based on provided parameters. 
+/// It also, skips the unpaired query for paired-end reads
+/// Returns the count of missed records during processing.
+///
+/// # Arguments
+///
+/// * `input_bam_filename` - Path to the input BAM file.
+/// * `output_bam_filename` - Path to the output BAM file.
+/// * `transcripts` - List of transcript names.
+/// * `txp_lengths` - List of transcript lengths.
+/// * `trees` - Hash map of COITrees with ExonNode and u32 types.
+/// * `threads_count` - Number of threads for processing.
+/// * `max_softlen` - Maximum soft length parameter.
+/// * `max_overhang` - Maximum overhang parameter.
+/// * `required_tags` - List of required tags.
+/// 
+/// # Returns
+///
+/// Returns the count of missed records during processing.
+///
 #[allow(clippy::too_many_arguments)]
 pub fn bam2bam_skip(
     input_bam_filename: &String,
@@ -121,7 +161,6 @@ pub fn bam2bam_skip(
         output_header.push_record(header::HeaderRecord::new(b"SQ").push_tag(b"SN", &tname).push_tag(b"LN", &tlen));
     }
     let mut output_writer = Writer::from_path(output_bam_filename, &output_header, Format::Bam).unwrap();
-
     let reader_threads: Option<usize>;
     if *threads_count >= 2 {
         let threads_count_half = threads_count / 2;
@@ -167,6 +206,7 @@ pub fn bam2bam_skip(
             }
         }
     }
+    println!("missed ba2bam skip {:?}", missed);
     missed
 }
 

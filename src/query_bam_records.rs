@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 
 use rust_htslib::bam::{record::Aux, record::CigarString, HeaderView, Read, Reader, Record};
 
+#[derive(Debug)]
 pub struct BAMQueryRecord {
     is_paired: bool,
     first: Vec<Record>,

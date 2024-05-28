@@ -820,5 +820,6 @@ pub fn convert_query_bam_records(
         let mut txp_records = convert_single_end(&first_mate[0], header_view, transcripts, trees, max_softlen, max_overhang);
         converted_records.append(&mut txp_records);
     }
+    println!(" converted recrds {:?}", converted_records);
     converted_records
 }
